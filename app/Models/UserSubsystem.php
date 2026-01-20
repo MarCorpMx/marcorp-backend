@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,21 +8,17 @@ class UserSubsystem extends Model
 {
     use HasFactory;
 
-    protected $table = 'user_subsystem';
+    protected $table = 'user_subsystems';
 
     protected $fillable = [
         'user_id',
         'subsystem_id',
-        'membership_id',
-        'role',
-        'active',
-        'activated_at',
-        'expires_at'
+        'is_paid'
     ];
 
-    public function user()
+    public function roles()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsToMany(Role::class, 'user_subsystem_roles');
     }
 
     public function subsystem()
@@ -31,13 +26,8 @@ class UserSubsystem extends Model
         return $this->belongsTo(Subsystem::class);
     }
 
-    public function membership()
+    public function user()
     {
-        return $this->belongsTo(Membership::class);
-    }
-
-    public function roles()
-    {
-        return $this->belongsToMany(Role::class, 'user_subsystem_roles');
+        return $this->belongsTo(User::class);
     }
 }

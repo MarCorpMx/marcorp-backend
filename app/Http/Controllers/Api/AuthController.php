@@ -95,27 +95,52 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'login' => 'required', // puede ser username o email
             'password' => 'required'
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        // Buscar por email O username
+        $user = User::where('email', $request->login)
+            ->orWhere('username', $request->login)
+            ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales no son correctas.']
-            ]);
+            return response()->json([
+                'message' => 'Credenciales incorrectas'
+            ], 401);
         }
 
         // Revocamos tokens previos (opcional pero recomendado)
         $user->tokens()->delete();
 
+        // Crear token Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Obtener sistemas del usuario con sus roles
+        $systems = $user->userSubsystems()
+            ->with(['subsystem', 'roles'])
+            ->get()
+            ->map(function ($us) {
+                return [
+                    'user_subsystem_id' => $us->id,
+                    'subsystem_id' => $us->subsystem->id,
+                    'subsystem_key' => $us->subsystem->key,
+                    'subsystem_name' => $us->subsystem->name,
+                    'is_paid' => (bool) $us->is_paid,
+                    'roles' => $us->roles->pluck('key') // ['root','admin','teacher',...]
+                ];
+            });
 
         return response()->json([
             'message' => 'Login exitoso',
-            'user' => $user,
-            'token' => $token
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'username' => $user->username,
+            ],
+            'systems' => $systems
         ]);
     }
 

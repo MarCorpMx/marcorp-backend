@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Subsystem;
 use App\Models\Role;
-use App\Models\UserSubsystems;
+use App\Models\UserSubsystem;
 use App\Models\UserSubsystemRole;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
@@ -29,6 +29,10 @@ class RootUserSeeder extends Seeder
             ]
         );
 
+        if ($user->id !== 1) {
+            return;
+        }
+
         // 2️⃣ Obtener el rol ROOT
         $roleRoot = Role::where('key', 'root')->first();
 
@@ -45,7 +49,7 @@ class RootUserSeeder extends Seeder
         foreach ($subsystems as $subsystem) {
 
             // 4️⃣ Crear relación usuario ↔ subsistema
-            $userSubsystem = UserSubsystems::firstOrCreate([
+            $userSubsystem = UserSubsystem::firstOrCreate([
                 'user_id' => $user->id,
                 'subsystem_id' => $subsystem->id,
             ], [
