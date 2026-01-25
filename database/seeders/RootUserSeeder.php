@@ -15,7 +15,7 @@ class RootUserSeeder extends Seeder
 {
     public function run()
     {
-        // 1️⃣ Crear usuario ROOT si no existe
+        // 1- Crear usuario ROOT si no existe
         $user = User::firstOrCreate(
             ['email' => 'omar@marcorp.com'],
             [
@@ -33,7 +33,7 @@ class RootUserSeeder extends Seeder
             return;
         }
 
-        // 2️⃣ Obtener el rol ROOT
+        // 2- Obtener el rol ROOT
         $roleRoot = Role::where('key', 'root')->first();
 
         if (!$roleRoot) {

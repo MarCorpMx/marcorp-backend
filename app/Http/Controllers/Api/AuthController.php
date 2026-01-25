@@ -94,6 +94,7 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        // Diana y Omar forever
         $request->validate([
             'login' => 'required', // puede ser username o email
             'password' => 'required'
