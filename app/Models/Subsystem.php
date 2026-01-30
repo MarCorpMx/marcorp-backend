@@ -27,4 +27,20 @@ class Subsystem extends Model
     {
         return $this->hasMany(UserSubsystem::class);
     }
+
+    /************************************************ */
+    public function organizations()
+    {
+        return $this->belongsToMany(Organization::class, 'organization_subsystems')
+            ->withPivot([
+                'plan_id',
+                'status',
+                'started_at',
+                'expires_at',
+                'cancelled_at',
+                'is_paid',
+                'metadata',
+            ])
+            ->withTimestamps();
+    }
 }

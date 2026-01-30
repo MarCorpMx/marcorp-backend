@@ -9,13 +9,16 @@ use App\Models\Role;
 use App\Models\UserSubsystem;
 use App\Models\UserSubsystemRole;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
 
 class RootUserSeeder extends Seeder
 {
     public function run()
     {
-        // 1- Crear usuario ROOT si no existe
+        /*
+        |--------------------------------------------------------------------------
+        | 1️⃣ Crear o recuperar usuario ROOT
+        |--------------------------------------------------------------------------
+        */
         $user = User::firstOrCreate(
             ['email' => 'omar@marcorp.com'],
             [
@@ -29,38 +32,49 @@ class RootUserSeeder extends Seeder
             ]
         );
 
-        if ($user->id !== 1) {
-            return;
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | 2️⃣ Crear u obtener rol ROOT
+        |--------------------------------------------------------------------------
+        */
+        $roleRoot = Role::firstOrCreate(
+            ['key' => 'root'],
+            ['name' => 'Root']
+        );
 
-        // 2- Obtener el rol ROOT
-        $roleRoot = Role::where('key', 'root')->first();
+        /*
+        |--------------------------------------------------------------------------
+        | 3️⃣ Obtener todos los subsistemas activos
+        |--------------------------------------------------------------------------
+        */
+        //$subsystems = Subsystem::where('is_active', 1)->get();
+        $subsystems = Subsystem::all();
 
-        if (!$roleRoot) {
-            $roleRoot = Role::create([
-                'key' => 'root',
-                'name' => 'Root',
-            ]);
-        }
-
-        // 3️⃣ Obtener todos los subsistemas activos
-        $subsystems = Subsystem::where('is_active', 1)->get();
-
+        /*
+        |--------------------------------------------------------------------------
+        | 4️⃣ Asignar ROOT en TODOS los subsistemas
+        |--------------------------------------------------------------------------
+        */
         foreach ($subsystems as $subsystem) {
 
-            // 4️⃣ Crear relación usuario ↔ subsistema
-            $userSubsystem = UserSubsystem::firstOrCreate([
-                'user_id' => $user->id,
-                'subsystem_id' => $subsystem->id,
-            ], [
-                'is_paid' => 1,
-            ]);
+            // Relación usuario ↔ subsistema
+            $userSubsystem = UserSubsystem::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'subsystem_id' => $subsystem->id,
+                ],
+                [
+                    'is_paid' => 1, // root ignora pagos
+                ]
+            );
 
-            // 5️⃣ Asignar rol ROOT a esa relación
-            UserSubsystemRole::firstOrCreate([
-                'user_subsystem_id' => $userSubsystem->id,
-                'role_id' => $roleRoot->id,
-            ]);
+            // Rol ROOT en ese subsistema
+            UserSubsystemRole::firstOrCreate(
+                [
+                    'user_subsystem_id' => $userSubsystem->id,
+                    'role_id' => $roleRoot->id,
+                ]
+            );
         }
     }
 }

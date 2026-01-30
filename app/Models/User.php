@@ -83,4 +83,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserSubsystem::class);
     }
+
+    /****************************************** */
+    public function organizations()
+    {
+        return $this->belongsToMany(Organization::class, 'organization_users')
+            ->withPivot(['role', 'status', 'invited_at', 'joined_at'])
+            ->withTimestamps();
+    }
 }

@@ -14,6 +14,10 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             MembershipSeeder::class,
             RootUserSeeder::class,
+            OrganizationSeeder::class,
+            ClientSeeder::class,
+            OrganizationUserSeeder::class,
+            OrganizationSubsystemSeeder::class
         ]);
     }
 }
