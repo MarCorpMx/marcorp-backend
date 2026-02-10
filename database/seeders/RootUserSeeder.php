@@ -3,20 +3,23 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\Subsystem;
-use App\Models\Role;
-use App\Models\UserSubsystem;
-use App\Models\UserSubsystemRole;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+use App\Models\User;
+use App\Models\Organization;
+use App\Models\OrganizationUser;
+use App\Models\OrganizationSubsystem;
+use App\Models\Subsystem;
+use App\Models\Plan;
 
 class RootUserSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ Crear o recuperar usuario ROOT
+        | 1️⃣ Usuario ROOT
         |--------------------------------------------------------------------------
         */
         $user = User::firstOrCreate(
@@ -28,51 +31,66 @@ class RootUserSeeder extends Seeder
                 'last_name' => 'Antunez',
                 'password' => Hash::make('Root@123456'),
                 'status' => 'active',
-                'email_verified' => 1,
+                'email_verified' => true,
             ]
         );
 
         /*
         |--------------------------------------------------------------------------
-        | 2️⃣ Crear u obtener rol ROOT
+        | 2️⃣ Organización ROOT
         |--------------------------------------------------------------------------
         */
-        $roleRoot = Role::firstOrCreate(
-            ['key' => 'root'],
-            ['name' => 'Root']
+        $organization = Organization::firstOrCreate(
+            ['owner_user_id' => $user->id],
+            [
+                'name' => 'Marcorp Root',
+                'slug' => Str::slug('marcorp-root'),
+                'status' => 'active',
+            ]
         );
 
         /*
         |--------------------------------------------------------------------------
-        | 3️⃣ Obtener todos los subsistemas activos
+        | 3️⃣ Usuario como OWNER / ROOT
         |--------------------------------------------------------------------------
         */
-        //$subsystems = Subsystem::where('is_active', 1)->get();
-        $subsystems = Subsystem::all();
+        OrganizationUser::firstOrCreate(
+            [
+                'organization_id' => $organization->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'root',
+                'status' => 'active',
+                'joined_at' => now(),
+            ]
+        );
 
         /*
         |--------------------------------------------------------------------------
-        | 4️⃣ Asignar ROOT en TODOS los subsistemas
+        | 4️⃣ Obtener PLAN PRO
         |--------------------------------------------------------------------------
         */
-        foreach ($subsystems as $subsystem) {
+        $proPlan = Plan::where('key', 'pro')->firstOrFail();
 
-            // Relación usuario ↔ subsistema
-            $userSubsystem = UserSubsystem::firstOrCreate(
+        /*
+        |--------------------------------------------------------------------------
+        | 5️⃣ Asignar TODOS los subsistemas con PLAN PRO
+        |--------------------------------------------------------------------------
+        */
+        $subsystems = Subsystem::all();
+
+        foreach ($subsystems as $subsystem) {
+            OrganizationSubsystem::firstOrCreate(
                 [
-                    'user_id' => $user->id,
+                    'organization_id' => $organization->id,
                     'subsystem_id' => $subsystem->id,
                 ],
                 [
-                    'is_paid' => 1, // root ignora pagos
-                ]
-            );
-
-            // Rol ROOT en ese subsistema
-            UserSubsystemRole::firstOrCreate(
-                [
-                    'user_subsystem_id' => $userSubsystem->id,
-                    'role_id' => $roleRoot->id,
+                    'plan_id' => $proPlan->id,
+                    'status' => 'active',
+                    'started_at' => now(),
+                    'is_paid' => true,
                 ]
             );
         }

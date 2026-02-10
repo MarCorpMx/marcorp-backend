@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Plan extends Model
+class Feature extends Model
 {
     use HasFactory;
 
@@ -13,15 +13,9 @@ class Plan extends Model
         'key',
         'name',
         'description',
-        'price',
     ];
 
-    public function userPlans()
-    {
-        return $this->hasMany(UserPlan::class);
-    }
-
-    public function features()
+    public function planSubsystemFeatures()
     {
         return $this->hasMany(PlanSubsystemFeature::class);
     }

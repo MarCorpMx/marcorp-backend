@@ -13,6 +13,8 @@ return new class extends Migration
             $table->string('key')->unique();
             $table->string('name');
             $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->string('billing_period')->default('monthly');
             $table->decimal('price', 10, 2)->default(0);
             $table->timestamps();
         });

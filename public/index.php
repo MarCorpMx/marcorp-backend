@@ -10,6 +10,11 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
     require $maintenance;
 }
 
+if (strpos($_SERVER['REQUEST_URI'], '/qa/') === 0) {
+    $_SERVER['SCRIPT_NAME'] = '/qa/index.php';
+    $_SERVER['PHP_SELF']   = '/qa/index.php';
+}
+
 // Register the Composer autoloader...
 require __DIR__.'/../vendor/autoload.php';
 

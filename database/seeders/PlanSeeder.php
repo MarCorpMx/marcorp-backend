@@ -13,20 +13,32 @@ class PlanSeeder extends Seeder
             [
                 'key' => 'free',
                 'name' => 'Plan Gratuito',
-                'description' => 'Acceso básico con módulos limitados',
+                'description' => 'Para comenzar a usar el sistema',
                 'price' => 0.00,
+            ],
+            [
+                'key' => 'basic',
+                'name' => 'Plan Básico',
+                'description' => 'Acceso básico con módulos limitados',
+                'price' => 299.00,
             ],
             [
                 'key' => 'pro',
                 'name' => 'Plan Profesional',
                 'description' => 'Acceso completo para pequeños negocios',
-                'price' => 299.00,
+                'price' => 799.00,
+            ],
+            [
+                'key' => 'premium',
+                'name' => 'Plan Premium',
+                'description' => 'Acceso corporativo con personalización',
+                'price' => 1999.00,
             ],
             [
                 'key' => 'enterprise',
                 'name' => 'Plan Empresarial',
                 'description' => 'Acceso corporativo con personalización',
-                'price' => 999.00,
+                'price' => 1999.00,
             ],
         ];
 

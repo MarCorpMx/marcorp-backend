@@ -14,6 +14,7 @@ class Subsystem extends Model
         'name',
         'description',
         'is_active',
+        'is_selectable',
     ];
 
     public function users()
