@@ -17,7 +17,7 @@ class ClientSeeder extends Seeder
         }
 
         $datosJsonTel = [
-            'Tel1' => '770 202 1345',
+            'Tel1' => '777 123 1345',
             'Tel2' => 'prueba',
             'Tel3' => 'prueba'
         ];

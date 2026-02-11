@@ -9,9 +9,14 @@ class FeatureSeeder extends Seeder
 {
     public function run(): void
     {
-        $subsystemId = 1; // Citas
+        /*
+        |--------------------------------------------------------------------------
+        | SISTEMA: CITAS (NO TOCAR)
+        |--------------------------------------------------------------------------
+        */
+        $citasSubsystemId = 2; // ← se respeta tal cual
 
-        $features = [
+        $citasFeatures = [
             [
                 'key' => 'dashboard',
                 'name' => 'Dashboard',
@@ -99,14 +104,94 @@ class FeatureSeeder extends Seeder
             ],
         ];
 
-        foreach ($features as $feature) {
+        foreach ($citasFeatures as $feature) {
             Feature::updateOrCreate(
                 [
-                    'subsystem_id' => $subsystemId,
+                    'subsystem_id' => $citasSubsystemId,
                     'key' => $feature['key'],
                 ],
                 array_merge($feature, [
-                    'subsystem_id' => $subsystemId,
+                    'subsystem_id' => $citasSubsystemId,
+                ])
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SISTEMA: WEB
+        |--------------------------------------------------------------------------
+        */
+        $webSubsystemId = 1; // ← ajusta si tu ID es otro
+
+        $webFeatures = [
+            [
+                'key' => 'dashboard',
+                'name' => 'Dashboard',
+                'description' => 'Resumen del sitio web',
+                'menu_label' => 'Dashboard',
+                'menu_route' => '/sistemas/web/dashboard',
+                'menu_icon' => 'LayoutDashboard',
+                'is_billable' => false,
+                'is_core' => true,
+                'sort_order' => 1,
+            ],
+            [
+                'key' => 'pages',
+                'name' => 'Páginas',
+                'description' => 'Gestión de páginas del sitio',
+                'menu_label' => 'Páginas',
+                'menu_route' => '/sistemas/web/paginas',
+                'menu_icon' => 'FileText',
+                'sort_order' => 2,
+            ],
+            [
+                'key' => 'blog',
+                'name' => 'Blog',
+                'description' => 'Publicaciones y artículos',
+                'menu_label' => 'Blog',
+                'menu_route' => '/sistemas/web/blog',
+                'menu_icon' => 'BookOpen',
+                'sort_order' => 3,
+            ],
+            [
+                'key' => 'forms',
+                'name' => 'Formularios',
+                'description' => 'Formularios de contacto',
+                'menu_label' => 'Formularios',
+                'menu_route' => '/sistemas/web/formularios',
+                'menu_icon' => 'Mail',
+                'sort_order' => 4,
+            ],
+            [
+                'key' => 'seo',
+                'name' => 'SEO',
+                'description' => 'Optimización para buscadores',
+                'menu_label' => 'SEO',
+                'menu_route' => '/sistemas/web/seo',
+                'menu_icon' => 'Search',
+                'sort_order' => 5,
+            ],
+            [
+                'key' => 'settings',
+                'name' => 'Configuración',
+                'description' => 'Configuración del sitio',
+                'menu_label' => 'Configuración',
+                'menu_route' => '/sistemas/web/configuracion',
+                'menu_icon' => 'Settings',
+                'is_billable' => false,
+                'is_core' => true,
+                'sort_order' => 6,
+            ],
+        ];
+
+        foreach ($webFeatures as $feature) {
+            Feature::updateOrCreate(
+                [
+                    'subsystem_id' => $webSubsystemId,
+                    'key' => $feature['key'],
+                ],
+                array_merge($feature, [
+                    'subsystem_id' => $webSubsystemId,
                 ])
             );
         }

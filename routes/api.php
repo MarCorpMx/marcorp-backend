@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\ContactMessageController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -10,6 +11,7 @@ use Illuminate\Http\Request;
 | TEST
 |--------------------------------------------------------------------------
 */
+
 Route::get('/ping', function () {
     return response()->json([
         'message' => 'Marcorp_core API is running',
@@ -26,15 +28,34 @@ Route::get('/subsystems', [\App\Http\Controllers\Api\SubsystemController::class,
 
 /*
 |--------------------------------------------------------------------------
+| Mensajes de Contacto
+|--------------------------------------------------------------------------
+*/
+Route::prefix('v1')->group(function () {
+
+    Route::post('/contact-messages', [ContactMessageController::class, 'store'])
+        ->name('api.contact-messages.store');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Mindfulness - GEMINI
+|--------------------------------------------------------------------------
+*/
+Route::post('/mindfulness', \App\Http\Controllers\Api\MindfulnessController::class);
+
+
+/*
+|--------------------------------------------------------------------------
 | AUTH
 |--------------------------------------------------------------------------
 */
 Route::prefix('auth')->group(function () {
 
     Route::post('/register', [AuthController::class, 'register']);
-    
+
     Route::post('/login', [AuthController::class, 'login']);
-    
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', function (Request $request) {
@@ -51,7 +72,7 @@ Route::prefix('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->prefix('me')->group(function () {
-   
+
     Route::get('/', [MeController::class, 'index']);
     // GET /api/me
 

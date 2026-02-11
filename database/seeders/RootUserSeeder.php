@@ -23,7 +23,7 @@ class RootUserSeeder extends Seeder
         |--------------------------------------------------------------------------
         */
         $user = User::firstOrCreate(
-            ['email' => 'omar@marcorp.com'],
+            ['email' => 'soporte@marcorp.com'],
             [
                 'username' => 'omar_root',
                 'name' => 'Omar Antunez',
@@ -41,11 +41,38 @@ class RootUserSeeder extends Seeder
         |--------------------------------------------------------------------------
         */
         $organization = Organization::firstOrCreate(
-            ['owner_user_id' => $user->id],
+            ['slug' => 'marcorp'],
             [
-                'name' => 'Marcorp Root',
-                'slug' => Str::slug('marcorp-root'),
-                'status' => 'active',
+                'name'           => 'MarCorp',
+                'type'           => 'root',
+                'is_internal'    => true,
+
+                'owner_user_id'  => $user->id,
+                'status'         => 'active',
+
+                'email'          => 'soporte@marcorp.mx',
+                'phone'          => [
+                    'principal' => '777 482 1997',
+                    'personal'  => '770 202 1345',
+                ],
+
+                // Branding MarCorp
+                'theme_key'       => 'marcorp',
+                'primary_color'   => '#18C48F',
+                'secondary_color' => '#38BDF8',
+                'logo_url'        => '/branding/marcorp-logo.svg',
+                'white_label'     => false,
+
+                // Dominio
+                'primary_domain' => 'marcorp.mx',
+                'domains'        => ['www.marcorp.mx'],
+                'force_https'    => true,
+
+                'metadata' => [
+                    'timezone' => 'America/Mexico_City',
+                    'notes'    => 'Organización root del sistema',
+                    'contact_success_message' => 'Tu mensaje fue recibido',
+                ],
             ]
         );
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace Database\Seeders;
 
 use App\Models\Organization;
@@ -10,29 +11,59 @@ class OrganizationSeeder extends Seeder
 {
     public function run(): void
     {
-        $owner = User::first();
+        /*
+        |--------------------------------------------------------------------------
+        | Usuario owner: Punto de Calma
+        |--------------------------------------------------------------------------
+        */
+        $pdcOwner = User::where('email', 'contacto@punto-de-calma.com')->first();
 
-        if (!$owner) {
+        if (!$pdcOwner) {
+            $this->command->warn('Usuario owner de Punto de Calma no encontrado.');
             return;
         }
 
-        $datosJsonTel = [
-            'Tel1' => '770 202 1345',
-            'Tel2' => 'prueba',
-            'Tel3' => 'prueba'
-        ];
+        /*
+        |--------------------------------------------------------------------------
+        | Organización CLIENTE: Punto de Calma
+        |--------------------------------------------------------------------------
+        */
+        Organization::updateOrCreate(
+            ['slug' => 'punto-de-calma'],
+            [
+                'name'          => 'Punto de Calma',
+                'type'          => 'client',
+                'is_internal'   => false,
 
-        Organization::create([
-            'name' => 'Organización Demo',
-            'slug' => Str::slug('Organización Demo'),
-            'owner_user_id' => $owner->id,
-            'status' => 'active',
-            'email' => 'contacto@demo.com',
-            'phone' => json_encode($datosJsonTel),
-            'metadata' => [
-                'plan' => 'free',
-                'timezone' => 'America/Mexico_City',
-            ],
-        ]);
+                'owner_user_id' => $pdcOwner->id,
+                'status'        => 'active',
+
+                'email' => 'contacto@punto-de-calma.com',
+                'phone' => [
+                    'consultorio' => 'xx xxxx xxxx',
+                    'personal'    => '777 351 9640',
+                ],
+
+                // Branding
+                'theme_key'       => 'punto-de-calma',
+                'primary_color'   => '#8B907E',
+                'secondary_color' => '#EEE6DC',
+                'logo_url'        => '/branding/punto-de-calma-logo.svg',
+                'white_label'     => false,
+
+                // Dominio
+                'primary_domain' => 'punto-de-calma.com',
+                'domains'        => [
+                    'www.punto-de-calma.com',
+                    'qa.punto-de-calma.com',
+                ],
+                'force_https' => true,
+
+                'metadata' => [
+                    'timezone'         => 'America/Mexico_City',
+                    'initial_use_case' => 'web',
+                ],
+            ]
+        );
     }
 }

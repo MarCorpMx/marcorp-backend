@@ -6,29 +6,58 @@ use Illuminate\Database\Seeder;
 use App\Models\Organization;
 use App\Models\Subsystem;
 use App\Models\OrganizationSubsystem;
+use App\Models\Plan;
 
 class OrganizationSubsystemSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $organizations = Organization::all();
-        $subsystems = Subsystem::where('is_active', 1)->get();
+        /*
+        |--------------------------------------------------------------------------
+        | Plan FREE
+        |--------------------------------------------------------------------------
+        */
+        $freePlan = Plan::where('key', 'free')->first();
 
-        foreach ($organizations as $organization) {
-            foreach ($subsystems as $subsystem) {
+        if (!$freePlan) {
+            $this->command->warn('Plan FREE no encontrado.');
+            return;
+        }
 
-                OrganizationSubsystem::firstOrCreate(
-                    [
-                        'organization_id' => $organization->id,
-                        'subsystem_id' => $subsystem->id,
-                    ],
-                    [
-                        'is_paid' => false,   // luego decides si se paga
-                        'status' => 'active',
-                    ]
-                );
+        /*
+        |--------------------------------------------------------------------------
+        | Subsystem WEB
+        |--------------------------------------------------------------------------
+        */
+        $webSubsystem = Subsystem::where('key', 'web')->first();
 
-            }
+        if (!$webSubsystem) {
+            $this->command->warn('Subsystem WEB no encontrado.');
+            return;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Organizaciones CLIENTE (no root)
+        |--------------------------------------------------------------------------
+        */
+        $clientOrganizations = Organization::where('type', 'client')->get();
+
+        foreach ($clientOrganizations as $organization) {
+
+            OrganizationSubsystem::firstOrCreate(
+                [
+                    'organization_id' => $organization->id,
+                    'subsystem_id'    => $webSubsystem->id,
+                ],
+                [
+                    'plan_id'   => $freePlan->id,
+                    'status'    => 'active',
+                    'is_paid'   => false,
+                    'started_at'=> now(),
+                ]
+            );
+
         }
     }
 }
