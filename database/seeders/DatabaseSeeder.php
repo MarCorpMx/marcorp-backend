@@ -23,6 +23,10 @@ class DatabaseSeeder extends Seeder
 
             // Asignación de subsistemas
             OrganizationSubsystemSeeder::class,
+
+            // Para Mails
+            OrganizationMailSettingsSeeder::class,
+            OrganizationMailTemplatesSeeder::class,
         ]);
     }
     /*

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Organization;
 use App\Models\OrganizationUser;
 use App\Models\OrganizationSubsystem;
+use App\Models\OrganizationNotificationSetting;
 use App\Models\Subsystem;
 use App\Models\Plan;
 
@@ -30,6 +31,7 @@ class RootUserSeeder extends Seeder
                 'first_name' => 'Omar',
                 'last_name' => 'Antunez',
                 'password' => Hash::make('Root@123456'),
+                //'password' => Hash::make(env('ROOT_PASSWORD', Str::random(16))),
                 'status' => 'active',
                 'email_verified' => true,
             ]
@@ -95,10 +97,35 @@ class RootUserSeeder extends Seeder
 
         /*
         |--------------------------------------------------------------------------
+        | Configuraciones de Mail
+        |--------------------------------------------------------------------------
+        */
+
+        OrganizationNotificationSetting::updateOrCreate(
+            ['organization_id' => $organization->id],
+            [
+                'notification_to' => [
+                    'soporte@marcorp.mx',
+                ],
+                'notification_bcc' => [
+                    'omar.marcorp@gmail.com',
+                ],
+                'auto_reply_enabled' => false,
+                'emergency_footer_enabled' => false,
+                'office_hours' => [
+                    'start' => '08:00',
+                    'end' => '17:00',
+                    'timezone' => 'America/Mexico_City',
+                ],
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
         | 4️⃣ Obtener PLAN PRO
         |--------------------------------------------------------------------------
         */
-        $proPlan = Plan::where('key', 'pro')->firstOrFail();
+        //$proPlan = Plan::where('key', 'pro')->firstOrFail();
 
         /*
         |--------------------------------------------------------------------------
@@ -108,6 +135,20 @@ class RootUserSeeder extends Seeder
         $subsystems = Subsystem::all();
 
         foreach ($subsystems as $subsystem) {
+            /*
+        |--------------------------------------------------------------------------
+        | Obtener PLAN PRO
+        |--------------------------------------------------------------------------
+        */
+            $proPlan = Plan::where('subsystem_id', $subsystem->id)
+                ->where('key', 'pro')
+                ->first();
+
+            if (!$proPlan) {
+                continue; // o lanzar excepción
+            }
+            /********************** */
+
             OrganizationSubsystem::firstOrCreate(
                 [
                     'organization_id' => $organization->id,

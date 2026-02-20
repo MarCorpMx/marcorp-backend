@@ -40,7 +40,7 @@ return new class extends Migration {
             $table->json('domains')->nullable();
             $table->boolean('force_https')->default(true);
 
-            // Extra
+            // Extra flexible config
             $table->json('metadata')->nullable();
 
             $table->timestamps();

@@ -81,6 +81,21 @@ class Organization extends Model
         return $this->hasMany(OrganizationSubsystem::class);
     }
 
+    public function mailSettings()
+    {
+        return $this->hasMany(OrganizationMailSetting::class);
+    }
+
+    public function mailTemplates()
+    {
+        return $this->hasMany(OrganizationMailTemplate::class);
+    }
+
+    public function notificationSetting()
+    {
+        return $this->hasOne(OrganizationNotificationSetting::class);
+    }
+
     /* =====================
      |  Scopes
      ===================== */

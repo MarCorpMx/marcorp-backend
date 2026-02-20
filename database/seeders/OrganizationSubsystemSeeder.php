@@ -17,7 +17,12 @@ class OrganizationSubsystemSeeder extends Seeder
         | Plan FREE
         |--------------------------------------------------------------------------
         */
-        $freePlan = Plan::where('key', 'free')->first();
+        $webSubsystem = Subsystem::where('key', 'web')->first(); //
+
+        //$freePlan = Plan::where('key', 'free')->first();
+        $freePlan = Plan::where('subsystem_id', $webSubsystem->id)
+            ->where('key', 'free')
+            ->first();
 
         if (!$freePlan) {
             $this->command->warn('Plan FREE no encontrado.');
@@ -54,10 +59,9 @@ class OrganizationSubsystemSeeder extends Seeder
                     'plan_id'   => $freePlan->id,
                     'status'    => 'active',
                     'is_paid'   => false,
-                    'started_at'=> now(),
+                    'started_at' => now(),
                 ]
             );
-
         }
     }
 }

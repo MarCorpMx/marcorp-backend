@@ -7,10 +7,13 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:4200', // Angular local
+        'http://localhost:4200',
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/^https:\/\/([a-z0-9-]+\.)?punto-de-calma\.com$/',
+        '/^https:\/\/([a-z0-9-]+\.)?marcorp\.mx$/',
+    ],
 
     'allowed_headers' => ['*'],
 
