@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +17,11 @@ class Plan extends Model
         'price',
         'billing_period',
         'is_active',
+        'is_visible',
+        'is_featured',
+        'is_limited',
+        'max_sales',
+        'sales_count',
     ];
 
     // 🔗 El plan pertenece a un sistema

@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Client extends Model
 {
+    use HasFactory;
+    
     protected $fillable = [
         'organization_id',
         'first_name',
@@ -21,7 +24,7 @@ class Client extends Model
         'phone' => 'array',
     ];
 
-    
+
     /* =====================
      | Relaciones
      ===================== */
@@ -29,5 +32,10 @@ class Client extends Model
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(ClientNote::class);
     }
 }

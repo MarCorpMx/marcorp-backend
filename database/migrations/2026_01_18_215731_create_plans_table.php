@@ -8,6 +8,13 @@ return new class extends Migration
 {
     public function up()
     {
+        /* 2026_02_20_104211_add_advanced_fields_to_plans_table -> Agrega nuevos campos: 
+            is_visible => Para ocultar Founder del pricing público
+            is_limited => Para marcar que tiene cupo
+            max_sales => Para limitar cantidad vendida
+            sales_count => Para llevar control sin hacer queries pesadas
+            is_featured => Para destacar plan Pro en frontend
+        */
         Schema::create('plans', function (Blueprint $table) {
             $table->id();
 

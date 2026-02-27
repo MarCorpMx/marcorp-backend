@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
 
             // Usuarios + organizaciones
             RootUserSeeder::class,
-            ClientUserSeeder::class,
+            ClientUserSeeder::class, // Crea Punto de Calma
             //ClientSeeder::class,
 
             // Asignación de subsistemas
@@ -27,6 +27,11 @@ class DatabaseSeeder extends Seeder
             // Para Mails
             OrganizationMailSettingsSeeder::class,
             OrganizationMailTemplatesSeeder::class,
+
+            // Punto-de-Calma -> Configuraciones
+            PuntoDeCalmaServicesSeeder::class,
+            //AgendaDemoSeeder::class,  
+            PuntoDeCalmaDemoSeeder::class,
         ]);
     }
     /*

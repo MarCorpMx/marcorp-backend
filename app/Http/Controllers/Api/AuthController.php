@@ -122,10 +122,23 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         $systems = OrganizationUser::where('user_id', $user->id)
+            /*->with([
+                'organization.subsystems.subsystem',
+                'organization.subsystems.plan',
+            ])*/
+
             ->with([
+                'organization.subsystems' => function ($query) {
+                    $query->whereHas('subsystem', function ($q) {
+                        $q->where('is_active', true)
+                            ->where('is_selectable', true);
+                    });
+                },
                 'organization.subsystems.subsystem',
                 'organization.subsystems.plan',
             ])
+
+
             ->get()
             ->flatMap(function ($orgUser) {
                 return $orgUser->organization->subsystems->map(function ($orgSubsystem) use ($orgUser) {
@@ -151,7 +164,7 @@ class AuthController extends Controller
 
                         'has_active_plan' => (bool) $plan,
                         'plan_key' => $plan->key,
-                        
+
                         'status' => $orgSubsystem->status,
                         'is_paid' => $orgSubsystem->is_paid,
 

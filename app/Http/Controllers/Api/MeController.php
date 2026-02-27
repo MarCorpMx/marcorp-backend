@@ -206,4 +206,43 @@ class MeController extends Controller
             })
         );
     }
+
+    /**
+     * GET /api/me/organization
+     * Obtener los datos de la organización
+     */
+    public function organization(Request $request)
+    {
+        $organization = $request->user()->currentOrganization();
+
+        return response()->json($organization);
+    }
+
+    /**
+     * PUT /api/me/organization
+     * Actualizar los datos de la organización
+     */
+    public function updateOrganization(Request $request)
+    {
+        $organization = $request->user()->currentOrganization();
+
+        $organization->update($request->only([
+            'name',
+            'email',
+            'phone',
+            'website',
+            'country',
+            'state',
+            'city',
+            'zip_code',
+            'address',
+            'primary_color',
+            'secondary_color',
+        ]));
+
+        return response()->json([
+            'message' => 'Perfil actualizado correctamente',
+            'organization' => $organization->fresh()
+        ]);
+    }
 }

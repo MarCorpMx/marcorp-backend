@@ -15,6 +15,7 @@ class FeatureSeeder extends Seeder
         |--------------------------------------------------------------------------
         */
         $citasSubsystemId = 2; // ← se respeta tal cual
+        //$subsystem = Subsystem::where('key', 'citas')->first();
 
         $citasFeatures = [
             [

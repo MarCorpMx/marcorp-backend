@@ -91,4 +91,16 @@ class User extends Authenticatable
             ->withPivot(['role', 'status', 'invited_at', 'joined_at'])
             ->withTimestamps();
     }
+
+    public function currentOrganization()
+    {
+        return $this->organizations()
+            ->wherePivot('status', 'active')
+            ->first();
+    }
+
+    public function clientNotes()
+    {
+        return $this->hasMany(ClientNote::class, 'author_id');
+    }
 }

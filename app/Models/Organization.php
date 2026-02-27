@@ -29,6 +29,14 @@ class Organization extends Model
         // Contacto
         'phone',
         'email',
+        'website',
+
+        // Ubicación
+        'country',
+        'state',
+        'city',
+        'zip_code',
+        'address',
 
         // Branding / White-label
         'theme_key',
@@ -96,6 +104,21 @@ class Organization extends Model
         return $this->hasOne(OrganizationNotificationSetting::class);
     }
 
+    public function services()
+    {
+        return $this->hasMany(Service::class);
+    }
+
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     /* =====================
      |  Scopes
      ===================== */
@@ -151,6 +174,17 @@ class Organization extends Model
             'secondary_color' => $this->secondary_color ?? '#38BDF8',
             'logo_url'        => $this->logo_url ?? asset('branding/marcorp-logo.svg'),
         ];
+    }
+
+    public function fullAddress(): string
+    {
+        return collect([
+            $this->address,
+            $this->city,
+            $this->state,
+            $this->zip_code,
+            $this->country,
+        ])->filter()->implode(', ');
     }
 
     /* =====================

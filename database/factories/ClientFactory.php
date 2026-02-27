@@ -4,20 +4,26 @@ namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Client>
- */
 class ClientFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            //
+            'first_name' => fake()->firstName(),
+            'last_name'  => fake()->optional()->lastName(),
+
+            'phone' => [
+                'mobile' => fake()->phoneNumber(),
+            ],
+
+            // 👇 Forma segura
+            'email' => fake()->boolean(70)
+                ? fake()->unique()->safeEmail()
+                : null,
+
+            'notes' => fake()->optional()->sentence(),
+
+            'is_active' => true,
         ];
     }
 }

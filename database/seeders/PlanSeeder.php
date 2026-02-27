@@ -47,32 +47,67 @@ class PlanSeeder extends Seeder
                 [
                     'key' => 'free',
                     'name' => 'Plan Gratuito',
-                    'description' => 'Para comenzar a usar el sistema',
+                    'description' => 'Para comenzar a usar el sistema con funcionalidades básicas.',
                     'price' => 0.00,
+                    'billing_period' => 'monthly',
+                    'is_active' => true,
+                    'is_visible' => true,
+                    'is_featured' => false,
+                    'is_limited' => false,
+                    'max_sales' => null,
+                    'sales_count' => 0,
                 ],
                 [
                     'key' => 'basic',
                     'name' => 'Plan Básico',
-                    'description' => 'Acceso básico con módulos limitados',
+                    'description' => 'Ideal para profesionales independientes que inician.',
                     'price' => 299.00,
+                    'billing_period' => 'monthly',
+                    'is_active' => true,
+                    'is_visible' => true,
+                    'is_featured' => false,
+                    'is_limited' => false,
+                    'max_sales' => null,
+                    'sales_count' => 0,
                 ],
                 [
                     'key' => 'pro',
                     'name' => 'Plan Profesional',
-                    'description' => 'Acceso completo para pequeños negocios',
+                    'description' => 'Para clínicas y equipos pequeños que necesitan funciones avanzadas.',
                     'price' => 799.00,
+                    'billing_period' => 'monthly',
+                    'is_active' => true,
+                    'is_visible' => true,
+                    'is_featured' => true, // ⭐ tu plan estrella
+                    'is_limited' => false,
+                    'max_sales' => null,
+                    'sales_count' => 0,
                 ],
                 [
                     'key' => 'premium',
                     'name' => 'Plan Premium',
-                    'description' => 'Acceso corporativo con personalización',
+                    'description' => 'Para clínicas establecidas con mayor volumen y necesidades avanzadas.',
                     'price' => 1999.00,
+                    'billing_period' => 'monthly',
+                    'is_active' => true,
+                    'is_visible' => true,
+                    'is_featured' => false,
+                    'is_limited' => false,
+                    'max_sales' => null,
+                    'sales_count' => 0,
                 ],
                 [
-                    'key' => 'enterprise',
-                    'name' => 'Plan Empresarial',
-                    'description' => 'Acceso corporativo con personalización',
-                    'price' => 1999.00,
+                    'key' => 'founder_lifetime',
+                    'name' => 'Founder Lifetime (Edición Limitada)',
+                    'description' => 'Acceso de por vida al Plan Profesional para miembros fundadores. Cupos limitados.',
+                    'price' => 8999.00,
+                    'billing_period' => 'lifetime',
+                    'is_active' => true,
+                    'is_visible' => false, // 🔒 no aparece en pricing público
+                    'is_featured' => false,
+                    'is_limited' => true,
+                    'max_sales' => 20, // 🔥 límite real
+                    'sales_count' => 0,
                 ],
             ],
 
@@ -117,18 +152,26 @@ class PlanSeeder extends Seeder
             }
 
             foreach ($subsystemPlans as $planData) {
+
+                $defaults = [
+                    'billing_period' => 'monthly',
+                    'is_active' => true,
+                    'is_visible' => true,
+                    'is_featured' => false,
+                    'is_limited' => false,
+                    'max_sales' => null,
+                    'sales_count' => 0,
+                ];
+
+                $planData = array_merge($defaults, $planData);
+                $planData['subsystem_id'] = $subsystem->id;
+
                 Plan::updateOrCreate(
                     [
                         'subsystem_id' => $subsystem->id,
                         'key' => $planData['key'],
                     ],
-                    [
-                        'name' => $planData['name'],
-                        'description' => $planData['description'],
-                        'price' => $planData['price'],
-                        'billing_period' => 'monthly',
-                        'is_active' => true,
-                    ]
+                    $planData
                 );
             }
         }
