@@ -8,15 +8,25 @@ class ClientFactory extends Factory
 {
     public function definition(): array
     {
+        $countryCode = 'MX';
+        $dialCode = '+52';
+
+        $national = fake()->numerify('55########');
+        $e164 = $dialCode . $national;
+
         return [
             'first_name' => fake()->firstName(),
             'last_name'  => fake()->optional()->lastName(),
 
             'phone' => [
-                'mobile' => fake()->phoneNumber(),
+                'number' => $e164,
+                'internationalNumber' => $dialCode . ' ' . $national,
+                'nationalNumber' => $national,
+                'e164Number' => $e164,
+                'countryCode' => $countryCode,
+                'dialCode' => $dialCode,
             ],
 
-            // 👇 Forma segura
             'email' => fake()->boolean(70)
                 ? fake()->unique()->safeEmail()
                 : null,

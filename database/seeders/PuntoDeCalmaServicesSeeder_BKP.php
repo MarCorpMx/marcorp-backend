@@ -21,9 +21,6 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 return;
             }
 
-            // 🔥 Obtener staff principal (el primero que exista)
-            $staff = StaffMember::where('organization_id', $organization->id)->first();
-
             /*
             |--------------------------------------------------------------------------
             | 1 Psicoterapia Humanista (PRIMERO)
@@ -42,7 +39,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ]
             );
 
-            $variant1 = ServiceVariant::updateOrCreate(
+            ServiceVariant::updateOrCreate(
                 [
                     'service_id' => $psicoterapia->id,
                     'name' => 'Sesión individual',
@@ -51,15 +48,11 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'duration_minutes' => 50,
                     'price' => 600,
                     'max_capacity' => 1,
-                    'mode' => 'hybrid',
+                    'mode' => 'hybrid', // presencial o en línea
                     'includes_material' => false,
                     'active' => true,
                 ]
             );
-
-            if ($staff) {
-                $variant1->staff()->sync([$staff->id]);
-            }
 
             /*
             |--------------------------------------------------------------------------
@@ -79,7 +72,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ]
             );
 
-            $variant2 = ServiceVariant::updateOrCreate(
+            ServiceVariant::updateOrCreate(
                 [
                     'service_id' => $masaje->id,
                     'name' => 'Sesión individual',
@@ -88,15 +81,11 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'duration_minutes' => 60,
                     'price' => 600,
                     'max_capacity' => 1,
-                    'mode' => 'presential',
+                    'mode' => 'presential', // presencial o en línea
                     'includes_material' => true,
                     'active' => true,
                 ]
             );
-
-            if ($staff) {
-                $variant2->staff()->sync([$staff->id]);
-            }
 
             /*
             |--------------------------------------------------------------------------
@@ -116,7 +105,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ]
             );
 
-            $variant3 = ServiceVariant::updateOrCreate(
+            ServiceVariant::updateOrCreate(
                 [
                     'service_id' => $auri->id,
                     'name' => 'Sesión individual',
@@ -125,15 +114,12 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'duration_minutes' => 40,
                     'price' => 400,
                     'max_capacity' => 1,
-                    'mode' => 'presential',
+                    'mode' => 'presential', // presencial o en línea
                     'includes_material' => false,
                     'active' => true,
                 ]
             );
 
-            if ($staff) {
-                $variant3->staff()->sync([$staff->id]);
-            }
 
             /*
             |--------------------------------------------------------------------------
@@ -176,17 +162,14 @@ class PuntoDeCalmaServicesSeeder extends Seeder
 
             foreach ($variants as $variantData) {
 
-                $variant = ServiceVariant::updateOrCreate(
+                ServiceVariant::updateOrCreate(
                     [
                         'service_id' => $arteterapia->id,
                         'name' => $variantData['name'],
                     ],
                     $variantData
                 );
-
-                if ($staff) {
-                    $variant->staff()->sync([$staff->id]);
-                }
+                
             }
         });
     }

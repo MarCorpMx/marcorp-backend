@@ -18,10 +18,14 @@ return new class extends Migration
                 ->constrained()
                 ->onDelete('cascade');
 
-            $table->unsignedTinyInteger('day_of_week'); // 0-6
+            // 0 = Domingo, 6 = Sábado
+            $table->unsignedTinyInteger('day_of_week'); 
 
             $table->time('start_time');
             $table->time('end_time');
+
+            // Si trabaja en bloques (mañana / tarde)
+            $table->boolean('is_active')->default(true);
 
             $table->timestamps();
         });

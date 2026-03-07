@@ -22,15 +22,15 @@ class ClientUserSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | 1️⃣ Usuario Michell
+            | 1️⃣ Usuario Michelle
             |--------------------------------------------------------------------------
             */
             $michel = User::firstOrCreate(
                 ['email' => 'contacto@punto-de-calma.com'],
                 [
                     'username'       => 'michell_admin',
-                    'name'           => 'Michell Martínez',
-                    'first_name'     => 'Michell',
+                    'name'           => 'Michelle Martínez',
+                    'first_name'     => 'Michelle',
                     'last_name'      => 'Martínez Hernández',
                     //'password'       => Hash::make(env('CLIENT_DEFAULT_PASSWORD', 'Admin@123456')),
                     'password'       => Hash::make('Admin@123456'),
@@ -63,7 +63,7 @@ class ClientUserSeeder extends Seeder
                     'theme_key'      => 'punto-de-calma',
                     'primary_color'  => '#8B907E',
                     'secondary_color' => '#EEE6DC',
-                    'logo_url'       => '/branding/punto-de-calma-logo.svg',
+                    'logo_url'       => 'organizations/logos/punto-de-calma.png',
                     'white_label'    => false,
                     'primary_domain' => 'punto-de-calma.com',
                     'domains'        => [
@@ -82,7 +82,7 @@ class ClientUserSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | 3️⃣ Asociar Michell como OWNER
+            | 3️⃣ Asociar Michelle como OWNER
             |--------------------------------------------------------------------------
             */
             OrganizationUser::firstOrCreate(

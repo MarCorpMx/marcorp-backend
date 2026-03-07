@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-class ProfessionalSchedule extends Model
+class StaffMemberSchedule extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'professional_id',
+        'staff_member_id',
         'day_of_week',
         'start_time',
         'end_time',
@@ -24,14 +24,8 @@ class ProfessionalSchedule extends Model
         'end_time' => 'datetime:H:i',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | RELATIONS
-    |--------------------------------------------------------------------------
-    */
-
-    public function professional()
+    public function staffMember()
     {
-        return $this->belongsTo(Professional::class);
+        return $this->belongsTo(StaffMember::class);
     }
 }

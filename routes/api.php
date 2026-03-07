@@ -5,9 +5,10 @@ use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ServiceController;
 
-use App\Http\Controllers\Api\ProfessionalController;
-use App\Http\Controllers\Api\AgendaController;
-use App\Http\Controllers\Api\NonWorkingDayController;
+use App\Http\Controllers\Api\StaffMemberController;
+use App\Http\Controllers\Api\StaffMemberAgendaController;
+use App\Http\Controllers\Api\StaffMemberNonWorkingDayController;
+use App\Http\Controllers\Api\StaffMemberScheduleController;
 
 use App\Http\Controllers\Api\ScheduleSettingController; // Verificar uso
 
@@ -67,7 +68,6 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', function (Request $request) {
-            //return response()->json($request->user());
             return $request->user();
         });
     });
@@ -106,10 +106,28 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | APPOINTMENTS (CITAS DEL USUARIO AUTENTICADO)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/appointments', [\App\Http\Controllers\Api\AppointmentController::class, 'index']);
+    Route::post('/appointments', [\App\Http\Controllers\Api\AppointmentController::class, 'store']);
+    Route::get('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'show']);
+    Route::put('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'update']);
+    Route::delete('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'destroy']);
+
+    /*
+    |--------------------------------------------------------------------------
     | SERVICES (Servicios de la organización)
     |--------------------------------------------------------------------------
     */
-    Route::get('/services', [ServiceController::class, 'index']);
+    Route::get('/services', [ServiceController::class, 'index']); // Administración
+    Route::get('/services/list', [ServiceController::class, 'list']); // select interno
+    Route::get('/service-variants/list', [ServiceController::class, 'listVariants']); // select interno
+
+    Route::get('/my-services', [ServiceController::class, 'my-services']); // servicios del staff autenticado
+    Route::get('/service-variants/{id}/staff', [ServiceController::class, 'staff']); // Staff por variante de servicio
+    // /public/services → web pública
+
     Route::post('/services', [ServiceController::class, 'store']);
     Route::get('/services/{service}', [ServiceController::class, 'show']);
     Route::put('/services/{service}', [ServiceController::class, 'update']);
@@ -119,18 +137,69 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('/schedule-settings', [ScheduleSettingController::class, 'getSchedule']);
     Route::put('/schedule-settings', [ScheduleSettingController::class, 'updateSchedule']);
 
-    // v2 para Configuración - Agenda
-    Route::get('/professionals', [ProfessionalController::class, 'index']);
-    Route::post('/professionals', [ProfessionalController::class, 'store']);
-    Route::put('/professionals/{professional}', [ProfessionalController::class, 'update']);
-    Route::delete('/professionals/{professional}', [ProfessionalController::class, 'destroy']);
+    /*
+    |--------------------------------------------------------------------------
+    | STAFF MEMBERS (Profesionales unificados)
+    |--------------------------------------------------------------------------
+    */
 
-    Route::get('/professionals/{professional}/agenda', [AgendaController::class, 'show']);
-    Route::put('/professionals/{professional}/agenda', [AgendaController::class, 'update']);
+    Route::get('/staff-members', [StaffMemberController::class, 'index']);
+    Route::post('/staff-members', [StaffMemberController::class, 'store']);
+    Route::get('/staff-members/{staffMember}', [StaffMemberController::class, 'show']);
+    Route::put('/staff-members/{staffMember}', [StaffMemberController::class, 'update']);
+    Route::delete('/staff-members/{staffMember}', [StaffMemberController::class, 'destroy']);
 
-    Route::get('/professionals/{professional}/non-working-days', [NonWorkingDayController::class, 'index']);
-    Route::post('/professionals/{professional}/non-working-days', [NonWorkingDayController::class, 'store']);
-    Route::delete('/professionals/{professional}/non-working-days/{day}', [NonWorkingDayController::class, 'destroy']);
+    /*
+    |--------------------------------------------------------------------------
+    | STAFF MEMBER - AGENDA
+    |--------------------------------------------------------------------------
+    */
+    Route::get(
+        '/staff-members/{staffMember}/agenda',
+        [StaffMemberAgendaController::class, 'show']
+    );
+
+    Route::put(
+        '/staff-members/{staffMember}/agenda',
+        [StaffMemberAgendaController::class, 'update']
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | STAFF MEMBER - NON WORKING DAYS
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/staff-members/{staffMember}/non-working-days',
+        [StaffMemberNonWorkingDayController::class, 'index']
+    );
+
+    Route::post(
+        '/staff-members/{staffMember}/non-working-days',
+        [StaffMemberNonWorkingDayController::class, 'store']
+    );
+
+    Route::delete(
+        '/staff-members/{staffMember}/non-working-days/{day}',
+        [StaffMemberNonWorkingDayController::class, 'destroy']
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | STAFF MEMBER - SCHEDULES (si los manejas separados)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/staff-members/{staffMember}/schedules',
+        [StaffMemberScheduleController::class, 'index']
+    );
+
+    Route::put(
+        '/staff-members/{staffMember}/schedules',
+        [StaffMemberScheduleController::class, 'update']
+    );
 
 
     /*
@@ -139,6 +208,7 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/clients', [\App\Http\Controllers\Api\ClientController::class, 'index']);
+    Route::get('/clients/list', [\App\Http\Controllers\Api\ClientController::class, 'list']); // select interno
     Route::post('/clients', [\App\Http\Controllers\Api\ClientController::class, 'store']);
     Route::get('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'show']);
     Route::put('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'update']);
@@ -149,7 +219,6 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     | CLIENTE - CITAS
     |--------------------------------------------------------------------------
     */
-
     Route::get(
         '/clients/{client}/appointments',
         [\App\Http\Controllers\Api\ClientAppointmentController::class, 'index']
@@ -160,7 +229,6 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     | CLIENTE - NOTAS (futuro clínico)
     |--------------------------------------------------------------------------
     */
-
     Route::get(
         '/clients/{client}/notes',
         [\App\Http\Controllers\Api\ClientNoteController::class, 'index']
@@ -183,16 +251,37 @@ Route::prefix('v1/public')
     ->middleware(['throttle:60,1'])
     ->group(function () {
 
+        // Organización pública
+        Route::get(
+            '{organization:slug}',
+            [\App\Http\Controllers\Api\PublicOrganizationController::class, 'show']
+        );
+
+        // Servicios públicos de la organización
         Route::get(
             '{organization:slug}/services',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'services']
         );
 
+        // Variantes del servicio
+        Route::get(
+            '{organization:slug}/services/{service}/variants',
+            [\App\Http\Controllers\Api\PublicBookingController::class, 'variants']
+        );
+
+        // Staff disponible para esa variante
+        Route::get(
+            '{organization:slug}/service-variants/{variant}/staff',
+            [\App\Http\Controllers\Api\PublicBookingController::class, 'staff']
+        );
+
+        // Disponibilidad de agenda
         Route::get(
             '{organization:slug}/availability',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'availability']
         );
 
+        // Crear cita
         Route::post(
             '{organization:slug}/appointments',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'store']

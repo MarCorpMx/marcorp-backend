@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-class NonWorkingDay extends Model
+class StaffMemberNonWorkingDay extends Model
 {
     use HasFactory;
 
+    protected $table = 'staff_member_non_working_days';
+
     protected $fillable = [
-        'professional_id',
+        'staff_member_id',
         'date',
         'reason',
     ];
@@ -21,12 +23,12 @@ class NonWorkingDay extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | RELATIONS
+    | Relationships
     |--------------------------------------------------------------------------
     */
 
-    public function professional()
+    public function staffMember()
     {
-        return $this->belongsTo(Professional::class);
+        return $this->belongsTo(StaffMember::class);
     }
 }

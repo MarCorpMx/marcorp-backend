@@ -119,6 +119,11 @@ class Organization extends Model
         return 'slug';
     }
 
+    public function staffMembers()
+    {
+        return $this->hasMany(StaffMember::class);
+    }
+
     /* =====================
      |  Scopes
      ===================== */
@@ -195,5 +200,13 @@ class Organization extends Model
     {
         return $this->primary_domain === $domain
             || in_array($domain, $this->domains ?? []);
+    }
+
+    /* =====================
+     |  Dominio helpers
+     ===================== */
+    public function getTimezoneAttribute(): string
+    {
+        return data_get($this->metadata, 'timezone', 'America/Mexico_City');
     }
 }

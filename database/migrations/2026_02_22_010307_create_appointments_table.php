@@ -26,8 +26,8 @@ return new class extends Migration
 
             $table->unsignedInteger('capacity_reserved')->default(1);
 
-            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'no_show'])
-                ->default('confirmed');
+            $table->enum('status', ['pending', 'confirmed', 'completed', 'rescheduled', 'cancelled', 'no_show'])
+                ->default('pending');
 
             $table->enum('source', ['public_web', 'admin_panel'])
                 ->default('public_web');

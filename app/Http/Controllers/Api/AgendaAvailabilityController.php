@@ -3,30 +3,30 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Professional;
+use App\Models\StaffMember;
 use App\Services\AgendaAvailabilityService;
 use Illuminate\Http\Request;
 
 class AgendaAvailabilityController extends Controller
 {
-    public function index(Request $request, $professionalId)
+    public function index(Request $request, $staffMemberId)
     {
         $request->validate([
             'date' => 'required|date',
         ]);
 
-        $professional = Professional::findOrFail($professionalId);
+        $staffMember = StaffMember::findOrFail($staffMemberId);
 
         $service = new AgendaAvailabilityService();
 
         $slots = $service->getAvailableSlots(
-            $professional,
+            $staffMember,
             $request->date
         );
 
         return response()->json([
             'date' => $request->date,
-            'professional' => $professional->name,
+            'staffMember' => $staffMember->name,
             'slots' => $slots,
         ]);
     }

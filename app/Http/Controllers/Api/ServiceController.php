@@ -58,9 +58,131 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
+    | myServices
+    |--------------------------------------------------------------------------
+    */
+    public function myServices(Request $request)
+    {
+        $user = $request->user();
+        $organization = $this->getOrganization($request);
+
+        return $organization->services()
+            ->whereHas('variants.staff', function ($q) use ($user) {
+                $q->where('staff_id', $user->staff->id);
+            })
+            ->with('variants')
+            ->get();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | List
+    |--------------------------------------------------------------------------
+    */
+    public function list(Request $request)
+    {
+        $organization = $this->getOrganization($request);
+        //$user = $request->user();
+
+        $servicesQuery = $organization->services()
+            ->where('active', true);
+
+        // Si NO es admin
+        /*if ($user->role !== 'admin') {
+
+            $servicesQuery->whereHas('variants.staff', function ($q) use ($user) {
+                $q->where('staff_id', $user->staff->id);
+            });
+        }*/
+
+        return $servicesQuery
+            ->orderBy('name')
+            ->limit(100)
+            ->get()
+            ->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'name' => $service->name,
+                ];
+            })
+            ->values();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | List Variants
+    |--------------------------------------------------------------------------
+    */
+    public function listVariants(Request $request)
+    {
+        $organization = $this->getOrganization($request);
+        //$user = $request->user();
+
+        $variantsQuery = \App\Models\ServiceVariant::query()
+            ->whereHas('service', function ($q) use ($organization) {
+                $q->where('organization_id', $organization->id)
+                    ->where('active', true);
+            })
+            ->where('active', true);
+
+        // Si no es admin → solo variantes donde él puede dar el servicio
+        /*if ($user->role !== 'admin') {
+
+            $variantsQuery->whereHas('staff', function ($q) use ($user) {
+                $q->where('staff_member_id', $user->staff->id);
+            });
+        }*/
+
+        return $variantsQuery
+            ->with('service:id,name')
+            ->orderBy('name')
+            ->limit(100)
+            ->get()
+            ->map(function ($variant) {
+                return [
+                    'id' => $variant->id,
+                    'label' => $variant->service->name . ' - ' . $variant->name,
+                    'duration' => $variant->duration_minutes,
+                    'price' => $variant->price,
+                ];
+            })
+            ->values();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Staff
+    |--------------------------------------------------------------------------
+    */
+    public function staff(Request $request, $variantId)
+    {
+        $organization = $this->getOrganization($request);
+
+        $variant = \App\Models\ServiceVariant::query()
+            ->whereHas('service', function ($q) use ($organization) {
+                $q->where('organization_id', $organization->id);
+            })
+            ->with('staff:id,name')
+            ->findOrFail($variantId);
+
+        return $variant->staff->map(function ($staff) {
+            return [
+                'id' => $staff->id,
+                'name' => $staff->name,
+            ];
+        });
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Store
     |--------------------------------------------------------------------------
     */
+
+    /* rombi -> mejora
+hacer que cuando un admin cree un servicio se asigne automáticamente a TODO el staff activo (como hacen plataformas tipo agenda profesional).
+Eso evita un problema común en sistemas de reservas.*/
 
     public function store(Request $request)
     {
@@ -84,7 +206,12 @@ class ServiceController extends Controller
             'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
         ]);
 
-        $service = DB::transaction(function () use ($validated, $organization) {
+        $user = $request->user();
+        $staffId = $organization->staffMembers()
+            ->where('user_id', $user->id)
+            ->value('id');
+
+        $service = DB::transaction(function () use ($validated, $organization, $staffId) {
 
             $service = $organization->services()->create([
                 'name' => $validated['name'],
@@ -106,12 +233,16 @@ class ServiceController extends Controller
 
                 if (!empty($variantData['staff_ids'])) {
 
-                    // MULTI-TENANT PROTECTION REAL
                     $validStaffIds = $organization->staffMembers()
                         ->whereIn('id', $variantData['staff_ids'])
                         ->pluck('id')
                         ->toArray();
+                } else {
 
+                    $validStaffIds = $staffId ? [$staffId] : [];
+                }
+
+                if (!empty($validStaffIds)) {
                     $variant->staff()->sync($validStaffIds);
                 }
             }

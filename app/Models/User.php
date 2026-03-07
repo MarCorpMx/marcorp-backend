@@ -103,4 +103,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(ClientNote::class, 'author_id');
     }
+
+    public function staff()
+    {
+        return $this->hasOne(StaffMember::class);
+    }
 }

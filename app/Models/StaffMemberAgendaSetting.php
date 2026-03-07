@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-class AgendaSetting extends Model
+class StaffMemberAgendaSetting extends Model
 {
     use HasFactory;
 
+    protected $table = 'staff_member_agenda_settings';
+
     protected $fillable = [
-        'professional_id',
+        'staff_member_id',
         'appointment_duration',
         'break_between_appointments',
         'allow_online_booking',
@@ -31,12 +33,12 @@ class AgendaSetting extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | RELATIONS
+    | Relationships
     |--------------------------------------------------------------------------
     */
 
-    public function professional()
+    public function staffMember()
     {
-        return $this->belongsTo(Professional::class);
+        return $this->belongsTo(StaffMember::class);
     }
 }
