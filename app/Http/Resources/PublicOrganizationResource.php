@@ -17,8 +17,11 @@ class PublicOrganizationResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
 
-            'logo_url' => $this->logo_url
+            /*'logo_url' => $this->logo_url
                 ? Storage::url($this->logo_url)
+                : null,*/
+            'logo_url' => $this->logo_url
+                ? url(Storage::url($this->logo_url))
                 : null,
 
             'primary_color' => $this->primary_color,
