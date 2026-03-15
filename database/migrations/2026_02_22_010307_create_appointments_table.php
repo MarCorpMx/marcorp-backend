@@ -15,7 +15,6 @@ return new class extends Migration
 
             $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             
-            //$table->foreignId('service_id')->constrained()->cascadeOnDelete();
             $table->foreignId('service_variant_id')->constrained()->cascadeOnDelete();
 
             $table->foreignId('staff_member_id')->nullable()->constrained()->nullOnDelete();
@@ -25,6 +24,8 @@ return new class extends Migration
             $table->dateTime('end_datetime');
 
             $table->unsignedInteger('capacity_reserved')->default(1);
+
+            $table->text('mode')->nullable();
 
             $table->enum('status', ['pending', 'confirmed', 'completed', 'rescheduled', 'cancelled', 'no_show'])
                 ->default('pending');
@@ -37,7 +38,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['organization_id', 'start_datetime']);
-            $table->index(['staff_member_id', 'start_datetime']);
+            //$table->index(['staff_member_id', 'start_datetime']);
+            $table->unique(['staff_member_id', 'start_datetime']);
+            $table->index(['staff_member_id', 'start_datetime', 'end_datetime']);
         });
     }
 

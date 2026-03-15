@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
 
             // Punto-de-Calma -> Configuraciones
             PuntoDeCalmaServicesSeeder::class, // Crea los servicios principales (se puede dejar para que al inciar ya tenga servicios)
-            PuntoDeCalmaDemoSeeder::class, // Crea clientes, citas
+            //PuntoDeCalmaDemoSeeder::class, // Crea clientes, citas
 
         ]);
     }

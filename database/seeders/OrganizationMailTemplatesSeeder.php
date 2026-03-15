@@ -11,7 +11,7 @@ class OrganizationMailTemplatesSeeder extends Seeder
   public function run(): void
   {
 
-  // Template generales
+    // Template generales
     OrganizationMailTemplate::updateOrCreate(
       [
         'organization_id' => null,
@@ -43,6 +43,90 @@ Servicios: {{services}}
 Mensaje:
 {{message}}
         ',
+        'is_active' => true,
+      ]
+    ); // Fin template
+
+    OrganizationMailTemplate::updateOrCreate(
+      [
+        'organization_id' => null,
+        'type' => 'appointment_internal_notification'
+      ],
+      [
+        'name' => 'Default Appointment Internal Notification',
+        'subject' => 'Nueva solicitud de cita en {{organization_name}}',
+        'body_html' => '
+        <h2>Nueva solicitud de cita</h2>
+
+        <p><strong>Organización:</strong> {{organization_name}}</p>
+
+        <p><strong>Cliente:</strong> {{first_name}} {{last_name}}</p>
+        <p><strong>Email:</strong> {{email}}</p>
+        <p><strong>Teléfono:</strong> {{phone}}</p>
+
+        <hr>
+
+        <p><strong>Servicio:</strong> {{service_name}}</p>
+        <p><strong>Modalidad:</strong> {{mode}}</p>
+        <p><strong>Fecha:</strong> {{date}}</p>
+        <p><strong>Hora:</strong> {{time}}</p>
+        <p><strong>Notas del cliente:</strong> {{notes}}</p>
+    ',
+        'body_text' => '
+Nueva solicitud de cita
+
+Organización: {{organization_name}}
+
+Cliente: {{first_name}} {{last_name}}
+Email: {{email}}
+Teléfono: {{phone}}
+
+Servicio: {{service_name}}
+Modalidad: {{mode}}
+Fecha: {{date}}
+Hora: {{time}}
+Hora: {{notes}}
+    ',
+        'is_active' => true,
+      ]
+    ); // Fin template
+
+    OrganizationMailTemplate::updateOrCreate(
+      [
+        'organization_id' => null,
+        'type' => 'appointment_request_received'
+      ],
+      [
+        'name' => 'Default Appointment Request Received',
+        'subject' => 'Hemos recibido tu solicitud de cita',
+        'body_html' => '
+        <h2>Solicitud de cita recibida</h2>
+
+        <p>Hola {{first_name}},</p>
+
+        <p>Hemos recibido tu solicitud de cita.</p>
+
+        <p><strong>Servicio:</strong> {{service_name}}</p>
+        <p><strong>Fecha:</strong> {{date}}</p>
+        <p><strong>Hora:</strong> {{time}}</p>
+
+        <p>En breve confirmaremos tu cita.</p>
+
+        <br>
+
+        <p>{{organization_name}}</p>
+    ',
+        'body_text' => '
+Solicitud de cita recibida
+
+Hola {{first_name}}
+
+Servicio: {{service_name}}
+Fecha: {{date}}
+Hora: {{time}}
+
+Pronto confirmaremos tu cita.
+    ',
         'is_active' => true,
       ]
     );
@@ -168,6 +252,143 @@ Mensaje:
           'is_active' => true,
         ]
       );
+
+
+      OrganizationMailTemplate::updateOrCreate(
+        [
+          'organization_id' => $pdc->id,
+          'type' => 'appointment_request_received'
+        ],
+        [
+          'name' => 'Confirmación solicitud de cita',
+          'subject' => 'Hemos recibido tu solicitud de cita 🌿',
+          'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Solicitud de cita recibida</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#EFEDEA;font-family:Arial, Helvetica, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
+
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 8px 24px rgba(0,0,0,0.05);">
+
+<tr>
+<td align="center" style="padding-bottom:20px;">
+<div style="width:40px;height:4px;background:#8B907E;border-radius:4px;margin-bottom:20px;"></div>
+<h2 style="color:#6F6F6F;margin:0;font-weight:500;">
+Hola {{first_name}},
+</h2>
+</td>
+</tr>
+
+<tr>
+<td style="color:#6F6F6F;font-size:16px;line-height:1.6;">
+
+<p>
+Gracias por solicitar una cita en <strong>Punto de Calma</strong>.
+</p>
+
+<p>
+He recibido tu solicitud para el siguiente espacio:
+</p>
+
+<p>
+<strong>Servicio:</strong> {{service_name}}<br>
+<strong>Fecha:</strong> {{date}}<br>
+<strong>Hora:</strong> {{time}}
+</p>
+
+<p>
+Revisaré personalmente la disponibilidad y te confirmaré muy pronto.
+</p>
+
+<p>
+Mientras tanto, puedes darte este momento para respirar y estar contigo.
+</p>
+
+<br>
+
+<p style="margin-bottom:0;">Con cariño,</p>
+
+<p style="margin-top:4px;font-weight:bold;color:#8B907E;">
+Michelle
+</p>
+
+<p style="margin-top:4px;font-weight:bold;color:#8B907E;">
+Equipo Punto de Calma
+</p>
+
+<hr style="border:none;border-top:1px solid #EEE6DC;margin:30px 0;">
+
+<p style="font-size:12px;color:#9a9a9a;">
+Este mensaje confirma que tu solicitud fue recibida correctamente.
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+',
+          'body_text' => 'Hola {{first_name}}, hemos recibido tu solicitud de cita en Punto de Calma.',
+          'is_active' => true,
+        ]
+      ); // Fin template
+
+      
+      OrganizationMailTemplate::updateOrCreate(
+        [
+          'organization_id' => $pdc->id,
+          'type' => 'appointment_internal_notification'
+        ],
+        [
+          'name' => 'Nueva solicitud de cita',
+          'subject' => 'Nueva solicitud de cita en Punto de Calma',
+          'body_html' => '
+<h2>Nueva solicitud de cita</h2>
+
+<p><strong>Cliente:</strong> {{first_name}} {{last_name}}</p>
+<p><strong>Email:</strong> {{email}}</p>
+<p><strong>Teléfono:</strong> {{phone}}</p>
+
+<p><strong>Servicio:</strong> {{service_name}}</p>
+<p><strong>Modalidad:</strong> {{mode}}</p>
+<p><strong>Fecha:</strong> {{date}}</p>
+<p><strong>Hora:</strong> {{time}}</p>
+<p><strong>Notas del cliente:</strong> {{notes}}</p>
+
+<p><strong>Organización:</strong> {{organization_name}}</p>
+',
+          'body_text' => '
+Nueva solicitud de cita
+
+Cliente: {{first_name}} {{last_name}}
+Email: {{email}}
+Teléfono: {{phone}}
+
+Servicio: {{service_name}}
+Modalidad: {{mode}}
+Fecha: {{date}}
+Hora: {{time}}
+Notas del cliente: {{notes}}
+',
+          'is_active' => true,
+        ]
+      ); // Fin template
+
+
     }
   }
 }

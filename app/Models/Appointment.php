@@ -19,6 +19,7 @@ class Appointment extends Model
         'status',
         'source',
         'notes',
+        'mode',
     ];
 
     protected $casts = [
@@ -42,10 +43,6 @@ class Appointment extends Model
         return $this->belongsTo(ServiceVariant::class);
     }
 
-    /*public function staff(): BelongsTo
-    {
-        return $this->belongsTo(StaffMember::class, 'staff_id');
-    }*/
     public function staff(): BelongsTo
     {
         return $this->belongsTo(StaffMember::class, 'staff_member_id');

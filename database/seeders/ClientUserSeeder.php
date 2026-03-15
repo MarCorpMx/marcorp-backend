@@ -47,6 +47,8 @@ class ClientUserSeeder extends Seeder
             | 2️⃣ Organización Punto de Calma
             |--------------------------------------------------------------------------
             */
+
+            //{"number":"7773519640","internationalNumber":"+52 777 351 9640","nationalNumber":"777 351 9640","e164Number":"+527773519640","countryCode":"MX","dialCode":"+52"}
             $organization = Organization::updateOrCreate(
                 ['slug' => 'punto-de-calma'],
                 [
@@ -57,9 +59,21 @@ class ClientUserSeeder extends Seeder
                     'status'         => 'active',
                     'email'          => 'contacto@punto-de-calma.com',
                     'phone'          => [
-                        'consultorio' => 'xx xxxx xxxx',
-                        'personal'    => '777 351 9640',
+                        "number" => "7773519640",
+                        "internationalNumber" => "+52 777 351 9640",
+                        "nationalNumber" => "777 351 9640",
+                        "e164Number" => "+527773519640",
+                        "countryCode" => "MX",
+                        "dialCode" => "+52"
                     ],
+                    'website' => 'https://www.punto-de-calma.com',
+
+                    'country' => 'MX',
+                    'state' => 'Morelos',
+                    'city' => 'Cuernavaca',
+                    'zip_code' => '62253',
+                    'address' => 'Nueva Polonia 183, zona 1, El Empleado',
+
                     'theme_key'      => 'punto-de-calma',
                     'primary_color'  => '#8B907E',
                     'secondary_color' => '#EEE6DC',
@@ -76,6 +90,8 @@ class ClientUserSeeder extends Seeder
                         'timezone' => 'America/Mexico_City',
                         'initial_use_case' => 'appointments',
                         'contact_success_message' => 'Tu mensaje fue recibido con calma 💚',
+                        'rating' => '4.9',
+                        'reviews_count' => '1200',
                     ],
                 ]
             );

@@ -203,7 +203,7 @@ class Organization extends Model
     }
 
     /* =====================
-     |  Dominio helpers
+     |  timezone helpers
      ===================== */
     public function getTimezoneAttribute(): string
     {

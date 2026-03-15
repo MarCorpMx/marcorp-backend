@@ -287,6 +287,8 @@ Eso evita un problema común en sistemas de reservas.*/
             'active' => 'boolean',
 
             'variants' => 'sometimes|array|min:1',
+
+            'variants.*.id' => 'nullable|integer|exists:service_variants,id',
             'variants.*.name' => 'required|string|max:255',
             'variants.*.duration_minutes' => 'required|integer|min:1',
             'variants.*.price' => 'nullable|numeric|min:0',
@@ -294,33 +296,118 @@ Eso evita un problema común en sistemas de reservas.*/
             'variants.*.mode' => 'required|in:online,presential,hybrid',
             'variants.*.includes_material' => 'boolean',
             'variants.*.active' => 'boolean',
+
+            'variants.*.staff_ids' => 'array',
+            'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
         ]);
 
-        DB::transaction(function () use ($service, $validated) {
+        DB::transaction(function () use ($service, $validated, $organization) {
 
-            // 1️⃣ Actualizar datos base del service
+            /*
+        |---------------------------------------------------------
+        | 1️⃣ actualizar datos base del servicio
+        |---------------------------------------------------------
+        */
+
             $service->update([
                 'name' => $validated['name'] ?? $service->name,
                 'description' => $validated['description'] ?? $service->description,
                 'active' => $validated['active'] ?? $service->active,
             ]);
 
-            // 2️⃣ Si vienen variantes → reemplazarlas
-            if (isset($validated['variants'])) {
+            if (!isset($validated['variants'])) {
+                return;
+            }
 
-                // estrategia simple y consistente
-                $service->variants()->delete();
+            /*
+        |---------------------------------------------------------
+        | 2️⃣ obtener variantes actuales
+        |---------------------------------------------------------
+        */
 
-                foreach ($validated['variants'] as $variantData) {
-                    $service->variants()->create($variantData);
+            $existingVariants = $service->variants()->get()->keyBy('id');
+
+            $receivedIds = [];
+
+            foreach ($validated['variants'] as $variantData) {
+
+                /*
+            |---------------------------------------------------------
+            | 3️⃣ UPDATE variante existente
+            |---------------------------------------------------------
+            */
+
+                if (!empty($variantData['id']) && $existingVariants->has($variantData['id'])) {
+
+                    $variant = $existingVariants[$variantData['id']];
+
+                    $variant->update([
+                        'name' => $variantData['name'],
+                        'duration_minutes' => $variantData['duration_minutes'],
+                        'price' => $variantData['price'] ?? null,
+                        'max_capacity' => $variantData['max_capacity'],
+                        'mode' => $variantData['mode'],
+                        'includes_material' => $variantData['includes_material'] ?? false,
+                        'active' => $variantData['active'] ?? true,
+                    ]);
+
+                    $receivedIds[] = $variant->id;
+                } else {
+
+                    /*
+                |---------------------------------------------------------
+                | 4️⃣ CREATE nueva variante
+                |---------------------------------------------------------
+                */
+
+                    $variant = $service->variants()->create([
+                        'name' => $variantData['name'],
+                        'duration_minutes' => $variantData['duration_minutes'],
+                        'price' => $variantData['price'] ?? null,
+                        'max_capacity' => $variantData['max_capacity'],
+                        'mode' => $variantData['mode'],
+                        'includes_material' => $variantData['includes_material'] ?? false,
+                        'active' => $variantData['active'] ?? true,
+                    ]);
+
+                    $receivedIds[] = $variant->id;
+                }
+
+                /*
+            |---------------------------------------------------------
+            | 5️⃣ sincronizar staff
+            |---------------------------------------------------------
+            */
+
+                if (isset($variantData['staff_ids'])) {
+
+                    $validStaffIds = $organization->staffMembers()
+                        ->whereIn('id', $variantData['staff_ids'])
+                        ->pluck('id')
+                        ->toArray();
+
+                    $variant->staff()->sync($validStaffIds);
                 }
             }
+
+            /*
+        |---------------------------------------------------------
+        | 6️⃣ DESACTIVAR variantes eliminadas (no borrar)
+        |---------------------------------------------------------
+        */
+
+            $service->variants()
+                ->whereNotIn('id', $receivedIds)
+                ->update([
+                    'active' => false
+                ]);
         });
 
         return response()->json(
             $service->load(['variants.staff'])
         );
     }
+
 
     /*
     |--------------------------------------------------------------------------

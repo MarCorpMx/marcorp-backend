@@ -41,9 +41,12 @@ Route::get('/subsystems', [\App\Http\Controllers\Api\SubsystemController::class,
 |--------------------------------------------------------------------------
 */
 Route::prefix('v1')->group(function () {
+    /*Route::post('/contact-messages', [ContactMessageController::class, 'store'])
+        ->name('api.contact-messages.store');*/
 
     Route::post('/contact-messages', [ContactMessageController::class, 'store'])
-        ->name('api.contact-messages.store');
+        ->name('api.contact-messages.store')
+        ->middleware('throttle:3,1'); // 3 mensajes por minuto
 });
 
 /*
@@ -275,15 +278,28 @@ Route::prefix('v1/public')
             [\App\Http\Controllers\Api\PublicBookingController::class, 'staff']
         );
 
-        // Disponibilidad de agenda
+        // Disponibilidad de agenda - un día
         Route::get(
             '{organization:slug}/availability',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'availability']
+        );
+        // Disponibilidad de agenda - varios días
+        Route::get(
+            '{organization:slug}/availability-range',
+            [\App\Http\Controllers\Api\PublicBookingController::class, 'availabilityRange']
         );
 
         // Crear cita
         Route::post(
             '{organization:slug}/appointments',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'store']
-        );
+        )->middleware('throttle:booking');
+        
+        /*Route::post(
+            '{organization:slug}/appointments',
+            [\App\Http\Controllers\Api\PublicBookingController::class, 'store']
+        )->middleware('throttle:30,1'); */
+
+        /*Route::post('/appointments', [PublicAppointmentController::class, 'store'])
+        ->middleware('throttle:5,1'); // 5 requests por minuto*/
     });
