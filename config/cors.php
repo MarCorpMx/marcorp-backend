@@ -9,6 +9,8 @@ return [
     'allowed_origins' => [
         'https://qa.agenda.marcorp.mx',
         'https://agenda.marcorp.mx',
+        'https://qa.app.marcorp.mx',
+        'https://app.marcorp.mx'
     ],
 
     'allowed_origins_patterns' => [

@@ -28,12 +28,13 @@ class ClientUserSeeder extends Seeder
             $michel = User::firstOrCreate(
                 ['email' => 'contacto@punto-de-calma.com'],
                 [
-                    'username'       => 'michell_admin',
+                    'username'       => 'michelle_admin',
                     'name'           => 'Michelle Martínez',
                     'first_name'     => 'Michelle',
                     'last_name'      => 'Martínez Hernández',
                     //'password'       => Hash::make(env('CLIENT_DEFAULT_PASSWORD', 'Admin@123456')),
-                    'password'       => Hash::make('Admin@123456'),
+                    //'password'       => Hash::make('Admin@123456'),
+                    'password'       => Hash::make('Admin@calma2788'),
                     'phone'          => [
                         'personal'  => '777 351 9640',
                     ],
@@ -126,12 +127,12 @@ class ClientUserSeeder extends Seeder
                     ],
                     'notification_bcc' => [
                         'soporte@marcorp.mx',
-                        //'psic.michellemtz@gmail.com'
+                        'psic.michellemtz@gmail.com'
                     ],
                     'auto_reply_enabled' => true,
                     'emergency_footer_enabled' => true,
                     'office_hours' => [
-                        'start' => '09:00',
+                        'start' => '08:00',
                         'end' => '18:00',
                         'timezone' => 'America/Mexico_City',
                     ],

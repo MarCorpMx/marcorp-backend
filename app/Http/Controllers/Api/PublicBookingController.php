@@ -329,12 +329,12 @@ class PublicBookingController extends Controller
         }
 
         // delay humano
-        $formTime = (int) $request->input('form_time', 0);
+        /*$formTime = (int) $request->input('form_time', 0);
         if (app()->environment('production')) {
             if (!$formTime || now()->timestamp - $formTime < 3) {
                 abort(429, 'Too fast.');
             }
-        }
+        }*/
 
         $validated = $request->validate([
             'service_variant_id' => ['required', 'exists:service_variants,id'],
