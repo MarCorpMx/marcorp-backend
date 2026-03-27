@@ -33,7 +33,6 @@ class ClientUserSeeder extends Seeder
                     'first_name'     => 'Michelle',
                     'last_name'      => 'Martínez Hernández',
                     //'password'       => Hash::make(env('CLIENT_DEFAULT_PASSWORD', 'Admin@123456')),
-                    //'password'       => Hash::make('Admin@123456'),
                     'password'       => Hash::make('Admin@calma2788'),
                     'phone'          => [
                         'personal'  => '777 351 9640',
@@ -54,6 +53,7 @@ class ClientUserSeeder extends Seeder
                 ['slug' => 'punto-de-calma'],
                 [
                     'name'           => 'Punto de Calma',
+                    'reference_prefix' => 'PDC',
                     'type'           => 'client',
                     'is_internal'    => false,
                     'owner_user_id'  => $michel->id,
@@ -126,8 +126,8 @@ class ClientUserSeeder extends Seeder
                         'contacto@punto-de-calma.com',
                     ],
                     'notification_bcc' => [
-                        'soporte@marcorp.mx',
-                        'psic.michellemtz@gmail.com'
+                        //'soporte@marcorp.mx',
+                        //'psic.michellemtz@gmail.com'
                     ],
                     'auto_reply_enabled' => true,
                     'emergency_footer_enabled' => true,

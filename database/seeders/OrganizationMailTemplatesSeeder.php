@@ -71,6 +71,33 @@ Mensaje:
         <p><strong>Fecha:</strong> {{date}}</p>
         <p><strong>Hora:</strong> {{time}}</p>
         <p><strong>Notas del cliente:</strong> {{notes}}</p>
+        
+        <hr>
+
+        <p style="font-size:12px; color:#666;">
+          ID de referencia: <strong>{{reference_code}}</strong><br>
+          Guarda este código por si necesitas soporte o cambios.
+        </p>
+
+        {{#confirm_url}}
+<br><br>
+<a href="{{confirm_url}}" style="display:inline-block;padding:12px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;">
+Confirmar cita
+</a>
+{{/confirm_url}}
+
+{{#cancel_url}}
+<a href="{{cancel_url}}" style="display:inline-block;padding:12px 20px;background:#dc3545;color:#fff;text-decoration:none;border-radius:6px;margin-left:10px;">
+Cancelar cita
+</a>
+{{/cancel_url}}
+
+{{#pro_tip}}
+<p style="font-size:12px;color:#888;margin-top:20px;">
+{{pro_tip}}
+</p>
+{{/pro_tip}}
+
     ',
         'body_text' => '
 Nueva solicitud de cita
@@ -85,7 +112,8 @@ Servicio: {{service_name}}
 Modalidad: {{mode}}
 Fecha: {{date}}
 Hora: {{time}}
-Hora: {{notes}}
+Notas: {{notes}}
+Ref: {{reference_code}}
     ',
         'is_active' => true,
       ]
@@ -110,6 +138,43 @@ Hora: {{notes}}
         <p><strong>Fecha:</strong> {{date}}</p>
         <p><strong>Hora:</strong> {{time}}</p>
 
+        <p style="font-size:12px; color:#666;">
+          ID de referencia: <strong>{{reference_code}}</strong><br>
+          Guarda este código por si necesitas soporte o cambios.
+        </p>
+
+        {{#manage_url}}
+<br><br>
+
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center">
+
+      <a href="{{manage_url}}"
+         style="
+           display:inline-block;
+           padding:14px 26px;
+           background:#8B907E;
+           color:#ffffff;
+           text-decoration:none;
+           border-radius:30px;
+           font-size:14px;
+           font-weight:500;
+           letter-spacing:0.3px;
+         ">
+        Gestionar mi cita
+      </a>
+
+      <p style="font-size:12px;color:#9a9a9a;margin-top:12px;">
+        Cambiar horario o cancelar fácilmente
+      </p>
+
+    </td>
+  </tr>
+</table>
+
+{{/manage_url}}
+
         <p>En breve confirmaremos tu cita.</p>
 
         <br>
@@ -124,12 +189,139 @@ Hola {{first_name}}
 Servicio: {{service_name}}
 Fecha: {{date}}
 Hora: {{time}}
+Ref: {{reference_code}}
 
 Pronto confirmaremos tu cita.
     ',
         'is_active' => true,
       ]
-    );
+    ); // Fin template
+
+
+    OrganizationMailTemplate::updateOrCreate(
+      [
+        'organization_id' => null,
+        'type' => 'appointment_confirmed'
+      ],
+      [
+        'name' => 'Default Appointment Confirmed',
+        'subject' => 'Tu cita ha sido confirmada',
+        'body_html' => '
+<h2>Cita confirmada</h2>
+
+<p>Hola {{first_name}},</p>
+
+<p>Tu cita ha sido confirmada con los siguientes detalles:</p>
+
+<p>
+<strong>Servicio:</strong> {{service_name}}<br>
+<strong>Fecha:</strong> {{date}}<br>
+<strong>Hora:</strong> {{time}}<br>
+<strong>ID de referencia:</strong> {{reference_code}}
+</p>
+
+<p>Te esperamos. Si necesitas hacer cambios puedes hacerlo desde aquí:</p>
+
+{{#manage_url}}
+<br><br>
+
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center">
+
+      <a href="{{manage_url}}"
+         style="
+           display:inline-block;
+           padding:14px 26px;
+           background:#8B907E;
+           color:#ffffff;
+           text-decoration:none;
+           border-radius:30px;
+           font-size:14px;
+           font-weight:500;
+           letter-spacing:0.3px;
+         ">
+        Gestionar mi cita
+      </a>
+
+      <p style="font-size:12px;color:#9a9a9a;margin-top:12px;">
+        Cambiar horario o cancelar fácilmente
+      </p>
+
+    </td>
+  </tr>
+</table>
+
+{{/manage_url}}
+
+{{#pro_tip}}
+<p style="font-size:12px;color:#888;margin-top:20px;">
+{{pro_tip}}
+</p>
+{{/pro_tip}}
+
+<br>
+<p>{{organization_name}}</p>
+',
+        'body_text' => '
+Cita confirmada
+
+Hola {{first_name}}
+
+Servicio: {{service_name}}
+Fecha: {{date}}
+Hora: {{time}}
+Ref: {{reference_code}}
+',
+        'is_active' => true,
+      ]
+    ); // Fin template
+
+    OrganizationMailTemplate::updateOrCreate(
+      [
+        'organization_id' => null,
+        'type' => 'appointment_cancelled'
+      ],
+      [
+        'name' => 'Default Appointment Cancelled',
+        'subject' => 'Tu cita ha sido cancelada',
+        'body_html' => '
+<h2>Cita cancelada</h2>
+
+<p>Hola {{first_name}},</p>
+
+<p>Tu cita ha sido cancelada.</p>
+
+<p>
+<strong>Servicio:</strong> {{service_name}}<br>
+<strong>Fecha:</strong> {{date}}<br>
+<strong>Hora:</strong> {{time}}<br>
+<strong>ID de referencia:</strong> {{reference_code}}
+</p>
+
+<p>Si deseas agendar nuevamente, puedes hacerlo desde nuestra plataforma:</p>
+
+<a href="{{booking_url}}" 
+   style="display:inline-block;padding:10px 16px;background:#000;color:#fff;text-decoration:none;border-radius:6px;">
+   Agendar nueva cita
+</a>
+
+<br>
+<p>{{organization_name}}</p>
+',
+        'body_text' => '
+Cita cancelada
+
+Hola {{first_name}}
+
+Tu cita ha sido cancelada.
+',
+        'is_active' => true,
+      ]
+    ); // Fin template
+
+
+
 
     /*
         |--------------------------------------------------------------------------
@@ -304,6 +496,43 @@ He recibido tu solicitud para el siguiente espacio:
 <strong>Hora:</strong> {{time}}
 </p>
 
+<p style="font-size:12px; color:#666;">
+          ID de referencia: <strong>{{reference_code}}</strong><br>
+          Guarda este código por si necesitas soporte o cambios.
+</p>
+
+{{#manage_url}}
+<br><br>
+
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center">
+
+      <a href="{{manage_url}}"
+         style="
+           display:inline-block;
+           padding:14px 26px;
+           background:#8B907E;
+           color:#ffffff;
+           text-decoration:none;
+           border-radius:30px;
+           font-size:14px;
+           font-weight:500;
+           letter-spacing:0.3px;
+         ">
+        Gestionar mi cita
+      </a>
+
+      <p style="font-size:12px;color:#9a9a9a;margin-top:12px;">
+        Cambiar horario o cancelar fácilmente
+      </p>
+
+    </td>
+  </tr>
+</table>
+
+{{/manage_url}}
+
 <p>
 Revisaré personalmente la disponibilidad y te confirmaré muy pronto.
 </p>
@@ -347,7 +576,7 @@ Este mensaje confirma que tu solicitud fue recibida correctamente.
         ]
       ); // Fin template
 
-      
+
       OrganizationMailTemplate::updateOrCreate(
         [
           'organization_id' => $pdc->id,
@@ -368,8 +597,33 @@ Este mensaje confirma que tu solicitud fue recibida correctamente.
 <p><strong>Fecha:</strong> {{date}}</p>
 <p><strong>Hora:</strong> {{time}}</p>
 <p><strong>Notas del cliente:</strong> {{notes}}</p>
+<p><strong>Organización:</strong> {{organization_name}} - Michelle</p>
 
-<p><strong>Organización:</strong> {{organization_name}}</p>
+<p style="font-size:12px; color:#666;">
+          ID de referencia: <strong>{{reference_code}}</strong><br>
+          Guarda este código por si necesitas soporte o cambios.
+</p>
+
+
+{{#confirm_url}}
+<br><br>
+<a href="{{confirm_url}}" style="display:inline-block;padding:10px 18px;background:#8B907E;color:white;text-decoration:none;border-radius:20px;">
+Confirmar cita
+</a>
+{{/confirm_url}}
+
+{{#cancel_url}}
+<a href="{{cancel_url}}" style="display:inline-block;padding:10px 18px;background:#D6CFC7;color:#6F6F6F;text-decoration:none;border-radius:20px;margin-left:10px;">
+Cancelar
+</a>
+{{/cancel_url}}
+
+{{#pro_tip}}
+<p style="font-size:12px;color:#9a9a9a;margin-top:20px;">
+Puedes gestionar tu cita directamente desde este correo en una versión más completa del servicio.
+</p>
+{{/pro_tip}}
+
 ',
           'body_text' => '
 Nueva solicitud de cita
@@ -383,12 +637,238 @@ Modalidad: {{mode}}
 Fecha: {{date}}
 Hora: {{time}}
 Notas del cliente: {{notes}}
+Ref: {{reference_code}}
 ',
           'is_active' => true,
         ]
       ); // Fin template
 
 
+      OrganizationMailTemplate::updateOrCreate(
+        [
+          'organization_id' => $pdc->id,
+          'type' => 'appointment_confirmed'
+        ],
+        [
+          'name' => 'Cita confirmada',
+          'subject' => 'Tu espacio ha sido confirmado 🌿',
+          'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Cita confirmada</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#EFEDEA;font-family:Arial, Helvetica, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
+
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 8px 24px rgba(0,0,0,0.05);">
+
+<tr>
+<td align="center" style="padding-bottom:20px;">
+<div style="width:40px;height:4px;background:#8B907E;border-radius:4px;margin-bottom:20px;"></div>
+<h2 style="color:#6F6F6F;margin:0;font-weight:500;">
+Hola {{first_name}},
+</h2>
+</td>
+</tr>
+
+<tr>
+<td style="color:#6F6F6F;font-size:16px;line-height:1.6;">
+
+<p>
+Tu espacio ha sido confirmado 🌿
+</p>
+
+<p>
+Te estaré acompañando en el siguiente momento:
+</p>
+
+<p>
+<strong>Servicio:</strong> {{service_name}}<br>
+<strong>Fecha:</strong> {{date}}<br>
+<strong>Hora:</strong> {{time}}
+</p>
+
+<p style="font-size:12px; color:#666;">
+ID de referencia: <strong>{{reference_code}}</strong>
+</p>
+
+{{#manage_url}}
+<br><br>
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center">
+
+<a href="{{manage_url}}"
+   style="
+     display:inline-block;
+     padding:14px 26px;
+     background:#8B907E;
+     color:#ffffff;
+     text-decoration:none;
+     border-radius:30px;
+     font-size:14px;
+     font-weight:500;
+   ">
+Gestionar mi cita
+</a>
+
+<p style="font-size:12px;color:#9a9a9a;margin-top:12px;">
+Si necesitas cambiar o cancelar, puedes hacerlo fácilmente
+</p>
+
+</td>
+</tr>
+</table>
+
+{{/manage_url}}
+
+<p>
+Puedes darte este momento como un pequeño espacio para ti desde ahora.
+</p>
+
+<br>
+
+<p>Con cariño,</p>
+
+<p style="font-weight:bold;color:#8B907E;">Michelle</p>
+<p style="font-weight:bold;color:#8B907E;">Equipo Punto de Calma</p>
+
+<hr style="border:none;border-top:1px solid #EEE6DC;margin:30px 0;">
+
+<p style="font-size:12px;color:#9a9a9a;">
+Este mensaje confirma que tu cita ha sido agendada correctamente.
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+',
+          'body_text' => 'Hola {{first_name}}, tu cita ha sido confirmada en Punto de Calma.',
+          'is_active' => true,
+        ]
+      ); // Fin template
+
+
+      OrganizationMailTemplate::updateOrCreate(
+        [
+          'organization_id' => $pdc->id,
+          'type' => 'appointment_cancelled'
+        ],
+        [
+          'name' => 'Cita cancelada',
+          'subject' => 'Tu cita ha sido cancelada',
+          'body_html' => '
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Cita cancelada</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#EFEDEA;font-family:Arial, Helvetica, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+<tr>
+<td align="center">
+
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 8px 24px rgba(0,0,0,0.05);">
+
+<tr>
+<td align="center" style="padding-bottom:20px;">
+<div style="width:40px;height:4px;background:#8B907E;border-radius:4px;margin-bottom:20px;"></div>
+<h2 style="color:#6F6F6F;margin:0;font-weight:500;">
+Hola {{first_name}},
+</h2>
+</td>
+</tr>
+
+<tr>
+<td style="color:#6F6F6F;font-size:16px;line-height:1.6;">
+
+<p>
+Tu cita ha sido cancelada.
+</p>
+
+<p>
+Si en algún momento sientes que quieres retomar este espacio, puedes agendar nuevamente:
+</p>
+
+<br>
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center">
+
+<a href="{{booking_url}}"
+   style="
+     display:inline-block;
+     padding:14px 26px;
+     background:#8B907E;
+     color:#ffffff;
+     text-decoration:none;
+     border-radius:30px;
+     font-size:14px;
+     font-weight:500;
+   ">
+Agendar nueva cita
+</a>
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<p>
+Estoy aquí cuando lo necesites.
+</p>
+
+<br>
+
+<p>Con cariño,</p>
+
+<p style="font-weight:bold;color:#8B907E;">Michelle</p>
+<p style="font-weight:bold;color:#8B907E;">Equipo Punto de Calma</p>
+
+<hr style="border:none;border-top:1px solid #EEE6DC;margin:30px 0;">
+
+<p style="font-size:12px;color:#9a9a9a;">
+Si no realizaste esta acción, puedes ignorar este mensaje.
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+',
+          'body_text' => 'Hola {{first_name}}, tu cita ha sido cancelada.',
+          'is_active' => true,
+        ]
+      );
+
+      
     }
   }
 }

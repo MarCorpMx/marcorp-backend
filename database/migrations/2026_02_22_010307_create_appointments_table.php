@@ -38,8 +38,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['organization_id', 'start_datetime']);
-            //$table->index(['staff_member_id', 'start_datetime']);
-            $table->unique(['staff_member_id', 'start_datetime']);
             $table->index(['staff_member_id', 'start_datetime', 'end_datetime']);
         });
     }

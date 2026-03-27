@@ -17,6 +17,7 @@ class Organization extends Model
         // Identidad
         'name',
         'slug',
+        'reference_prefix',
         'type',              // root | client
         'is_internal',       // true para MarCorp
 
@@ -208,5 +209,14 @@ class Organization extends Model
     public function getTimezoneAttribute(): string
     {
         return data_get($this->metadata, 'timezone', 'America/Mexico_City');
+    }
+
+    /* =====================
+     | reference_prefix helpers
+     ===================== */
+
+    public function setReferencePrefixAttribute($value)
+    {
+        $this->attributes['reference_prefix'] = strtoupper($value);
     }
 }

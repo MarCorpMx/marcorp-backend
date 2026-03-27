@@ -46,15 +46,40 @@ class OrganizationMailService
      */
     protected function parseTemplate(string $content, array $variables): string
     {
-        foreach ($variables as $key => $value) {
-            if (is_array($value)) {
-                $value = implode(', ', $value);
-            } elseif (!is_scalar($value)) {
-                $value = '';
+        // Condicionales tipo {{#var}} ... {{/var}}
+        $content = preg_replace_callback('/{{#(.*?)}}(.*?){{\/\1}}/s', function ($matches) use ($variables) {
+
+            $key = trim($matches[1]);
+            $inner = $matches[2];
+
+            if (!empty($variables[$key])) {
+                return $inner;
             }
 
-            $content = str_replace('{{' . $key . '}}', (string) $value, $content);
-        }
+            return '';
+        }, $content);
+
+        // Reemplazo normal
+        $content = preg_replace_callback('/{{\s*(.*?)\s*}}/', function ($matches) use ($variables) {
+
+            $key = $matches[1];
+
+            if (!array_key_exists($key, $variables)) {
+                return '';
+            }
+
+            $value = $variables[$key];
+
+            if (is_array($value)) {
+                return implode(', ', $value);
+            }
+
+            if (!is_scalar($value)) {
+                return '';
+            }
+
+            return (string) $value;
+        }, $content);
 
         return $content;
     }
@@ -109,9 +134,20 @@ class OrganizationMailService
 
                 $this->configureMailer($settings);
 
+                $to = $to
+                    ?? $notificationSettings?->notification_to
+                    ?? [$organization->email];
+
+                // Normalizar SIEMPRE a array
+                $to = is_array($to) ? $to : [$to];
+                $to = array_filter($to);
+
                 $mail = Mail::mailer('dynamic')->to($to);
 
                 if ($applyNotificationRecipients) {
+                    $cc = is_array($cc) ? $cc : [$cc];
+                    $bcc = is_array($bcc) ? $bcc : [$bcc];
+                    
                     $mail->cc($cc);
                     $mail->bcc($bcc);
                 }
@@ -152,7 +188,10 @@ class OrganizationMailService
                 });
 
                 // Si llega aquí, se envió correctamente
-                Log::info("Mail sent successfully using provider '{$settings->provider}' for organization '{$organization->slug}' to '{$to}'.");
+                Log::info(
+                    "Mail sent successfully using provider '{$settings->provider}' for organization '{$organization->slug}' to: "
+                        . implode(', ', $to)
+                );
 
                 return;
             } catch (\Exception $e) {

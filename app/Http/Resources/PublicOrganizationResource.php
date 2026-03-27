@@ -36,6 +36,8 @@ class PublicOrganizationResource extends JsonResource
 
             'rating' => data_get($this->metadata, 'rating'),
             'reviews_count' => data_get($this->metadata, 'reviews_count'),
+
+            'plan' => 'pro',
         ];
     }
 }

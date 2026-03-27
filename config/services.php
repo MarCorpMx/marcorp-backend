@@ -39,4 +39,8 @@ return [
         'key' => env('GEMINI_API_KEY'),
     ],
 
+    'booking' => [
+        'front_url' => env('BOOKING_FRONT_URL'),
+    ],
+
 ];

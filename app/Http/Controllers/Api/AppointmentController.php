@@ -9,6 +9,8 @@ use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
+use App\Models\AppointmentNote;
+
 
 class AppointmentController extends Controller
 {
@@ -21,7 +23,7 @@ class AppointmentController extends Controller
     |--------------------------------------------------------------------------
     */
 
-/* rombi - implementar lo siguiente para que puedan ver las citas correspondientes de cada usuario, solo si es admin pueda ver todas man
+    /* rombi - implementar lo siguiente para que puedan ver las citas correspondientes de cada usuario, solo si es admin pueda ver todas man
     $user = $request->user();
 
 $query = Appointment::query()
@@ -121,7 +123,8 @@ $appointments = $query
     */
     public function show(Request $request, Appointment $appointment)
     {
-        $this->authorizeAppointment($request, $appointment);
+        $organization = $this->getOrganization($request);
+        //$this->authorizeAppointment($request, $appointment);
 
         return response()->json(
             $appointment->load(['client', 'staffMember', 'service'])
@@ -135,14 +138,22 @@ $appointments = $query
     */
     public function update(Request $request, Appointment $appointment)
     {
-        $this->authorizeAppointment($request, $appointment);
+        $organization = $this->getOrganization($request);
+        //$this->authorizeAppointment($request, $appointment);
 
         $validated = $request->validate([
-            'start_time' => ['sometimes', 'date'],
-            'end_time' => ['sometimes', 'date', 'after:start_time'],
+            'start_datetime' => ['sometimes', 'date'],
+            'end_datetime' => ['sometimes', 'date', 'after:start_datetime'],
             'status' => [
                 'sometimes',
-                Rule::in(['scheduled', 'confirmed', 'completed', 'cancelled'])
+                Rule::in([
+                    'pending',
+                    'confirmed',
+                    'completed',
+                    'rescheduled',
+                    'cancelled',
+                    'no_show'
+                ])
             ],
             'notes' => ['nullable', 'string'],
         ]);
@@ -156,12 +167,77 @@ $appointments = $query
 
     /*
     |--------------------------------------------------------------------------
+    | Actualizar estatus de la cita
+    |--------------------------------------------------------------------------
+    */
+    public function updateStatus(Request $request, Appointment $appointment)
+    {
+        $organization = $this->getOrganization($request);
+
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                Rule::in([
+                    'pending',
+                    'confirmed',
+                    'completed',
+                    'rescheduled',
+                    'cancelled',
+                    'no_show'
+                ])
+            ],
+            'note' => ['nullable', 'string', 'max:1000']
+        ]);
+
+        $appointment->status = $validated['status'];
+        $appointment->save();
+
+        /*
+        |-------------------------------------------------
+        | Crear nota interna si hay comentario
+        |-------------------------------------------------
+        */
+        if (!empty($validated['note'])) {
+
+            AppointmentNote::create([
+                'appointment_id' => $appointment->id,
+                'user_id' => $request->user()->id,
+                'note' => $validated['note'],
+                'type' => match ($validated['status']) {
+                    'cancelled' => 'cancellation',
+                    'no_show' => 'no_show',
+                    'rescheduled' => 'reschedule',
+                    default => 'admin_note'
+                }
+            ]);
+        }
+
+        /*
+        |-------------------------------------------------
+        | Eventos futuros (correo / notificaciones)
+        |-------------------------------------------------
+        */
+        if ($appointment->status === 'confirmed') {
+            // enviar correo confirmación
+        }
+
+        if ($appointment->status === 'cancelled') {
+            // enviar aviso cancelación
+        }
+
+        return response()->json([
+            'data' => $appointment
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Eliminar cita
     |--------------------------------------------------------------------------
     */
     public function destroy(Request $request, Appointment $appointment)
     {
-        $this->authorizeAppointment($request, $appointment);
+        //$this->authorizeAppointment($request, $appointment);
 
         $appointment->delete();
 
@@ -175,10 +251,12 @@ $appointments = $query
     | Seguridad: evitar acceso cruzado de organizaciones
     |--------------------------------------------------------------------------
     */
-    private function authorizeAppointment(Request $request, Appointment $appointment)
+
+
+    /*private function authorizeAppointment(Request $request, Appointment $appointment)
     {
         if ($appointment->organization_id !== $request->user()->organization_id) {
             abort(403, 'Unauthorized');
         }
-    }
+    }*/
 }

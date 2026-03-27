@@ -117,6 +117,11 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'show']);
     Route::put('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'update']);
     Route::delete('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'destroy']);
+    Route::patch(
+        '/appointments/{appointment}/status',
+        [\App\Http\Controllers\Api\AppointmentController::class, 'updateStatus']
+    );
+
 
     /*
     |--------------------------------------------------------------------------
@@ -294,12 +299,28 @@ Route::prefix('v1/public')
             '{organization:slug}/appointments',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'store']
         )->middleware('throttle:booking');
-        
-        /*Route::post(
-            '{organization:slug}/appointments',
-            [\App\Http\Controllers\Api\PublicBookingController::class, 'store']
-        )->middleware('throttle:30,1'); */
 
-        /*Route::post('/appointments', [PublicAppointmentController::class, 'store'])
-        ->middleware('throttle:5,1'); // 5 requests por minuto*/
+        // Confirmar/Cancelar desde mail - organización
+        Route::post(
+            '/appointment-actions/{token}',
+            [\App\Http\Controllers\Api\AppointmentActionController::class, 'handle']
+        );
+
+        // Obtener cita por reference_code (manage [booking-public])
+        Route::get(
+            'appointments/manage/{reference_code}',
+            [\App\Http\Controllers\Api\PublicAppointmentManageController::class, 'show']
+        );
+
+        // Cancelar cita por refrence_code (manage [booking-public])
+        Route::post(
+            'appointments/manage/{reference_code}/cancel',
+            [\App\Http\Controllers\Api\PublicAppointmentManageController::class, 'cancel']
+        );
+
+        // Reagendar cita por refrence_code (manage [booking-public])
+        Route::post(
+            'appointments/manage/{reference_code}/reschedule',
+            [\App\Http\Controllers\Api\PublicAppointmentManageController::class, 'reschedule']
+        );
     });

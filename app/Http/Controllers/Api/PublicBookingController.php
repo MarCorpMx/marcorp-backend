@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\ServiceVariant;
 use App\Models\Appointment;
+use App\Services\OrganizationMailService;
+use App\Models\AppointmentActionToken;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\OrganizationMailService;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
+
 
 class PublicBookingController extends Controller
 {
@@ -124,6 +127,7 @@ class PublicBookingController extends Controller
 
             $appointments = Appointment::where('staff_member_id', $staff->id)
                 ->whereDate('start_datetime', $date)
+                ->whereIn('status', ['pending', 'confirmed'])
                 ->get();
 
             while ($start->copy()->addMinutes($duration)->lte($end)) {
@@ -147,7 +151,8 @@ class PublicBookingController extends Controller
                     ];
                 }
 
-                $start->addMinutes($duration + $break);
+                //$start->addMinutes($duration + $break);
+                $start->addMinutes(15);
             }
         }
 
@@ -231,11 +236,20 @@ class PublicBookingController extends Controller
                 'nonWorkingDays'
             ])->get();
 
+            /*$appointments = Appointment::whereIn(
+                'staff_member_id',
+                $staffMembers->pluck('id')
+            )
+                ->whereBetween('start_datetime', [$startDate, $endDate])
+                ->get()
+                ->groupBy('staff_member_id');*/
+
             $appointments = Appointment::whereIn(
                 'staff_member_id',
                 $staffMembers->pluck('id')
             )
                 ->whereBetween('start_datetime', [$startDate, $endDate])
+                ->whereIn('status', ['pending', 'confirmed'])
                 ->get()
                 ->groupBy('staff_member_id');
 
@@ -297,7 +311,8 @@ class PublicBookingController extends Controller
                             $slotsCount++;
                         }
 
-                        $start->addMinutes($duration + $break);
+                        //$start->addMinutes($duration + $break);
+                        $start->addMinutes(15);
                     }
                 }
 
@@ -417,6 +432,7 @@ class PublicBookingController extends Controller
         |--------------------------------------------------------------------------
         */
         $conflict = Appointment::where('staff_member_id', $validated['staff_member_id'])
+            ->whereIn('status', ['pending', 'confirmed']) // se agrego para interferir
             ->where(function ($query) use ($start, $end) {
 
                 $query->whereBetween('start_datetime', [$start, $end])
@@ -430,7 +446,7 @@ class PublicBookingController extends Controller
 
         if ($conflict) {
             return response()->json([
-                'message' => 'Este horario ya fue reservado'
+                'message' => 'Este horario ya fue reservado x'
             ], 409);
         }
 
@@ -475,6 +491,7 @@ class PublicBookingController extends Controller
                 })
                 ->exists();*/
             $conflict = Appointment::where('staff_member_id', $validated['staff_member_id'])
+                ->whereIn('status', ['pending', 'confirmed']) // se agrego para no ineterferir    
                 ->where('start_datetime', '<', $end)
                 ->where('end_datetime', '>', $start)
                 ->exists();
@@ -482,7 +499,7 @@ class PublicBookingController extends Controller
 
 
             if ($conflict) {
-                abort(409, 'Este horario ya fue reservado');
+                abort(409, 'Este horario ya fue reservado y');
             }
 
             return Appointment::create([
@@ -500,22 +517,68 @@ class PublicBookingController extends Controller
             ]);
         });
 
+        // Crear tokens de acción
+        $pro_tip = null;
+        // rombi - descomantar cuando ya se tengan los features, estamos en pruebas
+        /*if (!$organization->hasFeature('appointment_email_actions')) {
+            $confirmUrl = null;
+            $cancelUrl = null;
+            'pro_tip' => 'Puedes confirmar o cancelar tu cita directamente desde el correo en planes Pro.'
+        }*/
+
+        //if ($organization->hasFeature('appointment_email_actions')) {
+        $confirmToken = AppointmentActionToken::create([
+            'appointment_id' => $appointment->id,
+            'token' => Str::uuid()->toString(),
+            'action' => 'confirm',
+            'expires_at' => now()->addHours(24),
+            'revoked_at' => null,
+        ]);
+
+        $cancelToken = AppointmentActionToken::create([
+            'appointment_id' => $appointment->id,
+            'token' => Str::uuid()->toString(),
+            'action' => 'cancel',
+            'expires_at' => now()->addHours(24),
+            'revoked_at' => null,
+        ]);
+        //}
+
+        // URLs públicas - para notificación interna de la organización
+        $baseUrl = config('services.booking.front_url') . "/{$organization->slug}/result";
+        $confirmUrl = $baseUrl . "?token={$confirmToken->token}";
+        $cancelUrl  = $baseUrl . "?token={$cancelToken->token}";
+
+        // URL pública para gestión de cita del cliente 
+        $manageBaseUrl = config('services.booking.front_url') . "/{$organization->slug}/manage";
+        $manageUrl = $manageBaseUrl . "?ref={$appointment->reference_code}";
+
+        Log::info('Confirm URL: ' . $confirmUrl);
+        Log::info('Cancel URL: ' . $cancelUrl);
+        Log::info('Manage URL: ' . $manageUrl);
+
+        $enviarCorreos = true;
+
         // Email al cliente
-        try {
-            $this->mailService->sendTemplate(
-                $organization,
-                'appointment_request_received', // template
-                $client->email,
-                [
-                    'first_name' => $client->first_name,
-                    'organization_name' => $organization->name,
-                    'service_name' => $variant->service->name . ' - ' . $variant->name,
-                    'date' => $start->format('d/m/Y'),
-                    'time' => $start->format('H:i'),
-                ]
-            );
-        } catch (\Exception $e) {
-            Log::error("Error sending booking email to client: " . $e->getMessage());
+        if ($enviarCorreos) {
+            try {
+                $this->mailService->sendTemplate(
+                    $organization,
+                    'appointment_request_received', // template
+                    $client->email,
+                    [
+                        'first_name' => $client->first_name,
+                        'organization_name' => $organization->name,
+                        'service_name' => $variant->service->name . ' - ' . $variant->name,
+                        'date' => $start->format('d/m/Y'),
+                        'time' => $start->format('H:i'),
+                        'reference_code' => $appointment->reference_code,
+                        'manage_url' => $manageUrl,
+                    ]
+                );
+            } catch (\Exception $e) {
+                Log::error("Error sending booking email to client: " . $e->getMessage());
+            }
         }
 
 
@@ -527,29 +590,37 @@ class PublicBookingController extends Controller
 
         $mode = $modeLabels[$validated['mode']] ?? $validated['mode'];
 
-        // Notificacion Interna
-        try {
 
-            $this->mailService->sendTemplate(
-                $organization,
-                'appointment_internal_notification',
-                null, // usa notification settings
-                [
-                    'first_name' => $client->first_name,
-                    'last_name' => $client->last_name,
-                    'email' => $client->email,
-                    'phone' => $client->phone['e164Number'] ?? null,
-                    'service_name' => $variant->service->name . ' - ' . $variant->name,
-                    'date' => $start->format('d/m/Y'),
-                    'time' => $start->format('H:i'),
-                    'notes' => $validated['notes'] ?? 'Sin notas adicionales',
-                    'organization_name' => $organization->name,
-                    'mode' => $mode
-                ],
-                true
-            );
-        } catch (\Exception $e) {
-            Log::error("Error sending booking notification: " . $e->getMessage());
+        // Notificacion Interna
+        if ($enviarCorreos) {
+            try {
+
+                $this->mailService->sendTemplate(
+                    $organization,
+                    'appointment_internal_notification',
+                    null, // usa notification settings
+                    [
+                        'first_name' => $client->first_name,
+                        'last_name' => $client->last_name,
+                        'email' => $client->email,
+                        'phone' => $client->phone['e164Number'] ?? null,
+                        'service_name' => $variant->service->name . ' - ' . $variant->name,
+                        'date' => $start->format('d/m/Y'),
+                        'time' => $start->format('H:i'),
+                        'notes' => $validated['notes'] ?? 'Sin notas adicionales',
+                        'organization_name' => $organization->name,
+                        'mode' => $mode,
+                        'reference_code' => $appointment->reference_code,
+                        // Para confirmar/cancelar cita
+                        'confirm_url' => $confirmUrl,
+                        'cancel_url' => $cancelUrl,
+                        'pro_tip' => $pro_tip,
+                    ],
+                    true
+                );
+            } catch (\Exception $e) {
+                Log::error("Error sending booking notification: " . $e->getMessage());
+            }
         }
 
 
@@ -559,7 +630,11 @@ class PublicBookingController extends Controller
                 'client',
                 'staff',
                 'serviceVariant.service'
-            ])
+            ]),
+            'debug_urls' => [
+                'confirm' => $confirmUrl,
+                'cancel' => $cancelUrl,
+            ]
         ], 201);
     }
 }

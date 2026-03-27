@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use App\Models\Organization;
 
 class Appointment extends Model
 {
@@ -20,6 +21,7 @@ class Appointment extends Model
         'source',
         'notes',
         'mode',
+        'reference_code',
     ];
 
     protected $casts = [
@@ -60,11 +62,42 @@ class Appointment extends Model
         return $this->hasMany(AppointmentAttendee::class);
     }
 
+    // Notas Internas
+    public function notes()
+    {
+        return $this->hasMany(AppointmentNote::class)
+            ->latest();
+    }
+
+    // Tokens para cuando se confirma/cancela desde email
+    public function actionTokens()
+    {
+        return $this->hasMany(AppointmentActionToken::class);
+        // $appointment->actionTokens()->create([...]);
+    }
+
     /******************** */
     protected static function booted()
     {
         static::creating(function ($appointment) {
+
             $appointment->uuid = Str::uuid();
+
+            $organization = Organization::find($appointment->organization_id);
+
+            $prefix = $organization?->reference_prefix
+                ? strtoupper($organization->reference_prefix)
+                : null;
+
+            do {
+                $random = strtoupper(Str::random(8));
+
+                $reference = $prefix
+                    ? "{$prefix}-{$random}"
+                    : $random;
+            } while (self::where('reference_code', $reference)->exists());
+
+            $appointment->reference_code = $reference;
         });
     }
 }
