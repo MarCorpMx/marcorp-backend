@@ -4,18 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppointmentActionToken;
-use App\Services\OrganizationMailService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AppointmentActionController extends Controller
 {
-    protected $mailService;
 
-    public function __construct(OrganizationMailService $mailService)
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
     {
-        $this->mailService = $mailService;
+        $this->notificationService = $notificationService;
     }
 
     public function handle(Request $request, $token)
@@ -28,6 +29,8 @@ class AppointmentActionController extends Controller
             'already_used' => 'Este enlace ya fue utilizado.',
             'already_confirmed' => 'Esta cita ya había sido confirmada anteriormente.',
             'already_cancelled' => 'Esta cita ya había sido cancelada previamente.',
+            'already_completed' => 'Esta cita ya fue atendida.',
+            'already_no_show' => 'Esta cita fue marcada como no asistida.',
         ];
 
         $result = DB::transaction(function () use ($token, $request) {
@@ -67,6 +70,13 @@ class AppointmentActionController extends Controller
                 ];
             }
 
+            if ($actionToken->revoked_at) {
+                return [
+                    'status' => 'expired',
+                    'appointment' => $appointment
+                ];
+            }
+
             // Ya usado
             if ($actionToken->used_at) {
                 return [
@@ -86,6 +96,20 @@ class AppointmentActionController extends Controller
             if ($appointment->status === 'cancelled') {
                 return [
                     'status' => 'already_cancelled',
+                    'appointment' => $appointment
+                ];
+            }
+
+            if ($appointment->status === 'completed') {
+                return [
+                    'status' => 'already_completed',
+                    'appointment' => $appointment
+                ];
+            }
+
+            if ($appointment->status === 'no_show') {
+                return [
+                    'status' => 'already_no_show',
                     'appointment' => $appointment
                 ];
             }
@@ -141,22 +165,18 @@ class AppointmentActionController extends Controller
             $manageBaseUrl = config('services.booking.front_url') . "/{$organization->slug}/manage";
             $manageUrl = $manageBaseUrl . "?ref={$appointment->reference_code}";
 
-            Log::info('Manage URL: ' . $manageUrl);
+            //Log::info('Manage URL: ' . $manageUrl);
 
             if ($status === 'confirmed') {
                 // TODO: enviar email confirmación cliente
-                // TODO: notificar a Michelle (opcional)
-
                 try {
                     $client = $appointment->client;
                     $variant = $appointment->serviceVariant;
 
                     $start = $appointment->start_datetime;
 
-                    $this->mailService->sendTemplate(
-                        $organization,
+                    $this->notificationService->trigger(
                         'appointment_confirmed',
-                        $client->email,
                         [
                             'first_name' => $client->first_name,
                             'organization_name' => $organization->name,
@@ -165,7 +185,13 @@ class AppointmentActionController extends Controller
                             'time' => $start->format('H:i'),
                             'reference_code' => $appointment->reference_code,
                             'manage_url' => $manageUrl,
-                        ]
+                        ],
+                        organization: $organization,
+                        recipient: $client->email,
+                        recipientName: $client->first_name,
+                        notifiable: $appointment,
+                        subsystemCode: 'citas',
+                        applyNotificationRecipients: false
                     );
                 } catch (\Exception $e) {
                     Log::error("Error sending confirmation email: " . $e->getMessage());
@@ -184,10 +210,8 @@ class AppointmentActionController extends Controller
 
                     $start = $appointment->start_datetime;
 
-                    $this->mailService->sendTemplate(
-                        $organization,
+                    $this->notificationService->trigger(
                         'appointment_cancelled',
-                        $client->email,
                         [
                             'first_name' => $client->first_name,
                             'organization_name' => $organization->name,
@@ -197,7 +221,13 @@ class AppointmentActionController extends Controller
                             'reference_code' => $appointment->reference_code,
                             'manage_url' => $manageUrl,
                             'booking_url' => $bookingUrl,
-                        ]
+                        ],
+                        organization: $organization,
+                        recipient: $client->email,
+                        recipientName: $client->first_name,
+                        notifiable: $appointment,
+                        subsystemCode: 'citas',
+                        applyNotificationRecipients: false
                     );
                 } catch (\Exception $e) {
                     Log::error("Error sending cancellation email: " . $e->getMessage());

@@ -254,7 +254,6 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-//\App\Http\Controllers\Api\SubsystemController
 Route::prefix('v1/public')
     ->middleware(['throttle:60,1'])
     ->group(function () {

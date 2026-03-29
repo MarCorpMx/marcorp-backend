@@ -25,21 +25,27 @@ return new class extends Migration
             $table->string('type');
             // Ej: contact_auto_reply, appointment_confirmed, appointment_reminder
 
+            $table->string('channel');
+            // email | sms | whatsapp
+
             $table->string('name');
             // Nombre visible en panel admin (ej: "Auto respuesta contacto")
 
-            $table->string('subject');
+            $table->string('subject')->nullable(); // email
 
-            $table->longText('body_html')->nullable();
-            $table->longText('body_text')->nullable();
+            $table->longText('body')->nullable(); // html o texto
+            $table->longText('body_text')->nullable(); // fallback
 
             // Permite activar/desactivar la plantilla
             $table->boolean('is_active')->default(true);
 
+            $table->json('variables')->nullable(); 
+            // {{name}}, {{date}}, etc
+
             $table->timestamps();
 
             // Evita duplicados del mismo tipo por organización
-            $table->unique(['organization_id', 'type']);
+            $table->unique(['organization_id', 'type', 'channel']);
         });
     }
 

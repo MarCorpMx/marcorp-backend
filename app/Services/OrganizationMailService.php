@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Organization;
-use App\Models\OrganizationMailTemplate;
+use App\Models\NotificationTemplate;
 use App\Models\OrganizationMailSetting;
 
 class OrganizationMailService
@@ -96,18 +96,28 @@ class OrganizationMailService
     ): void {
 
         $notificationSettings = $organization->notificationSetting;
-        $to = $to
-            ?? $notificationSettings?->notification_to
-            ?? [$organization->email];
+
+        if ($applyNotificationRecipients) {
+            $to = $notificationSettings?->notification_to
+                ?? [$organization->email];
+        } else {
+            $to = $to ?? [$organization->email];
+        }
 
         $bcc = $notificationSettings?->notification_bcc ?? [];
         $cc  = $notificationSettings?->notification_cc ?? [];
 
-        $template = OrganizationMailTemplate::where(function ($query) use ($organization) {
+        if (empty($to)) {
+            throw new \Exception("No recipients defined for notification '{$type}'");
+        }
+
+        //$template = OrganizationMailTemplate::where(function ($query) use ($organization) {
+        $template = NotificationTemplate::where(function ($query) use ($organization) {
             $query->where('organization_id', $organization->id)
                 ->orWhereNull('organization_id');
         })
             ->where('type', $type)
+            ->where('channel', 'email')
             ->where('is_active', true)
             ->orderByRaw('organization_id IS NULL') // prioriza el específico
             ->first();
@@ -117,7 +127,8 @@ class OrganizationMailService
         }
 
         $subject  = $this->parseTemplate($template->subject, $variables);
-        $bodyHtml = $this->parseTemplate($template->body_html ?? '', $variables);
+        //$bodyHtml = $this->parseTemplate($template->body_html ?? '', $variables);
+        $bodyHtml = $this->parseTemplate($template->body ?? '', $variables);
         $bodyText = $this->parseTemplate($template->body_text ?? '', $variables) ?: strip_tags($bodyHtml);
 
         $mailers = $this->getActiveMailers($organization);
@@ -134,20 +145,26 @@ class OrganizationMailService
 
                 $this->configureMailer($settings);
 
-                $to = $to
+                /*$to = $to
                     ?? $notificationSettings?->notification_to
-                    ?? [$organization->email];
+                    ?? [$organization->email];*/
 
                 // Normalizar SIEMPRE a array
                 $to = is_array($to) ? $to : [$to];
                 $to = array_filter($to);
+                $to = array_unique($to);
 
                 $mail = Mail::mailer('dynamic')->to($to);
 
                 if ($applyNotificationRecipients) {
                     $cc = is_array($cc) ? $cc : [$cc];
+                    $cc = array_filter($cc);
+                    $cc = array_unique($cc);
+
                     $bcc = is_array($bcc) ? $bcc : [$bcc];
-                    
+                    $bcc = array_filter($bcc);
+                    $bcc = array_unique($bcc);
+
                     $mail->cc($cc);
                     $mail->bcc($bcc);
                 }

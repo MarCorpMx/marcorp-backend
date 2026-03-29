@@ -4,11 +4,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+use App\Models\AppointmentActionToken;
+use Illuminate\Support\Str;
 
 class PublicAppointmentManageController extends Controller
 {
+
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function show($reference_code): JsonResponse
     {
         $appointment = Appointment::with([
@@ -53,7 +66,7 @@ class PublicAppointmentManageController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | MODE (CLAVE 🔥)
+            | MODE (CLAVE)
             |--------------------------------------------------------------------------
             */
             'mode' => $appointment->mode,
@@ -131,6 +144,14 @@ class PublicAppointmentManageController extends Controller
         $appointment->status = 'cancelled';
         $appointment->save();
 
+        // Invalidar Tokens
+        AppointmentActionToken::where('appointment_id', $appointment->id)
+            ->whereNull('used_at')
+            ->whereNull('revoked_at')
+            ->update([
+                'revoked_at' => now()
+            ]);
+
         // Construir nota
         $noteText = $this->buildClientNote($validated);
 
@@ -164,7 +185,7 @@ class PublicAppointmentManageController extends Controller
             ], 404);
         }
 
-        // 🚫 Estados no válidos
+        // Estados no válidos
         if (in_array($appointment->status, ['cancelled', 'completed', 'no_show'])) {
             return response()->json([
                 'status' => 'invalid_state',
@@ -172,7 +193,7 @@ class PublicAppointmentManageController extends Controller
             ], 409);
         }
 
-        // ✅ Validación
+        // Validación
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'time' => ['required'],
@@ -185,14 +206,14 @@ class PublicAppointmentManageController extends Controller
         $newStart = \Carbon\Carbon::parse($validated['date'] . ' ' . $validated['time']);
         $newEnd = $newStart->copy()->addMinutes($variant->duration_minutes);
 
-        // 🚫 No permitir pasado
+        // No permitir pasado
         if ($newStart->lessThan(now())) {
             return response()->json([
                 'message' => 'No se puede reagendar a una fecha pasada'
             ], 422);
         }
 
-        // 🔥 Verificar conflictos (EXCLUYENDO la cita actual)
+        // Verificar conflictos (EXCLUYENDO la cita actual)
         $conflict = Appointment::where('staff_member_id', $appointment->staff_member_id)
             ->where('id', '!=', $appointment->id)
             ->where('start_datetime', '<', $newEnd)
@@ -205,20 +226,21 @@ class PublicAppointmentManageController extends Controller
             ], 409);
         }
 
-        // 💾 Guardar fecha anterior (pro level)
+        // Guardar fecha anterior (pro level)
         $oldDate = $appointment->start_datetime->format('Y-m-d H:i');
+        //$oldDate = $appointment->start_datetime->copy();
 
-        // ✏️ Actualizar cita
+        // Actualizar cita
         $appointment->update([
             'start_datetime' => $newStart,
             'end_datetime' => $newEnd,
             'status' => 'rescheduled'
         ]);
 
-        // 🧾 Construir nota
+        // Construir nota
         $noteText = $this->buildRescheduleNote($validated, $oldDate, $newStart);
 
-        // 🧠 Guardar nota interna
+        // Guardar nota interna
         \App\Models\AppointmentNote::create([
             'appointment_id' => $appointment->id,
             'user_id' => null, // viene del cliente
@@ -226,8 +248,8 @@ class PublicAppointmentManageController extends Controller
             'type' => 'client_reschedule'
         ]);
 
-        // 🔔 EVENTOS FUTUROS
-        $this->notifyReschedule($appointment, $noteText);
+        // Enviar correos
+        $this->notifyReschedule($appointment, $noteText, $oldDate);
 
         return response()->json([
             'status' => 'rescheduled',
@@ -270,21 +292,154 @@ class PublicAppointmentManageController extends Controller
 
     private function notifyCancellation($appointment, $note)
     {
-        // Notificar a Michelle (staff / admin)
-        // ejemplo:
-        // Notification::send($appointment->staff, new AppointmentCancelledNotification(...));
+        $organization = $appointment->organization()->first();
+        $client = $appointment->client;
+        $variant = $appointment->serviceVariant;
 
-        // 📲 FUTURO: WhatsApp / Email / Push
+        // Notificar (staff / admin)
+        // FUTURO: WhatsApp / SMS / Push
+
+        try {
+            $this->notificationService->trigger(
+                'client_cancelled_appointment',
+                [
+                    'first_name' => $appointment->client->first_name,
+                    'last_name' => $appointment->client->last_name,
+                    'email' => $appointment->client->email,
+                    'service_name' => $variant->service->name . ' - ' . $variant->name,
+                    'date' => $appointment->start_datetime->format('d/m/Y'),
+                    'time' => $appointment->start_datetime->format('H:i'),
+                    'reference_code' => $appointment->reference_code,
+                    'note' => $note,
+                ],
+                organization: $appointment->organization,
+                recipient: null,
+                recipientName: null,
+                notifiable: $appointment,
+                subsystemCode: 'citas',
+                applyNotificationRecipients: true
+            );
+        } catch (\Exception $e) {
+            Log::error("Error sending cancellation-client email:: " . $e->getMessage());
+        }
     }
 
-    private function notifyReschedule($appointment, $note)
+    private function notifyReschedule($appointment, $note, $oldDate)
     {
-        // 🔥 Aquí luego metes:
-        // - Email
-        // - WhatsApp
-        // - Notificación interna
+        $organization = $appointment->organization()->first();
+        $client = $appointment->client;
+        $variant = $appointment->serviceVariant;
 
-        // Ejemplo futuro:
-        // Notification::send($appointment->staff, new AppointmentRescheduled(...));
+        /*
+        |--------------------------------------------------------------------------
+        | REVOCAR TOKENS ANTERIORES
+        |--------------------------------------------------------------------------
+        */
+        AppointmentActionToken::where('appointment_id', $appointment->id)
+            ->whereNull('used_at')
+            ->whereNull('revoked_at')
+            ->update([
+                'revoked_at' => now()
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | CREAR NUEVOS TOKENS
+        |--------------------------------------------------------------------------
+        */
+        $confirmToken = AppointmentActionToken::create([
+            'appointment_id' => $appointment->id,
+            'token' => Str::uuid()->toString(),
+            'action' => 'confirm',
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        $cancelToken = AppointmentActionToken::create([
+            'appointment_id' => $appointment->id,
+            'token' => Str::uuid()->toString(),
+            'action' => 'cancel',
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | GENERAR URLs
+        |--------------------------------------------------------------------------
+        */
+        $baseUrl = config('services.booking.front_url') . "/{$organization->slug}/result";
+
+        $confirmUrl = $baseUrl . "?token={$confirmToken->token}";
+        $cancelUrl  = $baseUrl . "?token={$cancelToken->token}";
+
+        $manageBaseUrl = config('services.booking.front_url') . "/{$organization->slug}/manage";
+        $manageUrl = $manageBaseUrl . "?ref={$appointment->reference_code}";
+
+        /*
+        |--------------------------------------------------------------------------
+        |  FORMATEAR DATOS
+        |--------------------------------------------------------------------------
+        */
+        //$oldDate = $appointment->getOriginal('start_datetime');
+        $newDate = $appointment->start_datetime;
+
+
+        // Notificación a CLIENTE
+        try {
+            $this->notificationService->trigger(
+                type: 'appointment_rescheduled',
+                data: [
+                    'first_name' => $appointment->client->first_name,
+                    'organization_name' => $organization->name,
+                    'service_name' => $appointment->serviceVariant->service->name . ' - ' . $appointment->serviceVariant->name,
+
+                    'date' => $newDate->format('d/m/Y'),
+                    'time' => $newDate->format('H:i'),
+
+                    'old_date' => \Carbon\Carbon::parse($oldDate)->format('d/m/Y H:i'),
+                    'new_date' => $newDate->format('d/m/Y H:i'),
+
+                    'reference_code' => $appointment->reference_code,
+                    'manage_url' => $manageUrl,
+                ],
+                organization: $organization,
+                recipient: $appointment->client->email,
+                recipientName: $appointment->client->first_name,
+                notifiable: $appointment,
+                subsystemCode: 'citas'
+            );
+        } catch (\Exception $e) {
+            Log::error("Error sending reschedule email to client: " . $e->getMessage());
+        }
+
+        // Notificación INTERNA
+        // FUTURO: WhatsApp / SMS / Push
+        try {
+            $this->notificationService->trigger(
+                'client_rescheduled_appointment',
+                [
+                    'first_name' => $client->first_name,
+                    'last_name' => $client->last_name,
+                    'email' => $client->email,
+
+                    'service_name' => $variant->service->name . ' - ' . $variant->name,
+
+                    'old_date' => \Carbon\Carbon::parse($oldDate)->format('d/m/Y H:i'),
+                    'new_date' => $newDate->format('d/m/Y H:i'),
+
+                    'note' => $note,
+
+                    'confirm_url' => $confirmUrl,
+                    'cancel_url' => $cancelUrl,
+                ],
+                organization: $appointment->organization,
+                recipient: null,
+                recipientName: null,
+                notifiable: $appointment,
+                subsystemCode: 'citas',
+                applyNotificationRecipients: true
+            );
+        } catch (\Exception $e) {
+            Log::error("Error sending Reschedule-client email:: " . $e->getMessage());
+        }
     }
 }

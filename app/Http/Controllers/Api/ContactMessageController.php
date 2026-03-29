@@ -7,16 +7,17 @@ use App\Http\Requests\StoreContactMessageRequest;
 use Illuminate\Support\Str;
 use App\Models\Organization;
 use App\Models\ContactMessage;
-use App\Services\OrganizationMailService;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Log;
 
 class ContactMessageController extends Controller
 {
-    protected $mailService;
 
-    public function __construct(OrganizationMailService $mailService)
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
     {
-        $this->mailService = $mailService;
+        $this->notificationService = $notificationService;
     }
 
     public function store(StoreContactMessageRequest $request)
@@ -42,12 +43,10 @@ class ContactMessageController extends Controller
         ]);
 
 
-        // Enviar correo automático de NOTIFICACION INTERNO
+        // Enviar correo automático de NOTIFICACION INTERNA
         try {
-            $this->mailService->sendTemplate(
-                $organization,
-                'contact_internal_notification', // plantilla activa en organization_mail_templates
-                null,      // remitente recibe la respuesta (colocamos null para que tomé los valores de la tabla organization_notification_settings)
+            $this->notificationService->trigger(
+                'contact_internal_notification',
                 [
                     'first_name' => $request->first_name,
                     'last_name'  => $request->last_name,
@@ -57,18 +56,23 @@ class ContactMessageController extends Controller
                     'subject'    => $request->subject,
                     'services'   => $request->services,
                 ],
-                true
+                organization: $organization,
+                //recipient: $organization->email,
+                recipient: null,
+                //recipientName: $organization->name,
+                recipientName: null,
+                notifiable: $contactMessage,
+                subsystemCode: 'web',
+                applyNotificationRecipients: true
             );
         } catch (\Exception $e) {
-            Log::error("Error enviando correo automático: " . $e->getMessage());
+            Log::error("Error notification internal: " . $e->getMessage());
         }
 
         // Enviar correo automático de respuesta (USUARIO FINAL)
         try {
-            $this->mailService->sendTemplate(
-                $organization,
-                'contact_auto_reply', // plantilla activa en organization_mail_templates
-                $request->email,      // remitente recibe la respuesta
+            $this->notificationService->trigger(
+                'contact_auto_reply',
                 [
                     'first_name' => $request->first_name,
                     'last_name'  => $request->last_name,
@@ -76,10 +80,19 @@ class ContactMessageController extends Controller
                     'message'    => $request->message,
                     'subject'    => $request->subject,
                     'services'   => $request->services,
-                ]
+                ],
+                /*$organization,
+                $request->email,
+                $request->first_name*/
+
+                organization: $organization,
+                recipient: $request->email,
+                recipientName: $request->first_name,
+                notifiable: $contactMessage,
+                subsystemCode: 'web',
             );
         } catch (\Exception $e) {
-            Log::error("Error enviando correo automático: " . $e->getMessage());
+            Log::error("Error notification auto reply: " . $e->getMessage());
         }
 
         $successMessage = $organization->metadata['contact_success_message']

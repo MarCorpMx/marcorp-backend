@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\ServiceVariant;
 use App\Models\Appointment;
-use App\Services\OrganizationMailService;
+use App\Services\NotificationService;
 use App\Models\AppointmentActionToken;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -20,12 +20,18 @@ use Carbon\Carbon;
 class PublicBookingController extends Controller
 {
 
-    protected $mailService;
+    protected NotificationService $notificationService;
 
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+    /*protected $mailService;
     public function __construct(OrganizationMailService $mailService)
     {
         $this->mailService = $mailService;
-    }
+    }*/
 
     /*
     |--------------------------------------------------------------------------
@@ -562,11 +568,9 @@ class PublicBookingController extends Controller
         // Email al cliente
         if ($enviarCorreos) {
             try {
-                $this->mailService->sendTemplate(
-                    $organization,
-                    'appointment_request_received', // template
-                    $client->email,
-                    [
+                $this->notificationService->trigger(
+                    type: 'appointment_request_received',
+                    data: [
                         'first_name' => $client->first_name,
                         'organization_name' => $organization->name,
                         'service_name' => $variant->service->name . ' - ' . $variant->name,
@@ -574,7 +578,12 @@ class PublicBookingController extends Controller
                         'time' => $start->format('H:i'),
                         'reference_code' => $appointment->reference_code,
                         'manage_url' => $manageUrl,
-                    ]
+                    ],
+                    organization: $organization,
+                    recipient: $client->email,
+                    recipientName: $client->first_name,
+                    notifiable: $appointment,
+                    subsystemCode: 'citas'
                 );
             } catch (\Exception $e) {
                 Log::error("Error sending booking email to client: " . $e->getMessage());
@@ -594,12 +603,9 @@ class PublicBookingController extends Controller
         // Notificacion Interna
         if ($enviarCorreos) {
             try {
-
-                $this->mailService->sendTemplate(
-                    $organization,
-                    'appointment_internal_notification',
-                    null, // usa notification settings
-                    [
+                $this->notificationService->trigger(
+                    type: 'appointment_internal_notification',
+                    data: [
                         'first_name' => $client->first_name,
                         'last_name' => $client->last_name,
                         'email' => $client->email,
@@ -611,12 +617,16 @@ class PublicBookingController extends Controller
                         'organization_name' => $organization->name,
                         'mode' => $mode,
                         'reference_code' => $appointment->reference_code,
-                        // Para confirmar/cancelar cita
                         'confirm_url' => $confirmUrl,
                         'cancel_url' => $cancelUrl,
                         'pro_tip' => $pro_tip,
                     ],
-                    true
+                    organization: $organization,
+                    recipient: null, // importante
+                    recipientName: null,
+                    notifiable: $appointment,
+                    subsystemCode: 'citas',
+                    applyNotificationRecipients: true
                 );
             } catch (\Exception $e) {
                 Log::error("Error sending booking notification: " . $e->getMessage());

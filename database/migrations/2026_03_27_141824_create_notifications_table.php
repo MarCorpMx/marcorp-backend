@@ -17,9 +17,20 @@ return new class extends Migration
             $table->unsignedBigInteger('organization_id');
 
             // =========================
+            // SUBSYSTEM 
+            // =========================
+            $table->unsignedBigInteger('subsystem_id')->nullable();
+
+            // =========================
+            // RELACIÓN POLIMÓRFICA
+            // =========================
+            $table->nullableMorphs('notifiable');
+            // notifiable_id
+            // notifiable_type
+
+            // =========================
             // RELACIONES OPCIONALES
             // =========================
-            $table->unsignedBigInteger('appointment_id')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
 
             // =========================
@@ -40,7 +51,7 @@ return new class extends Migration
             // =========================
             // DESTINATARIO
             // =========================
-            $table->string('recipient');
+            $table->string('recipient')->nullable();
             // correo o teléfono
 
             $table->string('recipient_name')->nullable();
@@ -103,14 +114,32 @@ return new class extends Migration
             $table->timestamps();
 
             // =========================
+            // FOREIGN KEYS
+            // =========================
+            $table->foreign('organization_id')
+                ->references('id')
+                ->on('organizations')
+                ->cascadeOnDelete();
+
+            $table->foreign('subsystem_id')
+                ->references('id')
+                ->on('subsystems')
+                ->nullOnDelete();
+
+            // =========================
             // ÍNDICES (IMPORTANTE)
             // =========================
             $table->index('organization_id');
             $table->index(['organization_id', 'type']);
+            $table->index(['organization_id', 'subsystem_id']);
+
             $table->index('status');
             $table->index('channel');
             $table->index('scheduled_at');
             $table->index('event_key');
+
+            // Para queries polimórficos
+            $table->index(['notifiable_id', 'notifiable_type']);
         });
     }
 

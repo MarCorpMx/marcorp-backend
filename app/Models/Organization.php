@@ -97,12 +97,18 @@ class Organization extends Model
 
     public function mailTemplates()
     {
-        return $this->hasMany(OrganizationMailTemplate::class);
+        //return $this->hasMany(OrganizationMailTemplate::class);
+        return $this->hasMany(NotificationTemplate::class);
     }
 
     public function notificationSetting()
     {
         return $this->hasOne(OrganizationNotificationSetting::class);
+    }
+
+    public function notificationRules()
+    {
+        return $this->hasMany(NotificationRule::class);
     }
 
     public function services()
