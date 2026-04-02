@@ -14,19 +14,36 @@ class OrganizationObserver
      */
     public function created(Organization $organization): void
     {
-        $owner = $organization->owner;
+        //$owner = $organization->owner;
+
+        $owner = $organization->owner()->first();
+
+        if (!$owner) {
+            return;
+        }
 
         // 1 Crear StaffMember
-        $staff = StaffMember::create([
+        /*$staff = StaffMember::create([
             'organization_id' => $organization->id,
             'user_id' => $owner->id,
             'name' => $owner->name,
             'email' => $owner->email,
             'is_active' => true,
-        ]);
+        ]);*/
+        $staff = StaffMember::firstOrCreate(
+            [
+                'organization_id' => $organization->id,
+                'user_id' => $owner->id,
+            ],
+            [
+                'name' => $owner->name,
+                'email' => $owner->email,
+                'is_active' => true,
+            ]
+        );
 
         // 2 Crear configuración básica de agenda
-        $staff->agendaSetting()->create([
+        /*$staff->agendaSetting()->create([
             'appointment_duration' => 60,
             'break_between_appointments' => 0,
             'minimum_notice_hours' => 2,
@@ -34,7 +51,20 @@ class OrganizationObserver
             'allow_online_booking' => true,
             'allow_cancellation' => true,
             'timezone' => 'America/Mexico_City',
-        ]);
+        ]);*/
+
+        $staff->agendaSetting()->firstOrCreate(
+            [],
+            [
+                'appointment_duration' => 60,
+                'break_between_appointments' => 0,
+                'minimum_notice_hours' => 2,
+                'cancellation_limit_hours' => 12,
+                'allow_online_booking' => true,
+                'allow_cancellation' => true,
+                'timezone' => 'America/Mexico_City',
+            ]
+        );
 
         // 3 Crear horario Lunes a Viernes 8am–6pm
         $defaultDays = [1, 2, 3, 4, 5]; // lunes a viernes

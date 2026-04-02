@@ -150,12 +150,25 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     | STAFF MEMBERS (Profesionales unificados)
     |--------------------------------------------------------------------------
     */
-
     Route::get('/staff-members', [StaffMemberController::class, 'index']);
     Route::post('/staff-members', [StaffMemberController::class, 'store']);
     Route::get('/staff-members/{staffMember}', [StaffMemberController::class, 'show']);
     Route::put('/staff-members/{staffMember}', [StaffMemberController::class, 'update']);
     Route::delete('/staff-members/{staffMember}', [StaffMemberController::class, 'destroy']);
+    
+    /*
+    |--------------------------------------------------------------------------
+    | STAFF MEMBERS (Servicios)
+    |--------------------------------------------------------------------------
+    */
+    Route::get(
+        '/staff-members/{staffMember}/service-variants',
+        [StaffMemberController::class, 'serviceVariants']
+    );
+    Route::put(
+        '/staff-members/{staffMember}/service-variants',
+        [StaffMemberController::class, 'syncServiceVariants']
+    );
 
     /*
     |--------------------------------------------------------------------------
@@ -198,7 +211,6 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     | STAFF MEMBER - SCHEDULES (si los manejas separados)
     |--------------------------------------------------------------------------
     */
-
     Route::get(
         '/staff-members/{staffMember}/schedules',
         [StaffMemberScheduleController::class, 'index']
@@ -271,16 +283,16 @@ Route::prefix('v1/public')
         );
 
         // Variantes del servicio
-        Route::get(
+        /*Route::get(
             '{organization:slug}/services/{service}/variants',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'variants']
-        );
+        );*/
 
         // Staff disponible para esa variante
-        Route::get(
+        /*Route::get(
             '{organization:slug}/service-variants/{variant}/staff',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'staff']
-        );
+        );*/
 
         // Disponibilidad de agenda - un día
         Route::get(

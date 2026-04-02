@@ -54,9 +54,18 @@ class StaffMember extends Model
     }
 
     // Variantes específicas que puede ofrecer
-    public function serviceVariants()
+    /*public function serviceVariants()
     {
         return $this->belongsToMany(ServiceVariant::class, 'service_variant_staff');
+    }*/
+    public function serviceVariants()
+    {
+        return $this->belongsToMany(
+            ServiceVariant::class,
+            'service_variant_staff', // tu tabla pivote
+            'staff_id',
+            'service_variant_id'
+        );
     }
 
     // Horarios semanales

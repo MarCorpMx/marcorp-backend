@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AppointmentActionToken;
 use App\Services\NotificationService;
+use App\Services\AppointmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,9 +15,14 @@ class AppointmentActionController extends Controller
 
     protected NotificationService $notificationService;
 
-    public function __construct(NotificationService $notificationService)
-    {
+    protected AppointmentService $appointmentService; //
+
+    public function __construct(
+        NotificationService $notificationService,
+        AppointmentService $appointmentService
+    ) {
         $this->notificationService = $notificationService;
+        $this->appointmentService = $appointmentService;
     }
 
     public function handle(Request $request, $token)
@@ -33,7 +39,7 @@ class AppointmentActionController extends Controller
             'already_no_show' => 'Esta cita fue marcada como no asistida.',
         ];
 
-        $result = DB::transaction(function () use ($token, $request) {
+        /*$result = DB::transaction(function () use ($token, $request) {
 
             $actionToken = AppointmentActionToken::with([
                 'appointment.serviceVariant.service',
@@ -139,11 +145,11 @@ class AppointmentActionController extends Controller
                 'status' => $status,
                 'appointment' => $appointment->fresh('serviceVariant.service')
             ];
-        });
+        });*/
 
 
-        $status = $result['status'];
-        $appointment = $result['appointment'];
+        //$status = $result['status'];
+        //$appointment = $result['appointment'];
 
         /*Log::info('Appointment action processed', [
             'token' => $token,
@@ -157,7 +163,7 @@ class AppointmentActionController extends Controller
         | SIDE EFFECTS (FUERA DE LA TRANSACCIÓN)
         |--------------------------------------------------------------------------
         */
-        if ($appointment) {
+        /*if ($appointment) {
 
             $organization = $appointment->organization;
 
@@ -233,12 +239,31 @@ class AppointmentActionController extends Controller
                     Log::error("Error sending cancellation email: " . $e->getMessage());
                 }
             }
-        }
+        }*/
 
-        return $this->response($status, $appointment, $messages);
+        $result = $this->appointmentService->handleActionToken(
+            token: $token,
+            ip: $request->ip(),
+            userAgent: $request->userAgent()
+        );
+
+        //return $this->response($status, $appointment, $messages);
+
+         return response()->json([
+            'status' => $result['status'],
+            'message' => $messages[$result['status']] ?? 'Acción procesada',
+            'appointment' => $result['appointment'] ? [
+                'date' => optional($result['appointment']->start_datetime)->format('d/m/Y'),
+                'time' => optional($result['appointment']->start_datetime)->format('H:i'),
+                'service' =>
+                    optional($result['appointment']->serviceVariant->service)->name
+                    . ' - ' .
+                    optional($result['appointment']->serviceVariant)->name,
+            ] : null
+        ]);
     }
 
-    protected function response($status, $appointment, $messages)
+    /*protected function response($status, $appointment, $messages)
     {
         return response()->json([
             'status' => $status,
@@ -252,5 +277,5 @@ class AppointmentActionController extends Controller
                     optional($appointment->serviceVariant)->name,
             ] : null
         ]);
-    }
+    }*/
 }

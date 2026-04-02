@@ -10,6 +10,21 @@ use App\Models\Organization;
 
 class Appointment extends Model
 {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Constantes (estados de pagos)
+    |--------------------------------------------------------------------------
+    */
+    const DEPOSIT_NOT_REQUIRED = 'not_required';
+    const DEPOSIT_PENDING = 'pending';
+    const DEPOSIT_PAID = 'paid';
+
+    const PAYMENT_PENDING = 'pending';
+    const PAYMENT_PARTIAL = 'partial';
+    const PAYMENT_PAID = 'paid';
+
+
     protected $fillable = [
         'organization_id',
         'service_variant_id',
@@ -22,11 +37,25 @@ class Appointment extends Model
         'notes',
         'mode',
         'reference_code',
+
+        'base_price',
+        'discount_amount',
+        'final_price',
+
+        'deposit_amount',
+        'deposit_status',
+
+        'payment_status',
     ];
 
     protected $casts = [
         'start_datetime' => 'datetime',
         'end_datetime' => 'datetime',
+
+        'base_price' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'final_price' => 'decimal:2',
+        'deposit_amount' => 'decimal:2',
     ];
 
     /*
@@ -77,6 +106,11 @@ class Appointment extends Model
     }
 
     /******************** */
+    public function isFullyPaid(): bool
+    {
+        return $this->payment_status === self::PAYMENT_PAID;
+    }
+
     protected static function booted()
     {
         static::creating(function ($appointment) {

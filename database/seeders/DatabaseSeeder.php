@@ -19,22 +19,35 @@ class DatabaseSeeder extends Seeder
             // Usuarios + organizaciones
             RootUserSeeder::class,
             ClientUserSeeder::class, // Crea Punto de Calma
-            //ClientSeeder::class,
+            
+
+            // BeautyDoor
+            BeautyDoorSeeder::class,
+            BeautyDoorStaffSeeder::class,
+            BeautyDoorServicesSeeder::class,
+
 
             // Asignación de subsistemas
             OrganizationSubsystemSeeder::class,
 
             // Para Mails
             OrganizationMailSettingsSeeder::class,
-            OrganizationMailTemplatesSeeder::class,
+            //OrganizationMailTemplatesSeeder::class,
+            GeneralMailTemplatesSeeder::class,
+            PuntoDeCalmaMailTemplatesSeeder::class,
 
             // Punto-de-Calma -> Configuraciones
             PuntoDeCalmaServicesSeeder::class, // Crea los servicios principales (se puede dejar para que al inciar ya tenga servicios)
             //PuntoDeCalmaDemoSeeder::class, // Crea clientes, citas
 
+
+            
+
+
+
             // Crear Reglas de Notificaciones
             NotificationRuleSeeder::class,
-            
+
 
         ]);
     }

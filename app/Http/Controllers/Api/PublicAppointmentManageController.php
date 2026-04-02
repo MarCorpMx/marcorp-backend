@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Services\NotificationService;
+use App\Services\AppointmentService;
+
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -17,8 +19,14 @@ class PublicAppointmentManageController extends Controller
 
     protected NotificationService $notificationService;
 
-    public function __construct(NotificationService $notificationService)
-    {
+    /*public function __construct(
+        protected AppointmentService $appointmentService
+    ) {}*/
+
+    public function __construct(
+        NotificationService $notificationService,
+        protected AppointmentService $appointmentService
+    ) {
         $this->notificationService = $notificationService;
     }
 
@@ -112,10 +120,9 @@ class PublicAppointmentManageController extends Controller
         ]);
     }
 
-
     public function cancel(Request $request, $reference_code)
     {
-        $appointment = \App\Models\Appointment::where('reference_code', $reference_code)
+        $appointment = Appointment::where('reference_code', $reference_code)
             ->with(['client', 'serviceVariant.service'])
             ->first();
 
@@ -140,31 +147,16 @@ class PublicAppointmentManageController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Cancelar
-        $appointment->status = 'cancelled';
-        $appointment->save();
-
-        // Invalidar Tokens
-        AppointmentActionToken::where('appointment_id', $appointment->id)
-            ->whereNull('used_at')
-            ->whereNull('revoked_at')
-            ->update([
-                'revoked_at' => now()
-            ]);
-
         // Construir nota
         $noteText = $this->buildClientNote($validated);
 
-        // Guardar nota
-        \App\Models\AppointmentNote::create([
-            'appointment_id' => $appointment->id,
-            'user_id' => null,
-            'note' => $noteText,
-            'type' => 'client_cancellation'
-        ]);
-
-        // EVENTOS 
-        $this->notifyCancellation($appointment, $noteText);
+        $this->appointmentService->cancel(
+            appointment: $appointment,
+            data: [
+                'reason' => $noteText ?? 'Cancelada por cliente'
+            ],
+            source: 'client'
+        );
 
         return response()->json([
             'status' => 'cancelled',
@@ -172,7 +164,47 @@ class PublicAppointmentManageController extends Controller
         ]);
     }
 
+
     public function reschedule(Request $request, $reference_code)
+    {
+        $appointment = Appointment::with(['serviceVariant', 'staff'])
+            ->where('reference_code', $reference_code)
+            ->first();
+
+        if (!$appointment) {
+            return response()->json([
+                'status' => 'invalid',
+                'message' => 'La referencia no es válida.'
+            ], 404);
+        }
+
+        if (in_array($appointment->status, ['cancelled', 'completed', 'no_show'])) {
+            return response()->json([
+                'status' => 'invalid_state',
+                'message' => 'Esta cita no puede ser reagendada.'
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'time' => ['required'],
+            'reason' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $this->appointmentService->reschedule(
+            $appointment,
+            $validated,
+            'client' // clave
+        );
+
+        return response()->json([
+            'status' => 'rescheduled',
+            'message' => 'Tu cita ha sido reagendada correctamente.'
+        ]);
+    }
+
+    public function reschedule_BKP(Request $request, $reference_code)
     {
         $appointment = Appointment::with(['serviceVariant', 'staff'])
             ->where('reference_code', $reference_code)
@@ -290,39 +322,8 @@ class PublicAppointmentManageController extends Controller
         return implode(' | ', $parts);
     }
 
-    private function notifyCancellation($appointment, $note)
-    {
-        $organization = $appointment->organization()->first();
-        $client = $appointment->client;
-        $variant = $appointment->serviceVariant;
 
-        // Notificar (staff / admin)
-        // FUTURO: WhatsApp / SMS / Push
 
-        try {
-            $this->notificationService->trigger(
-                'client_cancelled_appointment',
-                [
-                    'first_name' => $appointment->client->first_name,
-                    'last_name' => $appointment->client->last_name,
-                    'email' => $appointment->client->email,
-                    'service_name' => $variant->service->name . ' - ' . $variant->name,
-                    'date' => $appointment->start_datetime->format('d/m/Y'),
-                    'time' => $appointment->start_datetime->format('H:i'),
-                    'reference_code' => $appointment->reference_code,
-                    'note' => $note,
-                ],
-                organization: $appointment->organization,
-                recipient: null,
-                recipientName: null,
-                notifiable: $appointment,
-                subsystemCode: 'citas',
-                applyNotificationRecipients: true
-            );
-        } catch (\Exception $e) {
-            Log::error("Error sending cancellation-client email:: " . $e->getMessage());
-        }
-    }
 
     private function notifyReschedule($appointment, $note, $oldDate)
     {

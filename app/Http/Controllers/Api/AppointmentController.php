@@ -8,14 +8,17 @@ use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-
-use App\Models\AppointmentNote;
+use App\Services\AppointmentService;
 
 
 class AppointmentController extends Controller
 {
 
     use ResolvesOrganization;
+
+    public function __construct(
+        protected AppointmentService $appointmentService
+    ) {}
 
     /*
     |--------------------------------------------------------------------------
@@ -86,7 +89,7 @@ $appointments = $query
             'notes' => ['nullable', 'string'],
         ]);
 
-        $variant = \App\Models\ServiceVariant::findOrFail($validated['service_variant_id']);
+        /*$variant = \App\Models\ServiceVariant::findOrFail($validated['service_variant_id']);
 
         $start = \Carbon\Carbon::parse($validated['date'] . ' ' . $validated['time']);
         $end = $start->copy()->addMinutes($variant->duration_minutes);
@@ -105,7 +108,22 @@ $appointments = $query
             'source' => 'admin_panel',
 
             'notes' => $validated['notes'] ?? null,
-        ]);
+        ]);*/
+
+        $appointment = $this->appointmentService->createAppointment(
+            data: $validated,
+            organization: $organization,
+            options: [
+                'status' => 'confirmed',
+                'source' => 'admin_panel',
+                'with_tokens' => false, // admin no necesita tokens
+                'user_id' => $request->user()->id,
+                'note' => $validated['notes'] ?? null,
+                'send_notifications' => true,
+                'notify_client' => true,
+                'notify_internal' => false,
+            ]
+        );
 
         return new AppointmentResource(
             $appointment->load([
@@ -189,16 +207,97 @@ $appointments = $query
             'note' => ['nullable', 'string', 'max:1000']
         ]);
 
-        $appointment->status = $validated['status'];
-        $appointment->save();
+        $userId = $request->user()->id;
+        $status = $validated['status'];
+
+        switch ($status) {
+
+            case 'confirmed':
+                $this->appointmentService->confirm(
+                    $appointment,
+                    [
+                        'user_id' => $userId,
+                        'reason' => $validated['note'] ?? 'Confirmada desde panel'
+                    ],
+                    'admin'
+                );
+                break;
+
+            case 'cancelled':
+                $this->appointmentService->cancel(
+                    $appointment,
+                    [
+                        'user_id' => $userId,
+                        'reason' => $validated['note'] ?? 'Cancelada desde panel'
+                    ],
+                    'admin'
+                );
+                break;
+
+            case 'no_show':
+                $appointment->update(['status' => 'no_show']);
+
+                $this->appointmentService->createNote(
+                    $appointment,
+                    $userId,
+                    'no_show',
+                    $validated['note'] ?? 'Cliente no asistió'
+                );
+                break;
+
+            case 'completed':
+                $appointment->update(['status' => 'completed']);
+
+                $this->appointmentService->createNote(
+                    $appointment,
+                    $userId,
+                    'completed',
+                    $validated['note'] ?? 'Cita completada'
+                );
+                break;
+
+            case 'rescheduled':
+                // aquí después conectas con reschedule()
+                $appointment->update(['status' => 'rescheduled']);
+
+                $this->appointmentService->createNote(
+                    $appointment,
+                    $userId,
+                    'reschedule',
+                    $validated['note'] ?? 'Cita reagendada'
+                );
+                break;
+
+            default:
+                $appointment->update(['status' => $status]);
+
+                $this->appointmentService->createNote(
+                    $appointment,
+                    $userId,
+                    'admin_note',
+                    $validated['note']
+                );
+                break;
+        }
+
+        return response()->json([
+            'data' => $appointment->fresh([
+                'client',
+                'serviceVariant.service'
+            ])
+        ]);
+
+        //$appointment->status = $validated['status'];
+        //$appointment->save();
 
         /*
         |-------------------------------------------------
         | Crear nota interna si hay comentario
         |-------------------------------------------------
         */
-        if (!empty($validated['note'])) {
+        /*if (!empty($validated['note'])) {
 
+            //$this->appointmentService->createNote
             AppointmentNote::create([
                 'appointment_id' => $appointment->id,
                 'user_id' => $request->user()->id,
@@ -210,24 +309,24 @@ $appointments = $query
                     default => 'admin_note'
                 }
             ]);
-        }
+        }*/
 
         /*
         |-------------------------------------------------
         | Eventos futuros (correo / notificaciones)
         |-------------------------------------------------
         */
-        if ($appointment->status === 'confirmed') {
+        /*if ($appointment->status === 'confirmed') {
             // enviar correo confirmación
         }
 
         if ($appointment->status === 'cancelled') {
             // enviar aviso cancelación
-        }
+        }*/
 
-        return response()->json([
+        /*return response()->json([
             'data' => $appointment
-        ]);
+        ]);*/
     }
 
     /*

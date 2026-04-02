@@ -69,7 +69,7 @@ class OrganizationMailSettingsSeeder extends Seeder
 
         if ($pdc) {
 
-            // 🔹 SES (ACTIVO)
+            // 🔹 SES 
             OrganizationMailSetting::updateOrCreate(
                 [
                     'organization_id' => $pdc->id,
@@ -89,7 +89,7 @@ class OrganizationMailSettingsSeeder extends Seeder
                 ]
             );
 
-            // 🔹 SendGrid 
+            // 🔹 SendGrid (ACTIVO)
             OrganizationMailSetting::updateOrCreate(
                 [
                     'organization_id' => $pdc->id,
@@ -109,5 +109,39 @@ class OrganizationMailSettingsSeeder extends Seeder
                 ]
             );
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        |  BeautyDoor
+        |--------------------------------------------------------------------------
+        */
+        $beauty = Organization::where('slug', 'beautydoor')->first();
+
+        if ($beauty) {
+
+            // 🔹 SendGrid (ACTIVO - usando dominio de Marcorp)
+            OrganizationMailSetting::updateOrCreate(
+                [
+                    'organization_id' => $beauty->id,
+                    'provider' => 'sendgrid',
+                ],
+                [
+                    'mailer'       => 'smtp',
+                    'host'         => 'smtp.sendgrid.net',
+                    'port'         => 587,
+                    'username'     => 'apikey',
+                    'password'     => env('SENDGRID_API_KEY_MARCORP'), // 👈 reutilizas este
+                    'encryption'   => 'tls',
+                    'from_address' => 'no-reply@marcorp.mx',
+                    'from_name'    => 'BeautyDoor',
+                    'is_active'    => true,
+                    'priority'     => 1,
+                ]
+            );
+        }
+
+
+
     }
 }

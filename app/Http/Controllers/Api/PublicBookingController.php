@@ -8,6 +8,7 @@ use App\Models\ServiceVariant;
 use App\Models\Appointment;
 use App\Services\NotificationService;
 use App\Models\AppointmentActionToken;
+use App\Services\AppointmentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -17,21 +18,17 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 
+
 class PublicBookingController extends Controller
 {
 
-    protected NotificationService $notificationService;
-
-    public function __construct(NotificationService $notificationService)
-    {
-        $this->notificationService = $notificationService;
+    protected AppointmentService $appointmentService;
+    public function __construct(
+        NotificationService $notificationService,
+        AppointmentService $appointmentService
+    ) {
+        $this->appointmentService = $appointmentService;
     }
-
-    /*protected $mailService;
-    public function __construct(OrganizationMailService $mailService)
-    {
-        $this->mailService = $mailService;
-    }*/
 
     /*
     |--------------------------------------------------------------------------
@@ -394,12 +391,13 @@ class PublicBookingController extends Controller
             ], 429);
         }
 
-        $key = 'booking_attempts_' . $request->ip();
+        // rombi - descomentar
+        /*$key = 'booking_attempts_' . $request->ip();
         $attempts = Cache::get($key, 0) + 1;
         Cache::put($key, $attempts, now()->addMinutes(10));
         if ($attempts > 20) {
             abort(429, 'Too many attempts.');
-        }
+        }*/
 
         /*
         |--------------------------------------------------------------------------
@@ -412,6 +410,17 @@ class PublicBookingController extends Controller
             ->where('id', $validated['service_variant_id'])
             ->where('active', true)
             ->firstOrFail();
+
+        // Valida el staff disponible
+        $validStaff = $variant->staff()
+            ->where('staff_members.id', $validated['staff_member_id'])
+            ->exists();
+
+        if (!$validStaff) {
+            return response()->json([
+                'message' => 'Staff inválido para este servicio'
+            ], 422);
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -434,10 +443,10 @@ class PublicBookingController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Verificar conflictos
+        | Verificar conflictos - rombi (evita que 2 personas reserven al mismo tiempo)
         |--------------------------------------------------------------------------
         */
-        $conflict = Appointment::where('staff_member_id', $validated['staff_member_id'])
+        /*$conflict = Appointment::where('staff_member_id', $validated['staff_member_id'])
             ->whereIn('status', ['pending', 'confirmed']) // se agrego para interferir
             ->where(function ($query) use ($start, $end) {
 
@@ -454,185 +463,28 @@ class PublicBookingController extends Controller
             return response()->json([
                 'message' => 'Este horario ya fue reservado x'
             ], 409);
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Crear o buscar cliente
-        |--------------------------------------------------------------------------
-        */
-        $client = \App\Models\Client::firstOrCreate(
-            [
-                'organization_id' => $organization->id,
-                'email' => $validated['email']
-            ],
-            [
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'] ?? null,
-                'phone' => $validated['phone'] ?? null
-            ]
-        );
-
-        if ($validated['phone'] ?? false) {
-            $client->update(['phone' => $validated['phone']]);
-        }
+        }*/
 
         /*
         |--------------------------------------------------------------------------
         | Crear cita
         |--------------------------------------------------------------------------
         */
-        $appointment = DB::transaction(function () use ($validated, $organization, $variant, $start, $end, $client) {
 
-            /*$conflict = Appointment::where('staff_member_id', $validated['staff_member_id'])
-                ->lockForUpdate()
-                ->where(function ($query) use ($start, $end) {
-                    $query->whereBetween('start_datetime', [$start, $end])
-                        ->orWhereBetween('end_datetime', [$start, $end])
-                        ->orWhere(function ($q) use ($start, $end) {
-                            $q->where('start_datetime', '<', $start)
-                                ->where('end_datetime', '>', $end);
-                        });
-                })
-                ->exists();*/
-            $conflict = Appointment::where('staff_member_id', $validated['staff_member_id'])
-                ->whereIn('status', ['pending', 'confirmed']) // se agrego para no ineterferir    
-                ->where('start_datetime', '<', $end)
-                ->where('end_datetime', '>', $start)
-                ->exists();
-
-
-
-            if ($conflict) {
-                abort(409, 'Este horario ya fue reservado y');
-            }
-
-            return Appointment::create([
-                'organization_id' => $organization->id,
-                'client_id' => $client->id,
-                'staff_member_id' => $validated['staff_member_id'],
-                'service_variant_id' => $variant->id,
-                'start_datetime' => $start,
-                'end_datetime' => $end,
-                'capacity_reserved' => 1,
+        $appointment = $this->appointmentService->createAppointment(
+            data: $validated,
+            organization: $organization,
+            options: [
                 'status' => 'pending',
                 'source' => 'public_web',
-                'notes' => $validated['notes'] ?? null,
-                'mode' => $validated['mode'] ?? 'presential'
-            ]);
-        });
-
-        // Crear tokens de acción
-        $pro_tip = null;
-        // rombi - descomantar cuando ya se tengan los features, estamos en pruebas
-        /*if (!$organization->hasFeature('appointment_email_actions')) {
-            $confirmUrl = null;
-            $cancelUrl = null;
-            'pro_tip' => 'Puedes confirmar o cancelar tu cita directamente desde el correo en planes Pro.'
-        }*/
-
-        //if ($organization->hasFeature('appointment_email_actions')) {
-        $confirmToken = AppointmentActionToken::create([
-            'appointment_id' => $appointment->id,
-            'token' => Str::uuid()->toString(),
-            'action' => 'confirm',
-            'expires_at' => now()->addHours(24),
-            'revoked_at' => null,
-        ]);
-
-        $cancelToken = AppointmentActionToken::create([
-            'appointment_id' => $appointment->id,
-            'token' => Str::uuid()->toString(),
-            'action' => 'cancel',
-            'expires_at' => now()->addHours(24),
-            'revoked_at' => null,
-        ]);
-        //}
-
-        // URLs públicas - para notificación interna de la organización
-        $baseUrl = config('services.booking.front_url') . "/{$organization->slug}/result";
-        $confirmUrl = $baseUrl . "?token={$confirmToken->token}";
-        $cancelUrl  = $baseUrl . "?token={$cancelToken->token}";
-
-        // URL pública para gestión de cita del cliente 
-        $manageBaseUrl = config('services.booking.front_url') . "/{$organization->slug}/manage";
-        $manageUrl = $manageBaseUrl . "?ref={$appointment->reference_code}";
-
-        Log::info('Confirm URL: ' . $confirmUrl);
-        Log::info('Cancel URL: ' . $cancelUrl);
-        Log::info('Manage URL: ' . $manageUrl);
-
-        $enviarCorreos = true;
-
-        // Email al cliente
-        if ($enviarCorreos) {
-            try {
-                $this->notificationService->trigger(
-                    type: 'appointment_request_received',
-                    data: [
-                        'first_name' => $client->first_name,
-                        'organization_name' => $organization->name,
-                        'service_name' => $variant->service->name . ' - ' . $variant->name,
-                        'date' => $start->format('d/m/Y'),
-                        'time' => $start->format('H:i'),
-                        'reference_code' => $appointment->reference_code,
-                        'manage_url' => $manageUrl,
-                    ],
-                    organization: $organization,
-                    recipient: $client->email,
-                    recipientName: $client->first_name,
-                    notifiable: $appointment,
-                    subsystemCode: 'citas'
-                );
-            } catch (\Exception $e) {
-                Log::error("Error sending booking email to client: " . $e->getMessage());
-            }
-        }
-
-
-        $modeLabels = [
-            'online' => 'En línea',
-            'presential' => 'Presencial',
-            'hybrid' => 'Híbrido'
-        ];
-
-        $mode = $modeLabels[$validated['mode']] ?? $validated['mode'];
-
-
-        // Notificacion Interna
-        if ($enviarCorreos) {
-            try {
-                $this->notificationService->trigger(
-                    type: 'appointment_internal_notification',
-                    data: [
-                        'first_name' => $client->first_name,
-                        'last_name' => $client->last_name,
-                        'email' => $client->email,
-                        'phone' => $client->phone['e164Number'] ?? null,
-                        'service_name' => $variant->service->name . ' - ' . $variant->name,
-                        'date' => $start->format('d/m/Y'),
-                        'time' => $start->format('H:i'),
-                        'notes' => $validated['notes'] ?? 'Sin notas adicionales',
-                        'organization_name' => $organization->name,
-                        'mode' => $mode,
-                        'reference_code' => $appointment->reference_code,
-                        'confirm_url' => $confirmUrl,
-                        'cancel_url' => $cancelUrl,
-                        'pro_tip' => $pro_tip,
-                    ],
-                    organization: $organization,
-                    recipient: null, // importante
-                    recipientName: null,
-                    notifiable: $appointment,
-                    subsystemCode: 'citas',
-                    applyNotificationRecipients: true
-                );
-            } catch (\Exception $e) {
-                Log::error("Error sending booking notification: " . $e->getMessage());
-            }
-        }
-
+                'with_tokens' => true,
+                'user_id' => null,
+                'note' => 'Cita creada por cliente',
+                'send_notifications' => true,
+                'notify_client' => true,
+                'notify_internal' => true,
+            ]
+        );
 
         return response()->json([
             'message' => 'Appointment created',
@@ -641,10 +493,10 @@ class PublicBookingController extends Controller
                 'staff',
                 'serviceVariant.service'
             ]),
-            'debug_urls' => [
+            /*'debug_urls' => [
                 'confirm' => $confirmUrl,
                 'cancel' => $cancelUrl,
-            ]
+            ]*/
         ], 201);
     }
 }
