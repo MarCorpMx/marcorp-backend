@@ -92,7 +92,7 @@ class Appointment extends Model
     }
 
     // Notas Internas
-    public function notes()
+    public function appointmentNotes()
     {
         return $this->hasMany(AppointmentNote::class)
             ->latest();

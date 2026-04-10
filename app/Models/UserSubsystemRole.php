@@ -25,4 +25,6 @@ class UserSubsystemRole extends Model
     {
         return $this->belongsTo(Role::class);
     }
+
+    
 }

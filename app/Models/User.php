@@ -25,7 +25,6 @@ class User extends Authenticatable
         'phone',
         'address',
         'status',
-        'role',
         'company',
         'email_verified',
         'subsystem_id',
@@ -84,11 +83,20 @@ class User extends Authenticatable
         return $this->hasMany(UserSubsystem::class);
     }
 
+    /**
+     *  Relación con roles del usuario
+     */
+    public function subsystemRoles()
+    {
+        return $this->hasMany(UserSubsystemRole::class);
+    }
+
+
     /****************************************** */
     public function organizations()
     {
         return $this->belongsToMany(Organization::class, 'organization_users')
-            ->withPivot(['role', 'status', 'invited_at', 'joined_at'])
+            ->withPivot(['status', 'invited_at', 'joined_at'])
             ->withTimestamps();
     }
 

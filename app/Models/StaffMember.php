@@ -12,15 +12,37 @@ class StaffMember extends Model
     protected $fillable = [
         'organization_id',
         'user_id',
+
         'first_name',
         'last_name',
+        'name',
+        'slug',
+
         'email',
         'phone',
+
+        'title',
+        'specialty',
+        'bio',
+
+        'avatar',
+
         'is_active',
+        'is_public',
+        'accepts_online',
+        'accepts_presential',
+
+        'settings',
     ];
 
     protected $casts = [
+        'phone' => 'array',
+        'settings' => 'array',
+
         'is_active' => 'boolean',
+        'is_public' => 'boolean',
+        'accepts_online' => 'boolean',
+        'accepts_presential' => 'boolean',
     ];
 
     /*
@@ -90,6 +112,33 @@ class StaffMember extends Model
     public function blockedSlots()
     {
         return $this->hasMany(BlockedSlot::class);
+    }
+
+    // Bloqueos recurrentes
+    public function recurringBlocks()
+    {
+        return $this->hasMany(StaffRecurringBlock::class);
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($staff) {
+
+            // Si no viene first_name → lo sacamos de name
+            if (empty($staff->first_name) && !empty($staff->name)) {
+                $parts = explode(' ', trim($staff->name));
+
+                $staff->first_name = $parts[0] ?? '';
+                $staff->last_name = isset($parts[1])
+                    ? implode(' ', array_slice($parts, 1))
+                    : null;
+            }
+
+            // Generar name si no existe
+            if (empty($staff->name)) {
+                $staff->name = trim("{$staff->first_name} {$staff->last_name}");
+            }
+        });
     }
 
     /*

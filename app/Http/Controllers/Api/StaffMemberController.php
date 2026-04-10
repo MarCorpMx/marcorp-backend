@@ -8,11 +8,19 @@ use App\Models\ServiceVariant;
 use App\Http\Controllers\Concerns\ResolvesOrganization;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Services\SubsystemResolver;
+
 
 
 class StaffMemberController extends Controller
 {
     use ResolvesOrganization;
+
+    public function __construct(
+        protected SubsystemResolver $subsystemResolver
+    ) {}
 
     /**
      * Listar staff members de la organización autenticada
@@ -20,9 +28,70 @@ class StaffMemberController extends Controller
     public function index(Request $request): JsonResponse
     {
         $organization = $this->getOrganization($request);
+        $user = $request->user();
 
-        $staffMembers = $organization->staffMembers()
+        $subsystemCode = $request->get('subsystem', 'citas');
+        $subsystemId = $this->subsystemResolver->resolve($subsystemCode);
+
+        $role = DB::table('user_subsystem_roles as usr')
+            ->join('roles as r', 'r.id', '=', 'usr.role_id')
+            ->where('usr.organization_id', $organization->id)
+            ->where('usr.user_id', $user->id)
+            ->where('usr.subsystem_id', $subsystemId)
+            ->value('r.key');
+
+        if (!$role) {
+            return response()->json([
+                'data' => []
+            ]);
+        }
+
+        $query = $organization->staffMembers()
             ->with(['agendaSetting'])
+            ->whereHas('user.subsystemRoles', function ($q) use ($organization, $subsystemId) {
+                $q->where('organization_id', $organization->id)
+                    ->where('subsystem_id', $subsystemId);
+            });
+
+        Log::info('Appointments filter', [
+            'subsistem' => $request->has('subsystem'),
+            'idSub' => $subsystemId,
+            'rolecitoDeCanela' => $role
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTROS DINÁMICOS
+        |--------------------------------------------------------------------------
+        */
+
+        // SOLO STAFF → su propio registro
+        if ($role === 'staff') {
+            $query->where('user_id', $user->id);
+        }
+
+        // FILTRO: activos
+        if ($request->has('active')) {
+            $query->where('is_active', (bool) $request->active);
+        }
+
+        // FILTRO: públicos
+        if ($request->has('public')) {
+            $query->where('is_public', (bool) $request->public);
+        }
+
+        // FILTRO: excluir rol
+        if ($request->filled('exclude_role')) {
+            $query->whereDoesntHave('user.subsystemRoles', function ($q) use ($request, $organization, $subsystemId) {
+                $q->where('organization_id', $organization->id)
+                    ->where('subsystem_id', $subsystemId)
+                    ->whereHas('role', function ($roleQ) use ($request) {
+                        $roleQ->where('key', $request->exclude_role);
+                    });
+            });
+        }
+
+        $staffMembers = $query
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -87,7 +156,7 @@ class StaffMemberController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        //$organization = $request->user()->organization;
+
         $organization = $this->getOrganization($request);
 
         $validated = $request->validate([
@@ -96,6 +165,8 @@ class StaffMemberController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'active' => ['boolean'],
         ]);
+
+        $this->authorizeRole($request, ['owner', 'admin']);
 
         $staffMember = $organization->staffMembers()->create([
             ...$validated,
@@ -163,6 +234,20 @@ class StaffMemberController extends Controller
 
         if ($staffMember->organization_id !== $organization->id) {
             abort(403, 'No autorizado.');
+        }
+    }
+
+    private function authorizeRole(Request $request, array $allowedRoles): void
+    {
+        $organization = $this->getOrganization($request);
+        $user = $request->user();
+
+        $role = $user->subsystemRoles()
+            ->where('organization_id', $organization->id)
+            ->first()?->role?->key;
+
+        if (!in_array($role, $allowedRoles)) {
+            abort(403, 'No tienes permisos para esta acción.');
         }
     }
 }

@@ -10,6 +10,10 @@ use App\Http\Controllers\Api\StaffMemberAgendaController;
 use App\Http\Controllers\Api\StaffMemberNonWorkingDayController;
 use App\Http\Controllers\Api\StaffMemberScheduleController;
 
+use App\Http\Controllers\Api\TeamController;
+
+use App\Http\Controllers\Api\NotificationController;
+
 use App\Http\Controllers\Api\ScheduleSettingController; // Verificar uso
 
 use Illuminate\Support\Facades\Route;
@@ -155,7 +159,7 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('/staff-members/{staffMember}', [StaffMemberController::class, 'show']);
     Route::put('/staff-members/{staffMember}', [StaffMemberController::class, 'update']);
     Route::delete('/staff-members/{staffMember}', [StaffMemberController::class, 'destroy']);
-    
+
     /*
     |--------------------------------------------------------------------------
     | STAFF MEMBERS (Servicios)
@@ -175,6 +179,7 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     | STAFF MEMBER - AGENDA
     |--------------------------------------------------------------------------
     */
+    // CONFIGURACIÓN
     Route::get(
         '/staff-members/{staffMember}/agenda',
         [StaffMemberAgendaController::class, 'show']
@@ -185,12 +190,27 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         [StaffMemberAgendaController::class, 'update']
     );
 
+    // BLOQUEOS MANUALES
+    Route::post(
+        '/staff-members/{staffMember}/blocked-slots',
+        [StaffMemberAgendaController::class, 'storeBlock']
+    );
+
+    Route::put(
+        '/staff-members/{staffMember}/blocked-slots/{block}',
+        [StaffMemberAgendaController::class, 'updateBlock']
+    );
+
+    Route::delete(
+        '/staff-members/{staffMember}/blocked-slots/{block}',
+        [StaffMemberAgendaController::class, 'deleteBlock']
+    );
+
     /*
     |--------------------------------------------------------------------------
     | STAFF MEMBER - NON WORKING DAYS
     |--------------------------------------------------------------------------
     */
-
     Route::get(
         '/staff-members/{staffMember}/non-working-days',
         [StaffMemberNonWorkingDayController::class, 'index']
@@ -220,6 +240,27 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         '/staff-members/{staffMember}/schedules',
         [StaffMemberScheduleController::class, 'update']
     );
+
+    /*
+    |--------------------------------------------------------------------------
+    | TEAM (admins, staff, recepcionistas, invitados)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/team', [TeamController::class, 'index']);
+    Route::post('/team', [TeamController::class, 'store']);
+    Route::put('/team/{id}', [TeamController::class, 'update']);
+    Route::post('/team/{id}/suspend', [TeamController::class, 'suspend']);
+    Route::post('/team/{id}/activate', [TeamController::class, 'activate']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOTIFICATIONS (reglas para las notificaciones)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/notification-rules', [NotificationController::class, 'index']);
+    Route::patch('/notification-rules/{event}/{channel}', [NotificationController::class, 'toggle']);
+    Route::patch('/notification-rules/{event}/{channel}/recipients', [NotificationController::class, 'updateRecipients']);
 
 
     /*

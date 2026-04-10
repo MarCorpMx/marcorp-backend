@@ -17,7 +17,6 @@ return new class extends Migration {
                   ->constrained()
                   ->cascadeOnDelete();
 
-            $table->string('role', 20)->default('staff');
             $table->string('status', 20)->default('active');
 
             $table->timestamp('invited_at')->nullable();

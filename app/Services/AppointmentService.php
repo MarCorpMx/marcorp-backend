@@ -92,16 +92,22 @@ class AppointmentService
                 'source' => $options['source'] ?? 'public_web',
                 'notes' => $data['notes'] ?? null,
                 'mode' => $data['mode'] ?? 'presential',
-                
+
                 'base_price' => $variant->price,
                 'final_price' => $variant->price,
             ]);
+
+            $noteType = 'client_created';
+            if ($options['source'] == 'admin_panel') {
+                $noteType = 'staff_created';
+            }
+
 
             // Generamos nota
             $this->createNote(
                 appointment: $appointment,
                 userId: $options['user_id'] ?? null,
-                type: 'created',
+                type: $noteType,
                 note: $options['note'] ?? null
             );
 

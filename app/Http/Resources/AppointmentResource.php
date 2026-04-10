@@ -45,6 +45,19 @@ class AppointmentResource extends JsonResource
             'mode' => $this->mode,
 
             'status' => $this->status,
+
+            'appointmentNotes' => $this->appointmentNotes->map(function ($note) {
+                return [
+                    'id' => $note->id,
+                    'type' => $note->type,
+                    'note' => $note->note,
+                    'created_at' => $note->created_at,
+                    'user' => [
+                        'id' => $note->user?->id,
+                        'name' => $note->user?->name,
+                    ]
+                ];
+            }),
         ];
     }
 }

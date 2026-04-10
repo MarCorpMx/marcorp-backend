@@ -13,6 +13,9 @@ use App\Models\OrganizationSubsystem;
 use App\Models\Subsystem;
 use App\Models\Plan;
 
+use App\Models\UserSubsystemRole;
+use App\Models\Role;
+
 class BeautyDoorSeeder extends Seeder
 {
     public function run(): void
@@ -72,7 +75,6 @@ class BeautyDoorSeeder extends Seeder
                     'user_id' => $natalie->id,
                 ],
                 [
-                    'role' => 'owner',
                     'status' => 'active',
                     'joined_at' => now(),
                 ]
@@ -103,6 +105,28 @@ class BeautyDoorSeeder extends Seeder
                     'is_paid'    => true,
                 ]
             );
+
+            // Creamos su rol (owner)
+            $this->assignRole(
+                $natalie->id,
+                $organization->id,
+                $appointmentsSubsystem->id,
+                'owner'
+            );
+            
         });
+    }
+
+    private function assignRole($userId, $organizationId, $subsystemId, $roleKey)
+    {
+        $role = Role::where('key', $roleKey)->firstOrFail();
+
+        UserSubsystemRole::updateOrCreate([
+            'organization_id' => $organizationId,
+            'user_id' => $userId,
+            'subsystem_id' => $subsystemId,
+        ], [
+            'role_id' => $role->id,
+        ]);
     }
 }

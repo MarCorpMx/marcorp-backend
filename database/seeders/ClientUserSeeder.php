@@ -14,6 +14,9 @@ use App\Models\OrganizationNotificationSetting;
 use App\Models\Subsystem;
 use App\Models\Plan;
 
+use App\Models\UserSubsystemRole;
+use App\Models\Role;
+
 class ClientUserSeeder extends Seeder
 {
     public function run(): void
@@ -108,7 +111,6 @@ class ClientUserSeeder extends Seeder
                     'user_id'         => $michel->id,
                 ],
                 [
-                    'role'      => 'owner',
                     'status'    => 'active',
                     'joined_at' => now(),
                 ]
@@ -165,6 +167,28 @@ class ClientUserSeeder extends Seeder
                     'is_paid'    => true,
                 ]
             );
+
+            // Asignar role
+             $this->assignRole(
+                $michel->id,
+                $organization->id,
+                $appointmentsSubsystem->id,
+                'owner'
+            );
+            
         });
+    }
+
+    private function assignRole($userId, $organizationId, $subsystemId, $roleKey)
+    {
+        $role = Role::where('key', $roleKey)->firstOrFail();
+
+        UserSubsystemRole::updateOrCreate([
+            'organization_id' => $organizationId,
+            'user_id' => $userId,
+            'subsystem_id' => $subsystemId,
+        ], [
+            'role_id' => $role->id,
+        ]);
     }
 }

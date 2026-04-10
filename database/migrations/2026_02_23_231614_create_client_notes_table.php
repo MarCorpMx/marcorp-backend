@@ -21,6 +21,12 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
+            // Citas
+            $table->foreignId('appointment_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
             // Autor (usuario autenticado)
             $table->unsignedBigInteger('author_id')->nullable();
             $table->foreign('author_id')
@@ -28,10 +34,34 @@ return new class extends Migration
                 ->on('users')
                 ->nullOnDelete();
 
+            // Contexto    
             $table->string('title')->nullable();
             $table->longText('content');
 
+            // Tipo
+            $table->string('type')->default('general');
+            //general, clinical, psychological, allergy, warning, follow_up, internal
+
+            // Privacidad / importancia
             $table->boolean('is_private')->default(false);
+            $table->string('visibility')->default('team');
+            // private, team, public
+            $table->boolean('is_important')->default(false); // Notas críticas
+
+            // Metada flexible
+            $table->json('meta')->nullable();
+            /*{
+                "mood": "anxious",
+                "pain_level": 7,
+                "skin_reaction": "mild redness"
+            }*/
+             
+            // Adjuntos
+            $table->json('attachments')->nullable();
+            /*[
+                "url1.jpg",
+                "pdf2.pdf"
+                ]*/    
 
             $table->timestamps();
             $table->softDeletes();
@@ -52,3 +82,6 @@ return new class extends Migration
         Schema::dropIfExists('client_notes');
     }
 };
+
+
+//php artisan migrate:refresh --path=database/migrations/2026_02_23_231614_create_client_notes_table.php

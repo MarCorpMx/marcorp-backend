@@ -33,7 +33,21 @@ class AuthController extends Controller
         return DB::transaction(function () use ($request) {
 
             // 1 Crear usuario
-            $user = User::create([
+            $user = User::firstOrCreate(
+                ['email' => $request->email],
+                [
+                    'username' => $request->email,
+                    'first_name' => $request->first_name,
+                    'last_name' => $request->last_name,
+                    'name' => "{$request->first_name} {$request->last_name}",
+                    //'email' => $request->email,
+                    'phone' => $request->phone,
+                    'password' => Hash::make($request->password),
+                    'status' => 'active',
+                    'email_verified' => false,
+                ]
+            );
+            /*$user = User::create([
                 'username' => $request->email,
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
@@ -43,12 +57,12 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 'status' => 'active',
                 'email_verified' => false,
-            ]);
+            ]);*/
 
             // 2 Crear organización inicial
             $organization = Organization::create([
                 'name' => "Consultorio {$user->first_name}",
-                'slug' => Str::slug("consultorio-{$user->id}-{$user->first_name}"),
+                'slug' => Str::slug("empresa-{$user->id}-{$user->first_name}"),
                 'owner_user_id' => $user->id,
                 'status' => 'active',
             ]);
@@ -57,7 +71,7 @@ class AuthController extends Controller
             OrganizationUser::create([
                 'organization_id' => $organization->id,
                 'user_id' => $user->id,
-                'role' => 'owner',
+                //'role' => 'owner',
                 'status' => 'active',
                 'joined_at' => now(),
             ]);
@@ -115,18 +129,26 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // Validar que tenga por lo menos una organización activa
+        $activeOrganizations = OrganizationUser::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->count();
+
+        if ($activeOrganizations === 0) {
+            return response()->json([
+                'message' => 'Tu acceso ha sido desactivado. Contacta al administrador.'
+            ], 403);
+        }
+
         // Revocamos tokens previos (opcional pero recomendado)
         $user->tokens()->delete();
 
         // Crear token Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Solo entrar en organizaciones activas
         $systems = OrganizationUser::where('user_id', $user->id)
-            /*->with([
-                'organization.subsystems.subsystem',
-                'organization.subsystems.plan',
-            ])*/
-
+            ->where('status', 'active')
             ->with([
                 'organization.subsystems' => function ($query) {
                     $query->whereHas('subsystem', function ($q) {
@@ -136,6 +158,7 @@ class AuthController extends Controller
                 },
                 'organization.subsystems.subsystem',
                 'organization.subsystems.plan',
+                'user.subsystemRoles.role',
             ])
 
 
@@ -144,6 +167,12 @@ class AuthController extends Controller
                 return $orgUser->organization->subsystems->map(function ($orgSubsystem) use ($orgUser) {
 
                     $plan = $orgSubsystem->plan;
+
+                    $role = $orgUser->user->subsystemRoles
+                        ->first(function ($usr) use ($orgUser, $orgSubsystem) {
+                            return $usr->organization_id === $orgUser->organization_id
+                                && $usr->subsystem_id === $orgSubsystem->subsystem_id;
+                        })?->role;
 
                     return [
                         'organization_id' => $orgUser->organization->id,
@@ -168,12 +197,14 @@ class AuthController extends Controller
                         'status' => $orgSubsystem->status,
                         'is_paid' => $orgSubsystem->is_paid,
 
-                        'role' => $orgUser->role,
+                        'role' => $role?->key,
+                        'role_name' => $role?->name,
                     ];
                 });
             })
             ->values();
 
+            $user->load('staff');
 
         return response()->json([
             'message' => 'Login exitoso',
@@ -183,6 +214,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'username' => $user->username,
+                'staff_member_id' => $user->staff?->id,
             ],
             'systems' => $systems
         ]);

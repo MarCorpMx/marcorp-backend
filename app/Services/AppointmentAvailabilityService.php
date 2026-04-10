@@ -17,6 +17,8 @@ use Exception;
 
 class AppointmentAvailabilityService
 {
+
+    // Qué staff esta disponible / availability pública
     public function isStaffAvailable($staffId, $start, $end): bool
     {
         // 1. Verificar citas existentes
@@ -55,7 +57,7 @@ class AppointmentAvailabilityService
 
         if (!$schedule) return false;
 
-        
+
         // Comparar solo horas
         $startHour = (int)substr($schedule->start_time, 0, 2);
         $startMinute = (int)substr($schedule->start_time, 3, 2);
@@ -83,40 +85,122 @@ class AppointmentAvailabilityService
             ->filter(fn($staff) => $this->isStaffAvailable($staff->id, $start, $end));
     }
 
-    /*public function createAppointment($data)
+    // rombi - Nuevo
+    public function validateOrFail($staffId, $start, $end, $ignoreBlockId = null): void
     {
-        $start = Carbon::parse($data['start']);
-        $duration = ServiceVariant::find($data['service_variant_id'])->duration_minutes;
 
-        $end = $start->copy()->addMinutes($duration);
-
-        // 👇 SI ES ADMIN → saltar reglas duras
-        if ($data['source'] === 'admin_panel') {
-            return Appointment::create([
-                ...$data,
-                'start_datetime' => $start,
-                'end_datetime'   => $end,
-            ]);
+        // Solo se puede sobre un mismo día
+        if (!$start->isSameDay($end)) {
+            throw new Exception('multi_day_not_allowed');
         }
 
-        $availableStaff = $this->getAvailableStaff(
-            $data['service_variant_id'],
-            $start,
-            $end
-        );
+        /*
+        |----------------------------------------------------------
+        | 1. CITAS
+        |----------------------------------------------------------
+        */
+        $hasConflict = Appointment::where('staff_member_id', $staffId)
+            ->whereIn('status', ['pending', 'confirmed', 'rescheduled'])
+            ->where(function ($q) use ($start, $end) {
+                $q->where('start_datetime', '<', $end)
+                    ->where('end_datetime', '>', $start);
+            })
+            ->exists();
 
-        if ($availableStaff->isEmpty()) {
-            throw new Exception("No hay disponibilidad");
+        if ($hasConflict) {
+            throw new Exception('appointment_conflict');
         }
 
-        $staff = $availableStaff->first();
+        /*
+        |----------------------------------------------------------
+        | 2. BLOQUES MANUALES
+        |----------------------------------------------------------
+        */
+        /*$isBlocked = BlockedSlot::where('staff_member_id', $staffId)
+            ->where(function ($q) use ($start, $end) {
+                $q->where('start_datetime', '<', $end)
+                    ->where('end_datetime', '>', $start);
+            })
+            ->exists();*/
 
-        return Appointment::create([
-            ...$data,
-            'staff_member_id' => $staff->id,
-            'start_datetime'  => $start,
-            'end_datetime'    => $end,
-            'status'          => 'confirmed'
-        ]);
-    }*/
+        $isBlocked = BlockedSlot::where('staff_member_id', $staffId)
+            ->when($ignoreBlockId, function ($q) use ($ignoreBlockId) {
+                $q->where('id', '!=', $ignoreBlockId);
+            })
+            ->where(function ($q) use ($start, $end) {
+                $q->where('start_datetime', '<', $end)
+                    ->where('end_datetime', '>', $start);
+            })
+            ->exists();
+
+        if ($isBlocked) {
+            throw new Exception('manual_block_conflict');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | 3. DÍAS NO LABORALES
+        |----------------------------------------------------------
+        */
+        $isNonWorkingDay = StaffMemberNonWorkingDay::where('staff_member_id', $staffId)
+            ->whereDate('date', $start)
+            ->exists();
+
+        if ($isNonWorkingDay) {
+            throw new Exception('non_working_day');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | 4. HORARIO LABORAL
+        |----------------------------------------------------------
+        */
+        $dayOfWeek = $start->dayOfWeek;
+
+        $schedule = StaffMemberSchedule::where('staff_member_id', $staffId)
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (!$schedule) {
+            throw new Exception('no_schedule');
+        }
+
+        $scheduleStart = Carbon::parse($schedule->start_time);
+        $scheduleEnd   = Carbon::parse($schedule->end_time);
+
+        $startMinutes = $start->hour * 60 + $start->minute;
+        $endMinutes   = $end->hour * 60 + $end->minute;
+
+        $workStart = $scheduleStart->hour * 60 + $scheduleStart->minute;
+        $workEnd   = $scheduleEnd->hour * 60 + $scheduleEnd->minute;
+
+        if ($startMinutes < $workStart || $endMinutes > $workEnd) {
+            throw new Exception('outside_working_hours');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | 5. BLOQUES RECURRENTES 
+        |----------------------------------------------------------
+        */
+        $day = $start->dayOfWeek; // 0–6 (0 = dominguito alegre)
+
+        $recurring = DB::table('staff_recurring_blocks')
+            ->where('staff_member_id', $staffId)
+            ->where('day_of_week', $day)
+            ->get();
+
+        foreach ($recurring as $r) {
+
+            $rStart = Carbon::parse($r->start_time);
+            $rEnd   = Carbon::parse($r->end_time);
+
+            $rStartMin = $rStart->hour * 60 + $rStart->minute;
+            $rEndMin   = $rEnd->hour * 60 + $rEnd->minute;
+
+            if ($startMinutes < $rEndMin && $endMinutes > $rStartMin) {
+                throw new Exception('recurring_block_conflict');
+            }
+        }
+    }
 }

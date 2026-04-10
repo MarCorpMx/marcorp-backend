@@ -11,7 +11,6 @@ class OrganizationUser extends Model
     protected $fillable = [
         'organization_id',
         'user_id',
-        'role',
         'status',
         'invited_at',
         'joined_at',
