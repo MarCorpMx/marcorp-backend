@@ -20,31 +20,42 @@ class PlanSeeder extends Seeder
 
         $plans = [
 
-            // 🌐 WEB
+            // WEB
             'web' => [
                 [
+                    'sort_order' => 1,
                     'key' => 'free',
                     'name' => 'Web Free',
                     'description' => 'Página básica informativa',
                     'price' => 0,
                 ],
                 [
+                    'sort_order' => 2,
                     'key' => 'basic',
                     'name' => 'Web Basic',
                     'description' => 'Web profesional con secciones personalizadas',
                     'price' => 299,
                 ],
                 [
+                    'sort_order' => 3,
                     'key' => 'pro',
                     'name' => 'Web Pro',
                     'description' => 'Web avanzada con SEO y formularios',
                     'price' => 599,
                 ],
+                [   // Se creo para que no fallen los seeders ye tener roor con todo premium
+                    'sort_order' => 4,
+                    'key' => 'premium',
+                    'name' => 'Web Premium',
+                    'description' => 'Web avanzada con SEO y formularios',
+                    'price' => 599,
+                ],
             ],
 
-            // 📅 CITAS
+            // CITAS
             'citas' => [
                 [
+                    'sort_order' => 1,
                     'key' => 'free',
                     'name' => 'Plan Gratuito',
                     'description' => 'Para comenzar a usar el sistema con funcionalidades básicas.',
@@ -55,9 +66,9 @@ class PlanSeeder extends Seeder
                     'is_featured' => false,
                     'is_limited' => false,
                     'max_sales' => null,
-                    'sales_count' => 0,
                 ],
                 [
+                    'sort_order' => 2,
                     'key' => 'basic',
                     'name' => 'Plan Básico',
                     'description' => 'Ideal para profesionales independientes que inician.',
@@ -68,9 +79,9 @@ class PlanSeeder extends Seeder
                     'is_featured' => false,
                     'is_limited' => false,
                     'max_sales' => null,
-                    'sales_count' => 0,
                 ],
                 [
+                    'sort_order' => 3,
                     'key' => 'pro',
                     'name' => 'Plan Profesional',
                     'description' => 'Para clínicas y equipos pequeños que necesitan funciones avanzadas.',
@@ -78,12 +89,12 @@ class PlanSeeder extends Seeder
                     'billing_period' => 'monthly',
                     'is_active' => true,
                     'is_visible' => true,
-                    'is_featured' => true, // ⭐ tu plan estrella
+                    'is_featured' => true, // plan estrella
                     'is_limited' => false,
                     'max_sales' => null,
-                    'sales_count' => 0,
                 ],
                 [
+                    'sort_order' => 4,
                     'key' => 'premium',
                     'name' => 'Plan Premium',
                     'description' => 'Para clínicas establecidas con mayor volumen y necesidades avanzadas.',
@@ -94,25 +105,31 @@ class PlanSeeder extends Seeder
                     'is_featured' => false,
                     'is_limited' => false,
                     'max_sales' => null,
-                    'sales_count' => 0,
                 ],
                 [
-                    'key' => 'founder_lifetime',
-                    'name' => 'Founder Lifetime (Edición Limitada)',
-                    'description' => 'Acceso de por vida al Plan Profesional para miembros fundadores. Cupos limitados.',
-                    'price' => 8999.00,
-                    'billing_period' => 'lifetime',
+                    'sort_order' => 5,
+                    'key' => 'founder',
+                    'name' => 'Founder (Acceso Anticipado)',
+                    'description' => 'Acceso completo al sistema con precio preferencial congelado de por vida. Exclusivo para los primeros usuarios.',
+                    'price' => 7999, 
+                    'billing_period' => 'yearly',
                     'is_active' => true,
-                    'is_visible' => false, // 🔒 no aparece en pricing público
+                    'is_visible' => true,
                     'is_featured' => false,
                     'is_limited' => true,
-                    'max_sales' => 20, // 🔥 límite real
-                    'sales_count' => 0,
+                    'max_sales' => 20,
+                    'metadata' => [
+                        'badge' => 'founder',
+                        'label' => 'Acceso anticipado',
+                        'early_access' => true,
+                        'priority_support' => true,
+                        'price_locked' => true
+                    ]
                 ],
             ],
 
-            // 📦 INVENTARIOS
-            'inventarios' => [
+            // INVENTARIOS
+            /*'inventarios' => [
                 [
                     'key' => 'basic',
                     'name' => 'Inventario Básico',
@@ -125,10 +142,10 @@ class PlanSeeder extends Seeder
                     'description' => 'Entradas, salidas y alertas de stock',
                     'price' => 399,
                 ],
-            ],
+            ],*/
 
             // 🎓 ESCOLAR
-            'escolar' => [
+            /*'escolar' => [
                 [
                     'key' => 'starter',
                     'name' => 'Escolar Starter',
@@ -141,7 +158,13 @@ class PlanSeeder extends Seeder
                     'description' => 'Grupos, calificaciones y reportes',
                     'price' => 699,
                 ],
-            ],
+                [
+                    'key' => 'pro',
+                    'name' => 'Escuela Pro',
+                    'description' => 'Escuelita completita',
+                    'price' => 2000,
+                ],
+            ],*/
         ];
 
         foreach ($plans as $subsystemKey => $subsystemPlans) {
@@ -171,7 +194,7 @@ class PlanSeeder extends Seeder
                         'subsystem_id' => $subsystem->id,
                         'key' => $planData['key'],
                     ],
-                    $planData
+                    collect($planData)->except(['key', 'subsystem_id'])->toArray()
                 );
             }
         }

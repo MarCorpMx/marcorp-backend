@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\TeamController;
 
 use App\Http\Controllers\Api\NotificationController;
 
+use App\Http\Controllers\Api\OnboardingController;
+
 use App\Http\Controllers\Api\ScheduleSettingController; // Verificar uso
 
 use Illuminate\Support\Facades\Route;
@@ -66,19 +68,59 @@ Route::post('/mindfulness', \App\Http\Controllers\Api\MindfulnessController::cla
 | AUTH
 |--------------------------------------------------------------------------
 */
-Route::prefix('auth')->group(function () {
-
+/*Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-
     Route::post('/login', [AuthController::class, 'login']);
-
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', function (Request $request) {
             return $request->user();
         });
     });
+});*/
+
+Route::prefix('auth')->group(function () {
+
+    // Registro
+    Route::post('/register', [AuthController::class, 'register'])
+        ->middleware('throttle:5,1'); // 5 intentos por minuto
+
+    // Login (IMPORTANTE proteger)
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:5,1');
+
+    // Reenvío de verificación (PÚBLICO)
+    Route::post('/resend-verification', [OnboardingController::class, 'resendPublic'])
+        ->middleware('throttle:3,1'); // más agresivo
+
+    // Autenticados
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::post('/logout', [AuthController::class, 'logout']);
+
+        Route::get('/user', function (Request $request) {
+            return $request->user();
+        });
+
+        // Reenvío autenticado
+        Route::post('/onboarding/resend-verification', [OnboardingController::class, 'resendAuthenticated'])
+            ->middleware('throttle:5,1');
+    });
 });
+
+Route::middleware('auth:sanctum')
+    ->prefix('onboarding')
+    ->group(function () {
+
+        // Estado actual (LA MAGIA DEL MAGO OSCURO)
+        Route::get('/status', [OnboardingController::class, 'status']);
+
+        // Avanzar paso manualmente (cuando completes forms)
+        Route::post('/advance', [OnboardingController::class, 'advance']); // rombi - no se utiliza
+
+        // (Opcional) marcar onboarding completo
+        Route::post('/complete', [OnboardingController::class, 'complete']);
+    });
 
 
 /*
@@ -106,10 +148,16 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('/plans', [MeController::class, 'plans']);
     // GET /api/me/plans
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Organización
+    |--------------------------------------------------------------------------
+    */
     Route::get('/organization', [MeController::class, 'organization']);
-    // GET /api/me/organization
-    Route::put('/organization', [MeController::class, 'updateOrganization']);
-    // PUT /api/me/organization
+    Route::put('/organization', [MeController::class, 'updateOrganization']); // rombi - onboarding
+
+
 
     /*
     |--------------------------------------------------------------------------
@@ -306,7 +354,6 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
 | PUBLIC BOOKING (sin autenticación)
 |--------------------------------------------------------------------------
 */
-
 Route::prefix('v1/public')
     ->middleware(['throttle:60,1'])
     ->group(function () {

@@ -13,6 +13,7 @@ class StaffMemberAgendaSetting extends Model
 
     protected $fillable = [
         'staff_member_id',
+        'branch_id',
         'appointment_duration',
         'break_between_appointments',
         'allow_online_booking',
@@ -40,5 +41,10 @@ class StaffMemberAgendaSetting extends Model
     public function staffMember()
     {
         return $this->belongsTo(StaffMember::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

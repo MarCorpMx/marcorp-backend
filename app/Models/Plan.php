@@ -22,6 +22,11 @@ class Plan extends Model
         'is_limited',
         'max_sales',
         'sales_count',
+        'metadata'
+    ];
+
+    protected $casts = [
+        'metadata'     => 'array',
     ];
 
     // 🔗 El plan pertenece a un sistema

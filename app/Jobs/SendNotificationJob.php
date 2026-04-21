@@ -12,6 +12,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
+use App\Models\NotificationTemplate;
+use App\Services\MailLayouts\CitaraLayout;
+
 class SendNotificationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -31,11 +34,13 @@ class SendNotificationJob implements ShouldQueue
             return;
         }
 
-        $organization = Organization::find($notification->organization_id);
+        $organization = $notification->organization_id
+            ? Organization::find($notification->organization_id)
+            : null;
 
-        if (!$organization) {
+        /*if (!$organization) {
             return;
-        }
+        }*/
 
         try {
 

@@ -57,6 +57,24 @@ class StaffMember extends Model
         return $this->belongsTo(Organization::class);
     }
 
+
+    public function branches()
+    {
+        return $this->belongsToMany(
+            Branch::class,
+            'branch_staff',
+            'staff_id',
+            'branch_id'
+        )->withTimestamps();
+    }
+
+    public function belongsToBranch($branchId): bool
+    {
+        return $this->branches()
+            ->where('branch_id', $branchId)
+            ->exists();
+    }
+
     // Usuario del sistema (si aplica)
     public function user()
     {
@@ -69,25 +87,17 @@ class StaffMember extends Model
         return $this->hasMany(Appointment::class);
     }
 
-    // Servicios generales que puede ofrecer
-    public function services()
-    {
-        return $this->belongsToMany(Service::class, 'service_staff');
-    }
 
     // Variantes específicas que puede ofrecer
-    /*public function serviceVariants()
-    {
-        return $this->belongsToMany(ServiceVariant::class, 'service_variant_staff');
-    }*/
     public function serviceVariants()
     {
         return $this->belongsToMany(
             ServiceVariant::class,
-            'service_variant_staff', // tu tabla pivote
-            'staff_id',
+            'service_variant_staff',
+            'staff_member_id',
             'service_variant_id'
-        );
+        )->withPivot('branch_id')
+            ->withTimestamps();
     }
 
     // Horarios semanales
@@ -97,9 +107,9 @@ class StaffMember extends Model
     }
 
     // Configuración de agenda (1 a 1)
-    public function agendaSetting()
+    public function agendaSettings()
     {
-        return $this->hasOne(StaffMemberAgendaSetting::class);
+        return $this->hasMany(StaffMemberAgendaSetting::class);
     }
 
     // Días no laborables
@@ -150,5 +160,37 @@ class StaffMember extends Model
     public function getFullNameAttribute()
     {
         return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    public function accesses()
+    {
+        return $this->hasMany(BranchUserAccess::class, 'staff_member_id');
+    }
+
+
+
+    public function agendaSettingForBranch($branchId)
+    {
+        return $this->agendaSettings()
+            ->where('branch_id', $branchId)
+            ->first();
+    }
+
+    public function schedulesForBranch($branchId)
+    {
+        return $this->schedules()
+            ->where('branch_id', $branchId);
+    }
+
+    public function nonWorkingDaysForBranch($branchId)
+    {
+        return $this->nonWorkingDays()
+            ->where('branch_id', $branchId);
+    }
+
+    public function recurringBlocksForBranch($branchId)
+    {
+        return $this->recurringBlocks()
+            ->where('branch_id', $branchId);
     }
 }

@@ -10,40 +10,41 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             // Catálogos
-            RoleSeeder::class,
             SubsystemSeeder::class,
+            RoleSeeder::class,
             PlanSeeder::class,
             FeatureSeeder::class,
             PlanSubsystemFeatureSeeder::class,
 
             // Usuarios + organizaciones
-            RootUserSeeder::class,
-            ClientUserSeeder::class, // Crea Punto de Calma
+            RootUserSeeder::class, // Crea MarCorp
             
 
+            // Punto de Calma
+            PuntoDeCalmaOrganizationSeeder::class, // Crea al usuario Michelle con la organización PDC
+            PuntoDeCalmaBranchesSeeder::class, // Crea Sucursales (sin permisos)
+            PuntoDeCalmaBranchAccessSeeder::class, // Permisos a sucursales
+            PuntoDeCalmaServicesSeeder::class, // Crea los servicios principales (se puede dejar para que al inciar ya tenga servicios)
+
             // BeautyDoor
-            BeautyDoorSeeder::class,
-            BeautyDoorStaffSeeder::class,
-            BeautyDoorServicesSeeder::class,
+            //BeautyDoorSeeder::class,
+            //BeautyDoorStaffSeeder::class,
+            //BeautyDoorServicesSeeder::class,
 
 
             // Asignación de subsistemas
-            OrganizationSubsystemSeeder::class,
+            //OrganizationSubsystemSeeder::class, // Activa automáticamente el módulo WEB en plan FREE para todos los clientes
 
-            // Para Mails
-            OrganizationMailSettingsSeeder::class,
-            //OrganizationMailTemplatesSeeder::class,
-            GeneralMailTemplatesSeeder::class,
-            PuntoDeCalmaMailTemplatesSeeder::class,
+            // Proveedores de envio de correo
+            OrganizationMailSettingsSeeder::class, // Configuracion de proveedores de envio - depende de tener creadas las organizaciones 
+            
+            // Templates
+            CitaraMailTemplatesSeeder::class,
+            //GeneralMailTemplatesSeeder::class, // este es bueno (crea los templates generales)
+            //PuntoDeCalmaMailTemplatesSeeder::class, // Necesita a la organizacion de Punto de Calma
 
             // Punto-de-Calma -> Configuraciones
-            PuntoDeCalmaServicesSeeder::class, // Crea los servicios principales (se puede dejar para que al inciar ya tenga servicios)
             //PuntoDeCalmaDemoSeeder::class, // Crea clientes, citas
-
-
-            
-
-
 
             // Crear Reglas de Notificaciones
             NotificationRuleSeeder::class,

@@ -19,7 +19,7 @@ class OrganizationMailSettingsSeeder extends Seeder
 
         if ($marcorp) {
 
-            // 🔹 SES 
+            // SES 
             OrganizationMailSetting::updateOrCreate(
                 [
                     'organization_id' => $marcorp->id,
@@ -35,11 +35,11 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'from_address' => 'soporte@marcorp.mx',
                     'from_name'    => 'MarCorp',
                     'is_active'    => false,
-                    'priority'     => 1,
+                    'priority'     => 2,
                 ]
             );
 
-            // 🔹 SendGrid 
+            // SendGrid 
             OrganizationMailSetting::updateOrCreate(
                 [
                     'organization_id' => $marcorp->id,
@@ -55,7 +55,27 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'from_address' => 'no-reply@mail.marcorp.mx',
                     'from_name'    => 'MarCorp',
                     'is_active'    => true,
-                    'priority'     => 2,
+                    'priority'     => 1,
+                ]
+            );
+
+            // Brevo (FALLBACK)
+            OrganizationMailSetting::updateOrCreate(
+                [
+                    'organization_id' => $marcorp->id,
+                    'provider' => 'brevo',
+                ],
+                [
+                    'mailer'       => 'smtp',
+                    'host'         => 'smtp-relay.brevo.com',
+                    'port'         => 587,
+                    'username'     => env('BREVO_SMTP_USERNAME'),
+                    'password'     => env('BREVO_SMTP_KEY_MARCORP'),
+                    'encryption'   => 'tls',
+                    'from_address' => 'no-reply@marcorp.mx',
+                    'from_name'    => 'MarCorp',
+                    'is_active'    => true,
+                    'priority'     => 2, // 👈 debajo de sendgrid
                 ]
             );
         }
@@ -85,7 +105,7 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'from_address' => 'contacto@punto-de-calma.com',
                     'from_name'    => 'Punto de Calma',
                     'is_active'    => false,
-                    'priority'     => 1,
+                    'priority'     => 2,
                 ]
             );
 
@@ -103,6 +123,26 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'password'     => env('SENDGRID_API_KEY_PDC'),
                     'encryption'   => 'tls',
                     'from_address' => 'no-reply@mail.punto-de-calma.com',
+                    'from_name'    => 'Punto de Calma',
+                    'is_active'    => true,
+                    'priority'     => 1,
+                ]
+            );
+
+            // 🔹 Brevo (FALLBACK)
+            OrganizationMailSetting::updateOrCreate(
+                [
+                    'organization_id' => $pdc->id,
+                    'provider' => 'brevo',
+                ],
+                [
+                    'mailer'       => 'smtp',
+                    'host'         => 'smtp-relay.brevo.com',
+                    'port'         => 587,
+                    'username'     => env('BREVO_SMTP_USERNAME'),
+                    'password'     => env('BREVO_SMTP_KEY_PDC'),
+                    'encryption'   => 'tls',
+                    'from_address' => 'no-reply@punto-de-calma.com',
                     'from_name'    => 'Punto de Calma',
                     'is_active'    => true,
                     'priority'     => 2,
@@ -139,9 +179,26 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'priority'     => 1,
                 ]
             );
+
+            // 🔹 Brevo (FALLBACK)
+            OrganizationMailSetting::updateOrCreate(
+                [
+                    'organization_id' => $beauty->id,
+                    'provider' => 'brevo',
+                ],
+                [
+                    'mailer'       => 'smtp',
+                    'host'         => 'smtp-relay.brevo.com',
+                    'port'         => 587,
+                    'username'     => env('BREVO_SMTP_USERNAME'),
+                    'password'     => env('BREVO_SMTP_KEY_MARCORP'),
+                    'encryption'   => 'tls',
+                    'from_address' => 'no-reply@marcorp.mx',
+                    'from_name'    => 'BeautyDoor',
+                    'is_active'    => true,
+                    'priority'     => 2,
+                ]
+            );
         }
-
-
-
     }
 }

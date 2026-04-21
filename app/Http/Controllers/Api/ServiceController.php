@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\ServiceVariant;
+use App\Models\Organization;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -66,11 +68,31 @@ class ServiceController extends Controller
         $user = $request->user();
         $organization = $this->getOrganization($request);
 
+        $branchId = $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+        ])['branch_id'];
+
+        // 🔥 obtener staff correcto por sucursal
+        $staffId = $organization->staffMembers()
+            ->where('user_id', $user->id)
+            ->where('branch_id', $branchId)
+            ->value('id');
+
+        if (!$staffId) {
+            return collect();
+        }
+
         return $organization->services()
-            ->whereHas('variants.staff', function ($q) use ($user) {
-                $q->where('staff_id', $user->staff->id);
+            ->whereHas('variants.staff', function ($q) use ($staffId, $branchId) {
+                $q->where('staff_member_id', $staffId)
+                    ->where('service_variant_staff.branch_id', $branchId);
             })
-            ->with('variants')
+            ->with(['variants' => function ($q) use ($branchId, $staffId) {
+                $q->whereHas('staff', function ($q2) use ($branchId, $staffId) {
+                    $q2->where('staff_member_id', $staffId)
+                        ->where('service_variant_staff.branch_id', $branchId);
+                });
+            }])
             ->get();
     }
 
@@ -88,13 +110,6 @@ class ServiceController extends Controller
             ->where('active', true);
 
         // Si NO es admin
-        /*if ($user->role !== 'admin') {
-
-            $servicesQuery->whereHas('variants.staff', function ($q) use ($user) {
-                $q->where('staff_id', $user->staff->id);
-            });
-        }*/
-
         return $servicesQuery
             ->orderBy('name')
             ->limit(100)
@@ -179,7 +194,6 @@ class ServiceController extends Controller
     | Store
     |--------------------------------------------------------------------------
     */
-
     /* rombi -> mejora
 hacer que cuando un admin cree un servicio se asigne automáticamente a TODO el staff activo (como hacen plataformas tipo agenda profesional).
 Eso evita un problema común en sistemas de reservas.*/
@@ -187,31 +201,151 @@ Eso evita un problema común en sistemas de reservas.*/
     public function store(Request $request)
     {
         $organization = $this->getOrganization($request);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'active' => 'boolean',
-
-            'variants' => 'required|array|min:1',
-
-            'variants.*.name' => 'required|string|max:255',
-            'variants.*.duration_minutes' => 'required|integer|min:1',
-            'variants.*.price' => 'nullable|numeric|min:0',
-            'variants.*.max_capacity' => 'required|integer|min:1',
-            'variants.*.mode' => 'required|in:online,presential,hybrid',
-            'variants.*.includes_material' => 'boolean',
-            'variants.*.active' => 'boolean',
-            'variants.*.staff_ids' => 'array',
-            'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
-        ]);
-
         $user = $request->user();
+
+
+
+
+        // rombi -> IMPORTAAAAAAAAAAANTE, VERIFICAR QUE EL SERVICIO NO SE ASICIO O SI SE ASOCIE AL CREAR EL PUTO SERVICIO
+
+
+
+        /*
+        |----------------------------------------------------------
+        | GUARD ANTI-BYPASS ONBOARDING
+        |----------------------------------------------------------
+        */
+        if (!$organization->onboarding_completed_at) {
+
+            if ($organization->onboarding_step !== Organization::ONBOARDING_SERVICE_CREATED) {
+                return response()->json([
+                    'message' => 'No puedes crear servicios en este momento del onboarding'
+                ], 403);
+            }
+        }
+
+        /*
+        |----------------------------------------------------------
+        | DETECTAR MODO
+        |----------------------------------------------------------
+        */
+        $isOnboarding = !$organization->onboarding_completed_at
+            && $organization->onboarding_step === Organization::ONBOARDING_SERVICE_CREATED;
+
+        /*
+        |----------------------------------------------------------
+        | VALIDACIÓN DINÁMICA
+        |----------------------------------------------------------
+        */
+        
+        if ($isOnboarding) {
+
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'variants' => 'required|array|min:1',
+                'variants.0.duration_minutes' => 'required|integer|min:1',
+                'variants.0.price' => 'nullable|numeric|min:0',
+                'variants.0.mode' => 'required|in:online,presential,hybrid',
+            ]);
+
+            $variantData = $validated['variants'][0];
+        } else {
+
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'active' => 'boolean',
+
+                'branch_id' => 'required|exists:branches,id',
+
+                'variants' => 'required|array|min:1',
+
+                'variants.*.name' => 'required|string|max:255',
+                'variants.*.duration_minutes' => 'required|integer|min:1',
+                'variants.*.price' => 'nullable|numeric|min:0',
+                'variants.*.max_capacity' => 'required|integer|min:1',
+                'variants.*.mode' => 'required|in:online,presential,hybrid',
+                'variants.*.includes_material' => 'boolean',
+                'variants.*.active' => 'boolean',
+                'variants.*.staff_ids' => 'array',
+                'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
+            ]);
+        }
+
+        /*
+        |----------------------------------------------------------
+        | ONBOARDING FLOW
+        |----------------------------------------------------------
+        */
+        if ($isOnboarding) {
+
+            // Branch default
+            $branchId = $organization->branches()
+                ->where('is_primary', true)
+                ->value('id');
+
+            // Staff del usuario actual
+            $staffId = $organization->staffMembers()
+                ->where('user_id', $user->id)
+                ->value('id');
+
+            $service = DB::transaction(function () use ($validated, $variantData, $organization, $branchId, $staffId) {
+
+                $service = $organization->services()->create([
+                    'name' => $validated['name'],
+                    'description' => null,
+                    'active' => true,
+                ]);
+
+                $variant = $service->variants()->create([
+                    'name' => 'Sesión individual',
+                    'duration_minutes' => $variantData['duration_minutes'],
+                    'price' => $variantData['price'] ?? 0,
+                    'max_capacity' => 1,
+                    'mode' => $variantData['mode'],
+                    'includes_material' => false,
+                    'active' => true,
+                ]);
+
+                if ($staffId && $branchId) {
+                    $variant->staff()->syncWithPivotValues(
+                        [$staffId],
+                        ['branch_id' => $branchId]
+                    );
+                }
+
+                return $service;
+            });
+
+            // AVANZAR ONBOARDING
+            $organization->advanceOnboarding(
+                Organization::ONBOARDING_AVAILABILITY_SET
+            );
+
+            return response()->json([
+                'message' => 'Servicio creado correctamente',
+                'organization' => [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'onboarding_step' => $organization->onboarding_step,
+                    'onboarding_completed_at' => $organization->onboarding_completed_at,
+                ]
+            ], 201);
+        }
+
+        /*
+        |----------------------------------------------------------
+        | FLOW NORMAL (SIN TOCAR)
+        |----------------------------------------------------------
+        */
+
+        $branchId = $validated['branch_id'];
+
         $staffId = $organization->staffMembers()
             ->where('user_id', $user->id)
             ->value('id');
 
-        $service = DB::transaction(function () use ($validated, $organization, $staffId) {
+        $service = DB::transaction(function () use ($validated, $organization, $staffId, $branchId) {
 
             $service = $organization->services()->create([
                 'name' => $validated['name'],
@@ -231,6 +365,7 @@ Eso evita un problema común en sistemas de reservas.*/
                     'active' => $variantData['active'] ?? true,
                 ]);
 
+                // STAFF IDS
                 if (!empty($variantData['staff_ids'])) {
 
                     $validStaffIds = $organization->staffMembers()
@@ -242,8 +377,105 @@ Eso evita un problema común en sistemas de reservas.*/
                     $validStaffIds = $staffId ? [$staffId] : [];
                 }
 
+                // SYNC CON BRANCH
                 if (!empty($validStaffIds)) {
-                    $variant->staff()->sync($validStaffIds);
+                    $variant->staff()->syncWithPivotValues(
+                        $validStaffIds,
+                        ['branch_id' => $branchId]
+                    );
+                }
+            }
+
+            return $service;
+        });
+
+        return response()->json(
+            $service->load(['variants.staff']),
+            201
+        );
+    }
+
+
+    public function store_BKP(Request $request)
+    {
+        $organization = $this->getOrganization($request);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'active' => 'boolean',
+
+            'branch_id' => 'required|exists:branches,id',
+
+            'variants' => 'required|array|min:1',
+
+            'variants.*.name' => 'required|string|max:255',
+            'variants.*.duration_minutes' => 'required|integer|min:1',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.max_capacity' => 'required|integer|min:1',
+            'variants.*.mode' => 'required|in:online,presential,hybrid',
+            'variants.*.includes_material' => 'boolean',
+            'variants.*.active' => 'boolean',
+            'variants.*.staff_ids' => 'array',
+            'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
+        ]);
+
+        $user = $request->user();
+        $branchId = $validated['branch_id'];
+
+        // temporal (lo mejoramos en el siguiente paso)
+        $staffId = $organization->staffMembers()
+            ->where('user_id', $user->id)
+            ->value('id');
+
+        $service = DB::transaction(function () use ($validated, $organization, $staffId, $branchId) {
+
+            $service = $organization->services()->create([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'active' => $validated['active'] ?? true,
+            ]);
+
+            foreach ($validated['variants'] as $variantData) {
+
+                $variant = $service->variants()->create([
+                    'name' => $variantData['name'],
+                    'duration_minutes' => $variantData['duration_minutes'],
+                    'price' => $variantData['price'] ?? null,
+                    'max_capacity' => $variantData['max_capacity'],
+                    'mode' => $variantData['mode'],
+                    'includes_material' => $variantData['includes_material'] ?? false,
+                    'active' => $variantData['active'] ?? true,
+                ]);
+
+                /*
+            |--------------------------------------------------------------------------
+            | STAFF IDS
+            |--------------------------------------------------------------------------
+            */
+
+                if (!empty($variantData['staff_ids'])) {
+
+                    $validStaffIds = $organization->staffMembers()
+                        ->whereIn('id', $variantData['staff_ids'])
+                        ->pluck('id')
+                        ->toArray();
+                } else {
+
+                    $validStaffIds = $staffId ? [$staffId] : [];
+                }
+
+                /*
+            |--------------------------------------------------------------------------
+            | SYNC CON BRANCH (CLAVE )
+            |--------------------------------------------------------------------------
+            */
+
+                if (!empty($validStaffIds)) {
+                    $variant->staff()->syncWithPivotValues(
+                        $validStaffIds,
+                        ['branch_id' => $branchId]
+                    );
                 }
             }
 

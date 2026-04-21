@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Feature;
+use App\Models\Subsystem;
 
 class FeatureSeeder extends Seeder
 {
@@ -11,11 +12,15 @@ class FeatureSeeder extends Seeder
     {
         /*
         |--------------------------------------------------------------------------
-        | SISTEMA: CITAS (NO TOCAR)
+        | SISTEMA: CITAS
         |--------------------------------------------------------------------------
         */
-        $citasSubsystemId = 2; // ← se respeta tal cual
-        //$subsystem = Subsystem::where('key', 'citas')->first();
+
+        $subsystems = Subsystem::whereIn('key', ['citas', 'web'])
+            ->get()
+            ->keyBy('key');
+
+        $citasSubsystemId = $subsystems['citas']->id;
 
         $citasFeatures = [
             [
@@ -58,10 +63,10 @@ class FeatureSeeder extends Seeder
             ],
             [
                 'key' => 'schedule',
-                'name' => 'Horarios',
-                'description' => 'Configuración de horarios',
-                'menu_label' => 'Horarios',
-                'menu_route' => '/sistemas/citas/horarios',
+                'name' => 'Disponibilidad',
+                'description' => 'Configuración de disponibilidad de horarios',
+                'menu_label' => 'Disponibilidad',
+                'menu_route' => '/sistemas/citas/disponibilidad',
                 'menu_icon' => 'Clock',
                 'sort_order' => 5,
             ],
@@ -103,6 +108,62 @@ class FeatureSeeder extends Seeder
                 'is_core' => true,
                 'sort_order' => 9,
             ],
+            [
+                'key' => 'profile',
+                'name' => 'Perfil del negocio',
+                'description' => 'Nombre comercial, dirección, contacto y branding.',
+                'menu_label' => 'Perfil',
+                'menu_route' => '/sistemas/citas/configuracion/perfil',
+                'menu_icon' => 'Building2',
+                'parent_key' => 'settings',
+                'sort_order' => 1,
+                'is_billable' => false,
+            ],
+
+            [
+                'key' => 'branches',
+                'name' => 'Sucursales',
+                'description' => 'Administra tus ubicaciones físicas o virtuales.',
+                'menu_label' => 'Sucursales',
+                'menu_route' => '/sistemas/citas/configuracion/sucursales',
+                'menu_icon' => 'MapPin',
+                'parent_key' => 'settings',
+                'sort_order' => 2,
+            ],
+
+            [
+                'key' => 'schedule_config',
+                'name' => 'Horario de atención',
+                'description' => 'Define reglas generales como duración, descansos y políticas.',
+                'menu_label' => 'Horario',
+                'menu_route' => '/sistemas/citas/configuracion/agenda',
+                'menu_icon' => 'Clock',
+                'parent_key' => 'settings',
+                'sort_order' => 3,
+                'is_billable' => false,
+            ],
+
+            [
+                'key' => 'payments',
+                'name' => 'Pagos y facturación',
+                'description' => 'Métodos de pago y configuración fiscal.',
+                'menu_label' => 'Pagos',
+                'menu_route' => '/sistemas/citas/configuracion/pagos',
+                'menu_icon' => 'CreditCard',
+                'parent_key' => 'settings',
+                'sort_order' => 4,
+            ],
+
+            [
+                'key' => 'advanced',
+                'name' => 'Avanzado',
+                'description' => 'Integraciones, seguridad y opciones técnicas.',
+                'menu_label' => 'Avanzado',
+                'menu_route' => '/sistemas/citas/configuracion/avanzado',
+                'menu_icon' => 'Sliders',
+                'parent_key' => 'settings',
+                'sort_order' => 5,
+            ],
         ];
 
         foreach ($citasFeatures as $feature) {
@@ -122,7 +183,7 @@ class FeatureSeeder extends Seeder
         | SISTEMA: WEB
         |--------------------------------------------------------------------------
         */
-        $webSubsystemId = 1; // ← ajusta si tu ID es otro
+        $webSubsystemId = $subsystems['web']->id;;
 
         $webFeatures = [
             [

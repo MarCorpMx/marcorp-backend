@@ -8,6 +8,7 @@ use App\Models\Organization;
 use App\Models\Service;
 use App\Models\ServiceVariant;
 use App\Models\StaffMember;
+use App\Models\Branch;
 
 class PuntoDeCalmaServicesSeeder extends Seeder
 {
@@ -15,28 +16,47 @@ class PuntoDeCalmaServicesSeeder extends Seeder
     {
         DB::transaction(function () {
 
-            $organization = Organization::where('slug', 'punto-de-calma')->first();
+            $organization = Organization::where('slug', 'punto-de-calma')->firstOrFail();
 
-            if (!$organization) {
+            $staff = StaffMember::where('organization_id', $organization->id)->first();
+
+            if (!$staff) {
+                $this->command->warn('No hay staff para asignar servicios');
                 return;
             }
 
-            // 🔥 Obtener staff principal (el primero que exista)
-            $staff = StaffMember::where('organization_id', $organization->id)->first();
+            $branches = Branch::where('organization_id', $organization->id)->get();
 
             /*
             |--------------------------------------------------------------------------
-            | 1 Psicoterapia Humanista (PRIMERO)
+            | Helper
             |--------------------------------------------------------------------------
             */
+            $attachToAllBranches = function ($variant) use ($staff, $branches) {
+                foreach ($branches as $branch) {
+                    DB::table('service_variant_staff')->updateOrInsert([
+                        'service_variant_id' => $variant->id,
+                        'staff_member_id' => $staff->id,
+                        'branch_id' => $branch->id,
+                    ], [
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]);
+                }
+            };
 
+            /*
+            |--------------------------------------------------------------------------
+            | 1 Psicoterapia Humanista
+            |--------------------------------------------------------------------------
+            */
             $psicoterapia = Service::updateOrCreate(
                 [
                     'organization_id' => $organization->id,
                     'name' => 'Psicoterapia Humanista',
                 ],
                 [
-                    'description' => 'Acompañamiento terapéutico centrado en la persona, que promueve el autoconocimiento, la libertad personal y la construcción de una vida con sentido.',
+                    'description' => 'Acompañamiento terapéutico centrado en la persona...',
                     'active' => true,
                     'color' => '#6E8B7B'
                 ]
@@ -57,23 +77,20 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ]
             );
 
-            if ($staff) {
-                $variant1->staff()->sync([$staff->id]);
-            }
+            $attachToAllBranches($variant1);
 
             /*
             |--------------------------------------------------------------------------
-            | 2 Masaje sanador del alma
+            | 2 Masaje
             |--------------------------------------------------------------------------
             */
-
             $masaje = Service::updateOrCreate(
                 [
                     'organization_id' => $organization->id,
                     'name' => 'Masaje sanador del alma',
                 ],
                 [
-                    'description' => 'Terapia corporal de origen holístico que, mediante un contacto consciente y respetuoso, favorece la relajación profunda y el equilibrio emocional.',
+                    'description' => 'Terapia corporal holística...',
                     'active' => true,
                     'color' => '#6E8B7B'
                 ]
@@ -94,23 +111,20 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ]
             );
 
-            if ($staff) {
-                $variant2->staff()->sync([$staff->id]);
-            }
+            $attachToAllBranches($variant2);
 
             /*
             |--------------------------------------------------------------------------
             | 3 Auriculoterapia
             |--------------------------------------------------------------------------
             */
-
             $auri = Service::updateOrCreate(
                 [
                     'organization_id' => $organization->id,
                     'name' => 'Auriculoterapia',
                 ],
                 [
-                    'description' => 'Terapia natural basada en la medicina tradicional china que estimula puntos específicos de la oreja para promover el equilibrio físico y emocional.',
+                    'description' => 'Medicina tradicional china...',
                     'active' => true,
                     'color' => '#6E8B7B'
                 ]
@@ -131,23 +145,20 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ]
             );
 
-            if ($staff) {
-                $variant3->staff()->sync([$staff->id]);
-            }
+            $attachToAllBranches($variant3);
 
             /*
             |--------------------------------------------------------------------------
             | 4 Arteterapia
             |--------------------------------------------------------------------------
             */
-
             $arteterapia = Service::updateOrCreate(
                 [
                     'organization_id' => $organization->id,
                     'name' => 'Arteterapia',
                 ],
                 [
-                    'description' => 'Intervención terapéutica que utiliza la expresión artística como medio para explorar emociones, promover el autoconocimiento y fortalecer la salud emocional.',
+                    'description' => 'Expresión artística terapéutica...',
                     'active' => true,
                     'color' => '#8B907E',
                 ]
@@ -175,7 +186,6 @@ class PuntoDeCalmaServicesSeeder extends Seeder
             ];
 
             foreach ($variants as $variantData) {
-
                 $variant = ServiceVariant::updateOrCreate(
                     [
                         'service_id' => $arteterapia->id,
@@ -184,9 +194,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     $variantData
                 );
 
-                if ($staff) {
-                    $variant->staff()->sync([$staff->id]);
-                }
+                $attachToAllBranches($variant);
             }
         });
     }

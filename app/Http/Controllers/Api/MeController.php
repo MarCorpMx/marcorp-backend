@@ -226,7 +226,144 @@ class MeController extends Controller
     {
         $organization = $request->user()->currentOrganization();
 
-        $organization->update($request->only([
+        /*
+    |----------------------------------------------------------
+    | DETECTAR MODO
+    |----------------------------------------------------------
+    */
+        $isOnboarding = !$organization->onboarding_completed_at
+            && $organization->onboarding_step === Organization::ONBOARDING_BUSINESS_SETUP;
+
+        /*
+    |----------------------------------------------------------
+    | VALIDACIÓN DINÁMICA
+    |----------------------------------------------------------
+    */
+        if ($isOnboarding) {
+
+            $data = $request->validate([
+                'name' => ['required', 'string', 'min:3', 'max:120'],
+                'phone' => ['required', 'array'],
+                'country' => ['required', 'string', 'size:2'],
+                'state' => ['nullable', 'string', 'max:100'],
+                'city' => ['nullable', 'string', 'max:100'],
+            ]);
+        } else {
+
+            $data = $request->validate([
+                'name' => ['required', 'string', 'min:3', 'max:120'],
+                'email' => ['nullable', 'email', 'max:255'],
+
+                'phone' => ['nullable', 'array'],
+
+                'website' => ['nullable', 'url', 'max:255'],
+
+                'primary_color' => ['nullable', 'string', 'max:20'],
+                'secondary_color' => ['nullable', 'string', 'max:20'],
+                'logo_url' => ['nullable', 'url'],
+
+                'timezone' => ['required', 'string'],
+
+                // PRO / PREMIUM stuff (puedes bloquear con FeatureService luego)
+                'primary_domain' => ['nullable', 'string', 'max:255'],
+                'domains' => ['nullable', 'array'],
+            ]);
+        }
+
+        /*
+    |----------------------------------------------------------
+    | UPDATE ORGANIZATION
+    |----------------------------------------------------------
+    */
+        $organization->update($data);
+
+        /*
+    |----------------------------------------------------------
+    | 🔥 SYNC CON PRIMARY BRANCH (SOLO ONBOARDING)
+    |----------------------------------------------------------
+    */
+        if ($isOnboarding) {
+
+            $primaryBranch = $organization->branches()
+                ->where('is_primary', true)
+                ->first();
+
+            if ($primaryBranch) {
+                $primaryBranch->update([
+                    'name' => $data['name'],
+                    'phone' => $data['phone'] ?? null,
+                    'country' => $data['country'],
+                    'state' => $data['state'] ?? null,
+                    'city' => $data['city'] ?? null,
+                ]);
+            }
+        }
+
+        /*
+    |----------------------------------------------------------
+    | ONBOARDING FLOW
+    |----------------------------------------------------------
+    */
+        if ($isOnboarding) {
+
+            if (
+                $organization->name &&
+                $organization->phone &&
+                $organization->country
+            ) {
+                $organization->advanceOnboarding(
+                    Organization::ONBOARDING_SERVICE_CREATED
+                );
+            }
+
+            return response()->json([
+                'message' => 'Negocio configurado correctamente',
+                'organization' => [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'onboarding_step' => $organization->onboarding_step,
+                    'onboarding_completed_at' => $organization->onboarding_completed_at,
+                ]
+            ]);
+        }
+
+        /*
+    |----------------------------------------------------------
+    | FLOW NORMAL
+    |----------------------------------------------------------
+    */
+        return response()->json([
+            'message' => 'Organización actualizada correctamente',
+            'organization' => [
+                'id' => $organization->id,
+                'name' => $organization->name,
+            ]
+        ]);
+    }
+
+    public function updateOrganization_BKP(Request $request)
+    {
+        $organization = $request->user()->currentOrganization();
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'min:3', 'max:120'],
+            'country' => ['required', 'string', 'size:2'],
+            'state' => ['nullable', 'string', 'max:100'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'website' => ['nullable', 'url', 'max:255'],
+
+            'phone' => ['required', 'array'],
+
+            /*'phone.e164Number' => ['required', 'string', 'regex:/^\+[1-9]\d{6,14}$/'],
+            'phone.internationalNumber' => ['nullable', 'string', 'max:30'],
+            'phone.nationalNumber' => ['nullable', 'string', 'max:20'],
+            'phone.countryCode' => ['required', 'string', 'size:2'],
+            'phone.dialCode' => ['required', 'string', 'max:5'],*/
+        ]);
+
+        $organization->update($data);
+
+        /*$organization->update($request->only([
             'name',
             'email',
             'phone',
@@ -238,11 +375,35 @@ class MeController extends Controller
             'address',
             'primary_color',
             'secondary_color',
-        ]));
+        ]));*/
+
+        // ONBOARDING LOGIC
+        if (!$organization->onboarding_completed_at) {
+
+            switch ($organization->onboarding_step) {
+
+                case Organization::ONBOARDING_BUSINESS_SETUP:
+
+                    // validación mínima (puedes endurecer luego)
+                    if ($organization->name && $organization->phone && $organization->country) {
+
+                        $organization->advanceOnboarding(
+                            Organization::ONBOARDING_SERVICE_CREATED
+                        );
+                    }
+
+                    break;
+            }
+        }
 
         return response()->json([
-            'message' => 'Perfil actualizado correctamente',
-            'organization' => $organization->fresh()
+            'message' => 'Organización actualizada correctamente',
+            'organization' => [
+                'id' => $organization->id,
+                'name' => $organization->name,
+                'onboarding_step' => $organization->onboarding_step,
+                'onboarding_completed_at' => $organization->onboarding_completed_at,
+            ]
         ]);
     }
 }

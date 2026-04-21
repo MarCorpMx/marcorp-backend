@@ -43,4 +43,8 @@ return [
         'front_url' => env('BOOKING_FRONT_URL'),
     ],
 
+    'citara' => [
+        'front_url' => env('CITARA_FRONT_URL'),
+    ],
+
 ];

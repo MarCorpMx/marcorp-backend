@@ -12,7 +12,9 @@ class UserSubsystemRole extends Model
     protected $table = 'user_subsystem_roles';
 
     protected $fillable = [
-        'user_subsystem_id',
+        'organization_id',
+        'user_id',
+        'subsystem_id',
         'role_id',
     ];
 
@@ -25,6 +27,4 @@ class UserSubsystemRole extends Model
     {
         return $this->belongsTo(Role::class);
     }
-
-    
 }

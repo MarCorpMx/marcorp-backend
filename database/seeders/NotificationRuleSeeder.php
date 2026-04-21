@@ -22,7 +22,7 @@ class NotificationRuleSeeder extends Seeder
 
                     NotificationRule::updateOrCreate(
                         [
-                            'organization_id' => $template->organization_id ?? 0,
+                            'organization_id' => $template->organization_id,
                             'type' => $template->type,
                             'channel' => $template->channel,
                             'recipient_type' => 'default', // 👈 no lo uses, solo para cumplir constraint

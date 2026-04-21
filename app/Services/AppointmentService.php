@@ -500,7 +500,7 @@ class AppointmentService
         $start = \Carbon\Carbon::parse($appointment->start_datetime);
 
 
-        // Vat¿riables para botones
+        // Variables para botones
         $pro_tip = null;
         $confirmUrl = null;
         $cancelUrl = null;

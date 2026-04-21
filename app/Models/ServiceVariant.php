@@ -37,19 +37,27 @@ class ServiceVariant extends Model
         return $this->belongsTo(Service::class);
     }
 
-    public function organization(): BelongsTo
+    public function organization()
     {
-        return $this->service->organization();
+        return $this->service?->organization();
     }
 
-    public function staff(): BelongsToMany
+    /*
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }*/
+
+
+    public function staff()
     {
         return $this->belongsToMany(
             StaffMember::class,
             'service_variant_staff',
             'service_variant_id',
-            'staff_id'
-        )->withTimestamps();
+            'staff_member_id'
+        )->withPivot('branch_id')
+            ->withTimestamps();
     }
 
     public function appointments(): HasMany

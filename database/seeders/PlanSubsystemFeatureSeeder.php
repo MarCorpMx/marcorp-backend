@@ -28,17 +28,26 @@ class PlanSubsystemFeatureSeeder extends Seeder
             |--------------------------------------------------------------------------
             */
 
-            // FREE – CITAS
+            // FREE – CITAS -> link público
             [
                 'plan' => 'free',
                 'subsystem' => 'citas',
                 'features' => [
-                    'agenda'    => ['enabled' => true,  'limit' => 50],
-                    'clients'   => ['enabled' => true,  'limit' => 50],
-                    'services'  => ['enabled' => true,  'limit' => 10],
-                    'team'      => ['enabled' => false],
-                    'reports'   => ['enabled' => false],
-                    'reminders' => ['enabled' => true,  'limit' => 50],
+                    'dashboard' => ['enabled' => true],
+                    'agenda'    => ['enabled' => true,  'limit' => 30],     // 30 citas al mes
+                    'clients'   => ['enabled' => true,  'limit' => 30],     // 30 clientes
+                    'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios
+                    'schedule'  => ['enabled' => false, 'visible' => true], // BLOQUEADO
+                    'reminders' => ['enabled' => false, 'visible' => true], // BLOQUEADO
+                    'reports'   => ['enabled' => false, 'visible' => true], // Sin reportes
+                    'team'      => ['enabled' => false, 'visible' => true], // Sin equipo
+
+                    'settings' => ['enabled' => true],
+                    'profile'           => ['enabled' => true],
+                    'branches'          => ['enabled' => true, 'limit' => 1],        // 1 sucursal
+                    'schedule_config'   => ['enabled' => true],
+                    'payments'          => ['enabled' => false, 'visible' => true],
+                    'advanced'          => ['enabled' => false, 'visible' => true, 'limit' => 0],
                 ],
             ],
 
@@ -47,12 +56,28 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'plan' => 'basic',
                 'subsystem' => 'citas',
                 'features' => [
-                    'agenda'    => ['enabled' => true],
-                    'clients'   => ['enabled' => true],
-                    'services'  => ['enabled' => true],
-                    'team'      => ['enabled' => true, 'limit' => 2],
-                    'reports'   => ['enabled' => true],
-                    'reminders' => ['enabled' => true],
+                    'dashboard' => ['enabled' => true],
+                    'agenda'   => ['enabled' => true, 'limit' => 150],
+                    'clients'  => ['enabled' => true, 'limit' => 200],
+                    'services' => ['enabled' => true, 'limit' => 10],
+                    'schedule'  => ['enabled' => true],
+                    'reminders' => ['enabled' => true, 'limit' => 100],     // 100 envios por mes
+                    'reports'   => ['enabled' => false, 'visible' => true], // BLOQUEADO
+                    'team'      => ['enabled' => true, 'limit' => 2],       // 2 miembros de equipo
+
+                    'settings' => ['enabled' => true],
+                    'profile'           => ['enabled' => true],
+                    'branches'          => ['enabled' => true, 'limit' => 1],        // 1 sucursal
+                    'schedule_config'   => ['enabled' => true],
+                    'payments'          => ['enabled' => false, 'visible' => true],
+                    'advanced'          => ['enabled' => true, 'limit' => 1],
+
+                    /* ADVANCED
+                    notificaciones básicas
+                    email básico
+                    ❌ NO dominio
+                    ❌ NO SMTP
+                    ❌ NO branding*/
                 ],
             ],
 
@@ -61,14 +86,83 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'plan' => 'pro',
                 'subsystem' => 'citas',
                 'features' => [
+                    'dashboard' => ['enabled' => true],
+                    'agenda'    => ['enabled' => true],                 // Ilimitadas
+                    'clients'   => ['enabled' => true],                 // Ilimitados
+                    'services'  => ['enabled' => true],                 // Ilimitados
+                    'schedule'  => ['enabled' => true],
+                    'reminders' => ['enabled' => true, 'limit' => 1000],
+                    'reports'   => ['enabled' => true],                 // Con reportes
+                    'team'      => ['enabled' => true, 'limit' => 5],   // 5 miembros
+
+                    'settings' => ['enabled' => true],
+                    'profile'           => ['enabled' => true],
+                    'branches'          => ['enabled' => true, 'limit' => 3],    // 3 sucursales
+                    'schedule_config'   => ['enabled' => true],
+                    'payments'          => ['enabled' => true],
+                    'advanced'          => ['enabled' => true, 'limit' => 2],
+
+                    /* ADVANCED
+                    recordatorios
+                    branding básico
+                    configuraciones de agenda más finas
+
+                    ❌ dominio custom (opcional upsell)
+                    ❌ correo corporativo */
+                ],
+            ],
+
+            // PREMIUM - CITAS
+            [
+                'plan' => 'premium',
+                'subsystem' => 'citas',
+                'features' => [
+                    'dashboard' => ['enabled' => true],
                     'agenda'    => ['enabled' => true],
                     'clients'   => ['enabled' => true],
                     'services'  => ['enabled' => true],
-                    'team'      => ['enabled' => true, 'limit' => 5],
-                    'reports'   => ['enabled' => true],
+                    'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true],
+                    'reports'   => ['enabled' => true],
+                    'team'      => ['enabled' => true],
+
+                    'settings' => ['enabled' => true],
+                    'profile'           => ['enabled' => true],
+                    'branches'          => ['enabled' => true],
+                    'schedule_config'   => ['enabled' => true],
+                    'payments'          => ['enabled' => true],
+                    'advanced'          => ['enabled' => true, 'limit' => 3],
+                    /* ADVANCED
+                    dominio personalizado ✅
+                    configuración avanzada de correos ✅
+                    plantillas ✅
+                    integraciones futuras ✅ */
                 ],
             ],
+
+            // FOUNDER - CITAS
+            [
+                'plan' => 'founder',
+                'subsystem' => 'citas',
+                'features' => [
+                    'dashboard' => ['enabled' => true],
+                    'agenda'    => ['enabled' => true],
+                    'clients'   => ['enabled' => true],
+                    'services'  => ['enabled' => true],
+                    'schedule'  => ['enabled' => true],
+                    'reminders' => ['enabled' => true],
+                    'reports'   => ['enabled' => true],
+                    'team'      => ['enabled' => true],
+
+                    'settings' => ['enabled' => true],
+                    'profile'           => ['enabled' => true],
+                    'branches'          => ['enabled' => true],
+                    'schedule_config'   => ['enabled' => true],
+                    'payments'          => ['enabled' => true],
+                    'advanced'          => ['enabled' => true, 'limit' => 3],
+                ],
+            ],
+
 
             /*
             |--------------------------------------------------------------------------
@@ -145,6 +239,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     ],
                     [
                         'is_enabled'  => $config['enabled'],
+                        'is_visible'  => $config['visible'] ?? true,
                         'limit_value' => $config['limit'] ?? null,
                     ]
                 );

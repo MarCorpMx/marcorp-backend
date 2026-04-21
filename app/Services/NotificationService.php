@@ -7,6 +7,7 @@ use App\Models\NotificationRule;
 use App\Models\Organization;
 use Illuminate\Support\Facades\Log;
 
+use App\Services\MailLayouts\CitaraLayout;
 use App\Jobs\SendNotificationJob;
 
 
@@ -20,7 +21,7 @@ class NotificationService
     public function trigger(
         string $type,
         array $data,
-        Organization $organization,
+        ?Organization $organization, // Acepta null para envios/notificaciones de CITARA
         ?string $recipient,
         ?string $recipientName = null,
         $notifiable = null,
@@ -41,26 +42,9 @@ class NotificationService
         }
 
 
-        // 1. Crear registro (SOURCE OF TRUTH)
-        /*$notification = Notification::create([
-            'organization_id' => $organization->id,
-            'subsystem_id'    => $subsystemId,
-            'type'            => $type,
-            'channel'         => 'email',
-            'recipient'       => $recipient,
-            'recipient_name'  => $recipientName,
-            'template'        => $type,
-            //'payload'         => $data,
-            'payload' => array_merge($data, [
-                '_apply_notification_recipients' => $applyNotificationRecipients
-            ]),
-
-            'status'          => 'pending',
-            'scheduled_at'    => now()->addMinutes($rule->delay_minutes ?? 0),
-        ]);*/
 
         $notification = new Notification([
-            'organization_id' => $organization->id,
+            'organization_id' => $organization?->id,
             'subsystem_id'    => $subsystemId,
 
             'type'            => $type,
@@ -100,16 +84,23 @@ class NotificationService
         return strtolower(class_basename($notifiable)) . "_{$notifiable->id}_{$type}";
     }
 
-    protected function resolveRule(string $type, Organization $organization): ?NotificationRule
+    protected function resolveRule(string $type, ?Organization $organization): ?NotificationRule
     {
         return NotificationRule::where(function ($query) use ($organization) {
-            $query->where('organization_id', $organization->id)
-                ->orWhere('organization_id', 0);
+
+            if ($organization) {
+                $query->where('organization_id', $organization->id)
+                    ->orWhereNull('organization_id'); // 🔥 FIX
+            } else {
+                $query->whereNull('organization_id'); // 🔥 FIX
+            }
         })
             ->where('type', $type)
             ->where('channel', 'email')
             ->where('recipient_type', 'default')
-            ->orderByRaw('organization_id = ? DESC', [$organization->id])
+            ->when($organization, function ($query) use ($organization) {
+                $query->orderByRaw('organization_id = ? DESC', [$organization->id]);
+            })
             ->first();
     }
 }

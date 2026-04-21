@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -26,7 +26,6 @@ class User extends Authenticatable
         'address',
         'status',
         'company',
-        'email_verified',
         'subsystem_id',
     ];
 
@@ -34,15 +33,18 @@ class User extends Authenticatable
      * Los atributos que deben ocultarse en serialización.
      */
     protected $hidden = [
-        'password',
-        'remember_token',
+        //'password',
+        'email_verified_at' => 'datetime',
+        'last_verification_sent_at' => 'datetime',
+        'phone' => 'array',
+        'address' => 'array',
+        'last_login_at' => 'datetime',
     ];
 
     /**
      * Casts de atributos.
      */
     protected $casts = [
-        'email_verified' => 'boolean',
         'phone' => 'array',
         'address' => 'array',
         'last_login_at' => 'datetime',
@@ -115,5 +117,10 @@ class User extends Authenticatable
     public function staff()
     {
         return $this->hasOne(StaffMember::class);
+    }
+
+    public function branchAccess()
+    {
+        return $this->hasMany(BranchUserAccess::class);
     }
 }

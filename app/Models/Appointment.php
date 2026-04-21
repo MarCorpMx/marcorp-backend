@@ -69,6 +69,11 @@ class Appointment extends Model
         return $this->belongsTo(Organization::class);
     }
 
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function serviceVariant(): BelongsTo
     {
         return $this->belongsTo(ServiceVariant::class);
@@ -111,7 +116,7 @@ class Appointment extends Model
         return $this->payment_status === self::PAYMENT_PAID;
     }
 
-    protected static function booted()
+    /*protected static function booted()
     {
         static::creating(function ($appointment) {
 
@@ -129,6 +134,36 @@ class Appointment extends Model
                 $reference = $prefix
                     ? "{$prefix}-{$random}"
                     : $random;
+            } while (self::where('reference_code', $reference)->exists());
+
+            $appointment->reference_code = $reference;
+        });
+    }*/
+
+    protected static function booted()
+    {
+        static::creating(function ($appointment) {
+
+            // UUID siempre
+            $appointment->uuid = Str::uuid();
+
+            // Obtener organización
+            $organization = Organization::find($appointment->organization_id);
+
+            // Prefijo (si existe)
+            $prefix = $organization?->reference_prefix
+                ? strtoupper($organization->reference_prefix)
+                : null;
+
+            do {
+                // Código más legible (tipo AB12-CD34)
+                $random = strtoupper(Str::random(4)) . '-' . strtoupper(Str::random(4));
+
+                // Formato final PRO
+                // Ej: PDC-2404-AB12-CD34
+                $reference = $prefix
+                    ? "{$prefix}-" . now()->format('ym') . "-{$random}"
+                    : now()->format('ym') . "-{$random}";
             } while (self::where('reference_code', $reference)->exists());
 
             $appointment->reference_code = $reference;

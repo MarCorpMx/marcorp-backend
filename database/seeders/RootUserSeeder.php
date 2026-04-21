@@ -13,9 +13,10 @@ use App\Models\OrganizationSubsystem;
 use App\Models\OrganizationNotificationSetting;
 use App\Models\Subsystem;
 use App\Models\Plan;
-
 use App\Models\UserSubsystemRole;
 use App\Models\Role;
+use App\Models\Branch;
+use App\Models\BranchUserAccess;
 
 class RootUserSeeder extends Seeder
 {
@@ -23,7 +24,7 @@ class RootUserSeeder extends Seeder
     {
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ Usuario ROOT
+        | Usuario ROOT
         |--------------------------------------------------------------------------
         */
         $user = User::firstOrCreate(
@@ -36,13 +37,13 @@ class RootUserSeeder extends Seeder
                 'password' => Hash::make('Root@123456'),
                 //'password' => Hash::make(env('ROOT_PASSWORD', Str::random(16))),
                 'status' => 'active',
-                'email_verified' => true,
+                'is_super_admin' => true,
             ]
         );
 
         /*
         |--------------------------------------------------------------------------
-        | 2️⃣ Organización ROOT
+        | Organización ROOT
         |--------------------------------------------------------------------------
         */
         $organization = Organization::firstOrCreate(
@@ -57,8 +58,12 @@ class RootUserSeeder extends Seeder
 
                 'email'          => 'soporte@marcorp.mx',
                 'phone'          => [
-                    'principal' => '777 482 1997',
-                    'personal'  => '770 202 1345',
+                    "number" => "7702021345",
+                    "internationalNumber" => "+52 770 202 1345",
+                    "nationalNumber" => "770 202 1345",
+                    "e164Number" => "+527702021345",
+                    "countryCode" => "MX",
+                    "dialCode" => "+52"
                 ],
 
                 // Branding MarCorp
@@ -73,17 +78,33 @@ class RootUserSeeder extends Seeder
                 'domains'        => ['www.marcorp.mx'],
                 'force_https'    => true,
 
+                'timezone' => 'America/Mexico_City',
+
                 'metadata' => [
-                    'timezone' => 'America/Mexico_City',
                     'notes'    => 'Organización root del sistema',
                     'contact_success_message' => 'Tu mensaje fue recibido',
                 ],
             ]
         );
 
+        // Crear Branch si falla observer
+        if ($organization->wasRecentlyCreated) {
+            // ok, observer ya corrió
+        } else {
+            // asegurar branch principal
+            \App\Models\Branch::firstOrCreate([
+                'organization_id' => $organization->id,
+                'is_primary' => true,
+            ], [
+                'name' => 'Sucursal Principal',
+                'is_active' => true,
+                'timezone' => $organization->timezone,
+            ]);
+        }
+
         /*
         |--------------------------------------------------------------------------
-        | 3️⃣ Usuario como OWNER / ROOT
+        | Usuario como OWNER / ROOT
         |--------------------------------------------------------------------------
         */
         OrganizationUser::firstOrCreate(
@@ -122,32 +143,28 @@ class RootUserSeeder extends Seeder
             ]
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | 4️⃣ Obtener PLAN PRO
-        |--------------------------------------------------------------------------
-        */
-        //$proPlan = Plan::where('key', 'pro')->firstOrFail();
 
         /*
         |--------------------------------------------------------------------------
-        | 5️⃣ Asignar TODOS los subsistemas con PLAN PRO
+        | Asignar TODOS los subsistemas con PLAN PRO
         |--------------------------------------------------------------------------
         */
-        $subsystems = Subsystem::all();
+        $subsystems = Subsystem::query()
+            ->where('is_active', true)
+            ->get();
 
         foreach ($subsystems as $subsystem) {
             /*
-        |--------------------------------------------------------------------------
-        | Obtener PLAN PRO
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Obtener PLAN PRO
+            |--------------------------------------------------------------------------
+            */
             $proPlan = Plan::where('subsystem_id', $subsystem->id)
-                ->where('key', 'pro')
+                ->where('key', 'premium')
                 ->first();
 
             if (!$proPlan) {
-                continue; // o lanzar excepción
+                throw new \Exception("Plan PREMIUM no encontrado para subsystem {$subsystem->key}");
             }
             /********************** */
 
@@ -164,7 +181,16 @@ class RootUserSeeder extends Seeder
                 ]
             );
 
+            // Asiganr role
             $this->assignRole(
+                $user->id,
+                $organization->id,
+                $subsystem->id,
+                'root'
+            );
+
+            // Acceso a sucursal
+            $this->assignBranchAccess(
                 $user->id,
                 $organization->id,
                 $subsystem->id,
@@ -183,6 +209,25 @@ class RootUserSeeder extends Seeder
             'subsystem_id' => $subsystemId,
         ], [
             'role_id' => $role->id,
+        ]);
+    }
+
+    private function assignBranchAccess($userId, $organizationId, $subsystemId, $roleKey)
+    {
+        $branch = Branch::where('organization_id', $organizationId)
+            ->where('is_primary', true)
+            ->firstOrFail();
+
+        $role = Role::where('key', $roleKey)->firstOrFail();
+
+        BranchUserAccess::updateOrCreate([
+            'organization_id' => $organizationId,
+            'user_id' => $userId,
+            'branch_id' => $branch->id,
+            'subsystem_id' => $subsystemId,
+            'role_id' => $role->id,
+        ], [
+            'is_active' => true,
         ]);
     }
 }

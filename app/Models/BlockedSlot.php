@@ -8,6 +8,7 @@ class BlockedSlot extends Model
 {
     protected $fillable = [
         'organization_id',
+        'branch_id',
         'staff_member_id',
         'start_datetime',
         'end_datetime',
@@ -33,6 +34,11 @@ class BlockedSlot extends Model
     public function staff()
     {
         return $this->belongsTo(StaffMember::class, 'staff_member_id');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     /*

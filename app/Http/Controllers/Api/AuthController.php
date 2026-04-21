@@ -4,31 +4,50 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
+
 use App\Models\User;
-
-/*use App\Models\UserSubsystem;
-use App\Models\UserSubsystemRole;
-use App\Models\UserPlan;
-use App\Models\Plan;
-use App\Models\Role;
-use App\Models\Membership;*/
-
 use App\Models\Organization;
 use App\Models\OrganizationSubsystem;
 use App\Models\OrganizationUser;
+use App\Models\Role;
+use App\Models\UserSubsystemRole;
 use App\Models\Plan;
+use App\Models\OrganizationNotificationSetting;
+use App\Models\Branch;
+use App\Models\BranchUserAccess;
+use App\Models\StaffMember;
+use App\Models\BranchStaff;
+
+use App\Services\SubsystemResolver;
+use App\Services\FeatureService;
+use App\Services\SubscriptionService;
+use App\Services\AuthContextService;
+use App\Services\NotificationService;
+
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Log;
+
+
 
 class AuthController extends Controller
 {
+
+    public function __construct(
+        protected SubsystemResolver $subsystemResolver,
+        protected SubscriptionService $subscriptionService,
+        protected AuthContextService $authContextService,
+        protected NotificationService $notificationService
+    ) {}
+
     /**
      * REGISTRO DE USUARIO
      */
-    public function register(RegisterRequest $request)
+    /*public function register(RegisterRequest $request)
     {
         return DB::transaction(function () use ($request) {
 
@@ -40,24 +59,12 @@ class AuthController extends Controller
                     'first_name' => $request->first_name,
                     'last_name' => $request->last_name,
                     'name' => "{$request->first_name} {$request->last_name}",
-                    //'email' => $request->email,
                     'phone' => $request->phone,
                     'password' => Hash::make($request->password),
                     'status' => 'active',
                     'email_verified' => false,
                 ]
             );
-            /*$user = User::create([
-                'username' => $request->email,
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'name' => "{$request->first_name} {$request->last_name}",
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'password' => Hash::make($request->password),
-                'status' => 'active',
-                'email_verified' => false,
-            ]);*/
 
             // 2 Crear organización inicial
             $organization = Organization::create([
@@ -105,6 +112,263 @@ class AuthController extends Controller
                 ]
             ], 201);
         });
+    }*/
+
+    public function register(RegisterRequest $request)
+    {
+
+        $subsystemCode = $request->subsystem;
+        $subsystemId = $this->subsystemResolver->resolve($subsystemCode);
+
+        if ($subsystemCode && !$subsystemId) {
+            throw new \Exception("Subsystem '{$subsystemCode}' not found or inactive.");
+        }
+
+
+        return DB::transaction(function () use ($request, $subsystemCode, $subsystemId) {
+            /*
+            |--------------------------------------------------------------------------
+            | Crear usuario
+            |--------------------------------------------------------------------------
+            */
+            try {
+                $user = User::create([
+                    'email' => $request->email,
+                    'username' => trim($request->email),
+                    'first_name' => trim($request->first_name),
+                    'name' => trim($request->first_name),
+                    'password' => Hash::make(trim($request->password)),
+                    'status' => 'active',
+                    'email_verified' => false,
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+
+                if ($e->getCode() === '23000') {
+                    return response()->json([
+                        'message' => 'Este correo ya está registrado'
+                    ], 422);
+                }
+
+                throw $e;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Crear organización inicial (al crear la organización se crea la sucursal principal)
+            |--------------------------------------------------------------------------
+            */
+            $basePrefix = Str::upper(Str::substr($user->first_name, 0, 3) ?: 'ORG');
+            $referencePrefix = $basePrefix . $user->id;
+
+            // Normalizar los datos
+            $firstName = trim(explode(' ', $user->first_name)[0]);
+            $cleanName = Str::limit($firstName, 20, '');
+
+            $organizationName = "Negocio de {$cleanName}";
+
+            $slugBase = Str::slug($cleanName);
+            $organizationSlug = "org-{$user->id}-{$slugBase}";
+
+            //$branchName = $organizationName;
+            //$branchSlug = "{$organizationSlug}-principal";
+
+            $organization = Organization::create([
+                'name' => $organizationName,
+                'slug' => $organizationSlug,
+                'reference_prefix' => $referencePrefix,
+                'owner_user_id' => $user->id,
+                'status' => 'active',
+                'timezone' => 'America/Mexico_City',
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Relacionar usuario como OWNER
+            |--------------------------------------------------------------------------
+            */
+            OrganizationUser::create([
+                'organization_id' => $organization->id,
+                'user_id' => $user->id,
+                'status' => 'active',
+                'joined_at' => now(),
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Obtener plan FREE por subsistema
+            |--------------------------------------------------------------------------
+            */
+            $freePlan = Plan::where('subsystem_id', $subsystemId)
+                ->where('key', 'free')
+                ->firstOrFail();
+
+            $dates = $this->subscriptionService->getSubscriptionDates($freePlan);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Asignar subsistema a la organización
+            |--------------------------------------------------------------------------
+            */
+            OrganizationSubsystem::create([
+                'organization_id' => $organization->id,
+                'subsystem_id' => $subsystemId,
+                'plan_id' => $freePlan->id,
+                'status' => 'active',
+                'started_at'  => $dates['started_at'],
+                'renews_at'   => $dates['renews_at'],
+                'expires_at'  => $dates['expires_at'],
+                'is_paid' => false,
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Asignar rol OWNER real (clave SaaS)
+            |--------------------------------------------------------------------------
+            */
+            $ownerRole = Role::where('key', 'owner')->firstOrFail();
+
+            UserSubsystemRole::updateOrCreate(
+                [
+                    'organization_id' => $organization->id,
+                    'user_id' => $user->id,
+                    'subsystem_id' => $subsystemId,
+                ],
+                [
+                    'role_id' => $ownerRole->id,
+                ]
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Asignar acceso a sucursal
+            |--------------------------------------------------------------------------
+            */
+            $mainBranch = Branch::where('organization_id', $organization->id)
+                ->where('is_primary', true)
+                ->first();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Crear owner staff
+            |--------------------------------------------------------------------------
+            */
+            $ownerStaff = StaffMember::firstOrCreate(
+                [
+                    'organization_id' => $organization->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_active' => true,
+                ]
+            );
+
+            // Crear branch_staff
+            BranchStaff::firstOrCreate([
+                'branch_id' => $mainBranch->id,
+                'staff_member_id' => $ownerStaff->id,
+            ]);
+
+            $ownerRole = Role::where('key', 'owner')->firstOrFail();
+
+            BranchUserAccess::updateOrCreate([
+                'organization_id' => $organization->id,
+                'user_id' => $user->id,
+                'branch_id' => $mainBranch->id,
+                'subsystem_id' => $subsystemId,
+                'role_id' => $ownerRole->id,
+            ], [
+                'staff_member_id' => $ownerStaff->id,
+                'is_active' => true,
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Configuración base (email / notificaciones)
+            |--------------------------------------------------------------------------
+            */
+            OrganizationNotificationSetting::updateOrCreate(
+                ['organization_id' => $organization->id],
+                [
+                    'notification_to' => [trim($user->email)],
+                    'notification_bcc' => [],
+                    'auto_reply_enabled' => false,
+                    'emergency_footer_enabled' => false,
+                    'office_hours' => [
+                        'start' => '09:00',
+                        'end' => '18:00',
+                        'timezone' => $organization->timezone,
+                    ],
+                ]
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Token (login automático)
+            |--------------------------------------------------------------------------
+            */
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            $context = $this->authContextService->build($user);
+
+            $verificationUrl = URL::temporarySignedRoute(
+                'verification.verify',
+                now()->addMinutes(60),
+                [
+                    'id' => $user->id,
+                    'hash' => sha1($user->email),
+                ]
+            );
+
+            // Enviar correos de bienvenida
+            DB::afterCommit(function () use ($user, $organization, $subsystemCode, $verificationUrl) {
+
+                // Correo para cliente
+                $CITARA_url = config('services.citara.front_url');
+                
+                $this->notificationService->trigger(
+                    type: 'auth_welcome_user',
+                    data: [
+                        'name' => $user->first_name,
+                        'email' => $user->email,
+                        'verification_url' => $verificationUrl
+                    ],
+                    organization: $organization,
+                    recipient: $user->email,
+                    recipientName: $user->first_name,
+                    notifiable: $user,
+                    subsystemCode: $subsystemCode
+                );
+
+                // Correo(s) Interno(s)
+                foreach (config('mail.admin_addresses') as $adminEmail) {
+                    $this->notificationService->trigger(
+                        type: 'auth_user_registered_internal',
+                        data: [
+                            'name' => $user->first_name,
+                            'email' => $user->email,
+                            'date' => now()->format('d/m/Y'),
+                            'time' => now()->format('H:i'),
+                        ],
+                        organization: null,
+                        recipient: trim($adminEmail),
+                        recipientName: 'Admin',
+                    );
+                }
+            });
+
+            /*
+            |--------------------------------------------------------------------------
+            | Respuesta SaaS context-aware
+            |--------------------------------------------------------------------------
+            */
+            return response()->json([
+                'message' => 'Registro exitoso',
+                'token' => $token,
+                ...$context
+            ], 201);
+        });
     }
 
 
@@ -114,11 +378,15 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'login' => 'required', // puede ser username o email
+            'login' => 'required',
             'password' => 'required'
         ]);
 
-        // Buscar por email O username
+        /*
+        |--------------------------------------------------------------------------
+        | Buscar usuario (email o username)
+        |--------------------------------------------------------------------------
+        */
         $user = User::where('email', $request->login)
             ->orWhere('username', $request->login)
             ->first();
@@ -129,7 +397,11 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Validar que tenga por lo menos una organización activa
+        /*
+        |--------------------------------------------------------------------------
+        | Validar acceso activo a organizaciones
+        |--------------------------------------------------------------------------
+        */
         $activeOrganizations = OrganizationUser::where('user_id', $user->id)
             ->where('status', 'active')
             ->count();
@@ -140,83 +412,31 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Revocamos tokens previos (opcional pero recomendado)
+        /*
+        |--------------------------------------------------------------------------
+        | Revocar tokens anteriores (seguridad)
+        |--------------------------------------------------------------------------
+        */
         $user->tokens()->delete();
 
-        // Crear token Sanctum
+        /*
+        |--------------------------------------------------------------------------
+        | Crear token
+        |--------------------------------------------------------------------------
+        */
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Solo entrar en organizaciones activas
-        $systems = OrganizationUser::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->with([
-                'organization.subsystems' => function ($query) {
-                    $query->whereHas('subsystem', function ($q) {
-                        $q->where('is_active', true)
-                            ->where('is_selectable', true);
-                    });
-                },
-                'organization.subsystems.subsystem',
-                'organization.subsystems.plan',
-                'user.subsystemRoles.role',
-            ])
+        $context = $this->authContextService->build($user);
 
-
-            ->get()
-            ->flatMap(function ($orgUser) {
-                return $orgUser->organization->subsystems->map(function ($orgSubsystem) use ($orgUser) {
-
-                    $plan = $orgSubsystem->plan;
-
-                    $role = $orgUser->user->subsystemRoles
-                        ->first(function ($usr) use ($orgUser, $orgSubsystem) {
-                            return $usr->organization_id === $orgUser->organization_id
-                                && $usr->subsystem_id === $orgSubsystem->subsystem_id;
-                        })?->role;
-
-                    return [
-                        'organization_id' => $orgUser->organization->id,
-                        'organization_name' => $orgUser->organization->name,
-
-                        'subsystem' => [
-                            'id' => $orgSubsystem->subsystem->id,
-                            'key' => $orgSubsystem->subsystem->key,
-                            'name' => $orgSubsystem->subsystem->name,
-                        ],
-
-                        'plan' => $plan ? [
-                            'id' => $plan->id,
-                            'key' => $plan->key,
-                            'name' => $plan->name,
-                            'price' => $plan->price,
-                        ] : null,
-
-                        'has_active_plan' => (bool) $plan,
-                        'plan_key' => $plan->key,
-
-                        'status' => $orgSubsystem->status,
-                        'is_paid' => $orgSubsystem->is_paid,
-
-                        'role' => $role?->key,
-                        'role_name' => $role?->name,
-                    ];
-                });
-            })
-            ->values();
-
-            $user->load('staff');
-
+        /*
+        |--------------------------------------------------------------------------
+        | Respuesta final
+        |--------------------------------------------------------------------------
+        */
         return response()->json([
             'message' => 'Login exitoso',
             'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'username' => $user->username,
-                'staff_member_id' => $user->staff?->id,
-            ],
-            'systems' => $systems
+            ...$context
         ]);
     }
 

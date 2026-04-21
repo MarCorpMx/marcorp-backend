@@ -27,6 +27,10 @@ class Organization extends Model
         // Estado
         'status',
 
+        // Onboarding
+        'onboarding_step',
+        'onboarding_completed_at',
+
         // Contacto
         'phone',
         'email',
@@ -51,7 +55,8 @@ class Organization extends Model
         'domains',
         'force_https',
 
-        // Extra
+        // sistema
+        'timezone',
         'metadata',
     ];
 
@@ -64,10 +69,22 @@ class Organization extends Model
         'phone'        => 'array',
         'domains'      => 'array',
 
+        'onboarding_completed_at' => 'datetime',
+
         'is_internal'  => 'boolean',
         'white_label'  => 'boolean',
         'force_https'  => 'boolean',
     ];
+
+
+    // Constantes de variables para Onboarding
+    // if ($org->onboarding_step === Organization::ONBOARDING_SERVICE_CREATED)
+    public const ONBOARDING_EMAIL_PENDING = 'email_pending';
+    public const ONBOARDING_BUSINESS_SETUP = 'business_setup';
+    public const ONBOARDING_SERVICE_CREATED = 'service_created';
+    public const ONBOARDING_AVAILABILITY_SET = 'availability_set';
+    public const ONBOARDING_COMPLETED = 'completed';
+
 
     /* =====================
      |  Relaciones
@@ -88,6 +105,16 @@ class Organization extends Model
     public function subsystems()
     {
         return $this->hasMany(OrganizationSubsystem::class);
+    }
+
+    public function branches()
+    {
+        return $this->hasMany(Branch::class);
+    }
+
+    public function addons()
+    {
+        return $this->hasMany(OrganizationAddon::class);
     }
 
     public function mailSettings()
@@ -224,5 +251,28 @@ class Organization extends Model
     public function setReferencePrefixAttribute($value)
     {
         $this->attributes['reference_prefix'] = strtoupper($value);
+    }
+
+    // Onboarding
+    public function isOnboardingCompleted(): bool
+    {
+        return !is_null($this->onboarding_completed_at);
+    }
+
+    /*public function advanceOnboarding(string $step): void
+    {
+        $this->update([
+            'onboarding_step' => $step,
+            'onboarding_completed_at' => $step === self::ONBOARDING_COMPLETED
+                ? now()
+                : null
+        ]);
+    }*/
+
+    public function advanceOnboarding(string $step): void
+    {
+        $this->update([
+            'onboarding_step' => $step
+        ]);
     }
 }

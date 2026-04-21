@@ -9,6 +9,7 @@ class NotificationTemplate extends Model
     protected $fillable = [
         'organization_id',
         'type',
+        'layout_type',
         'channel',
         'name',
 

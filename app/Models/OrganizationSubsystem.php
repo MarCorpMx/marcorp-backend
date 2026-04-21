@@ -15,6 +15,7 @@ class OrganizationSubsystem extends Model
         'status',
         'started_at',
         'expires_at',
+        'renews_at',
         'cancelled_at',
         'is_paid',
         'metadata',
@@ -23,6 +24,7 @@ class OrganizationSubsystem extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'expires_at' => 'datetime',
+        'renews_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'is_paid' => 'boolean',
         'metadata' => 'array',
