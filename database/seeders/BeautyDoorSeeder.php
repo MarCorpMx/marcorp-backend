@@ -58,7 +58,7 @@ class BeautyDoorSeeder extends Seeder
                     'email' => 'beautydoor@gmail.com',
                     'country' => 'MX',
                     'metadata' => [
-                        'timezone' => 'America/Mexico_City',
+                        'timezone' => 'UTC',
                     ],
                 ]
             );

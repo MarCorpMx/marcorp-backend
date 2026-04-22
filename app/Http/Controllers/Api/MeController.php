@@ -10,22 +10,19 @@ use App\Models\Plan;
 use App\Models\PlanSubsystemFeature;
 use App\Models\Subsystem;
 
+use App\Services\AuthContextService;
+
 class MeController extends Controller
 {
     /**
      * GET /api/me
      * Info básica del usuario autenticado
      */
-    public function index(Request $request)
+    public function index(Request $request, AuthContextService $authContext)
     {
-        $user = $request->user();
-
-        return response()->json([
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'username' => $user->username,
-        ]);
+        return response()->json(
+            $authContext->build($request->user())
+        );
     }
 
     /**
@@ -227,18 +224,18 @@ class MeController extends Controller
         $organization = $request->user()->currentOrganization();
 
         /*
-    |----------------------------------------------------------
-    | DETECTAR MODO
-    |----------------------------------------------------------
-    */
+        |----------------------------------------------------------
+        | DETECTAR MODO
+        |----------------------------------------------------------
+        */
         $isOnboarding = !$organization->onboarding_completed_at
             && $organization->onboarding_step === Organization::ONBOARDING_BUSINESS_SETUP;
 
         /*
-    |----------------------------------------------------------
-    | VALIDACIÓN DINÁMICA
-    |----------------------------------------------------------
-    */
+        |----------------------------------------------------------
+        | VALIDACIÓN DINÁMICA
+        |----------------------------------------------------------
+        */
         if ($isOnboarding) {
 
             $data = $request->validate([
@@ -258,16 +255,44 @@ class MeController extends Controller
 
                 'website' => ['nullable', 'url', 'max:255'],
 
+                // Dirección
+                'country' => ['nullable', 'string', 'size:2'],
+                'state' => ['nullable', 'string', 'max:100'],
+                'city' => ['nullable', 'string', 'max:100'],
+                'zip_code' => ['nullable', 'string', 'max:20'],
+                'address' => ['nullable', 'string', 'max:255'],
+
+                // Branding
                 'primary_color' => ['nullable', 'string', 'max:20'],
                 'secondary_color' => ['nullable', 'string', 'max:20'],
                 'logo_url' => ['nullable', 'url'],
 
-                'timezone' => ['required', 'string'],
+                // Sistema
+                //'timezone' => ['required', 'string'],
+                'timezone' => ['nullable', 'string'],
 
-                // PRO / PREMIUM stuff (puedes bloquear con FeatureService luego)
+                // Dominios
                 'primary_domain' => ['nullable', 'string', 'max:255'],
                 'domains' => ['nullable', 'array'],
+
+                // FACTURACIÓN (NUEVO)
+                'legal_name' => ['nullable', 'string', 'max:255'],
+                'tax_id' => ['nullable', 'string', 'max:20'],
+                'tax_regime' => ['nullable', 'string', 'max:10'],
+                'invoice_zip_code' => ['nullable', 'string', 'max:10'],
+                'cfdi_email' => ['nullable', 'email', 'max:150'],
             ]);
+
+            $billingEnabled = false;
+            if (!$billingEnabled) {
+                unset(
+                    $data['legal_name'],
+                    $data['tax_id'],
+                    $data['tax_regime'],
+                    $data['invoice_zip_code'],
+                    $data['cfdi_email']
+                );
+            }
         }
 
         /*

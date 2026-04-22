@@ -112,7 +112,7 @@ class FeatureSeeder extends Seeder
                 'key' => 'profile',
                 'name' => 'Perfil del negocio',
                 'description' => 'Nombre comercial, dirección, contacto y branding.',
-                'menu_label' => 'Perfil',
+                'menu_label' => 'Perfil del negocio',
                 'menu_route' => '/sistemas/citas/configuracion/perfil',
                 'menu_icon' => 'Building2',
                 'parent_key' => 'settings',

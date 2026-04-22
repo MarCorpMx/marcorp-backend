@@ -188,8 +188,14 @@ class Branch extends Model
     protected static function booted()
     {
         static::creating(function ($branch) {
+
             if (!$branch->slug) {
-                $branch->slug = Str::slug($branch->name);
+
+                if ($branch->is_primary) {
+                    $branch->slug = 'principal';
+                } else {
+                    $branch->slug = Str::slug($branch->name);
+                }
             }
         });
 

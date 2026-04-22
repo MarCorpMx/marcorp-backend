@@ -99,6 +99,8 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                     ],
                     'force_https'    => true,
 
+                    'timezone' => 'America/Mexico_City',
+
                     'metadata' => [
                         'timezone' => 'America/Mexico_City',
                         'initial_use_case' => 'appointments',
@@ -246,11 +248,9 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                 'subsystem_id' => $appointmentsSubsystem->id,
             ], [
                 'role_id' => $role->id,
-                'staff_member_id' => $ownerStaff->id, 
+                'staff_member_id' => $ownerStaff->id,
                 'is_active' => true,
             ]);
-
-            
         });
     }
 

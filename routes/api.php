@@ -130,7 +130,7 @@ Route::middleware('auth:sanctum')
 */
 Route::middleware('auth:sanctum')->prefix('me')->group(function () {
 
-    Route::get('/', [MeController::class, 'index']);
+    Route::get('/', [MeController::class, 'index']); // rombi
     // GET /api/me
 
     Route::get('/systems', [MeController::class, 'systems']);

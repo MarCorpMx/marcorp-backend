@@ -43,6 +43,13 @@ class Organization extends Model
         'zip_code',
         'address',
 
+        // Facturación (SAT)
+        'legal_name',
+        'tax_id',
+        'tax_regime',
+        'invoice_zip_code',
+        'cfdi_email',
+
         // Branding / White-label
         'theme_key',
         'primary_color',
@@ -239,10 +246,10 @@ class Organization extends Model
     /* =====================
      |  timezone helpers
      ===================== */
-    public function getTimezoneAttribute(): string
+    /*public function getTimezoneAttribute(): string
     {
-        return data_get($this->metadata, 'timezone', 'America/Mexico_City');
-    }
+        return data_get($this->metadata, 'timezone', 'rombiAmerica/Mexico_City');
+    }*/
 
     /* =====================
      | reference_prefix helpers
@@ -268,6 +275,17 @@ class Organization extends Model
                 : null
         ]);
     }*/
+
+    public function fiscalData(): array
+    {
+        return [
+            'legal_name'       => $this->legal_name,
+            'tax_id'           => $this->tax_id,
+            'tax_regime'       => $this->tax_regime,
+            'zip_code'         => $this->invoice_zip_code,
+            'email'            => $this->cfdi_email,
+        ];
+    }
 
     public function advanceOnboarding(string $step): void
     {

@@ -45,7 +45,7 @@ return new class extends Migration {
             $table->boolean('force_https')->default(true);
 
             // Zona Horaria
-            $table->string('timezone')->default('America/Mexico_City');
+            $table->string('timezone')->default('UTC');
 
             // Extra flexible config
             $table->json('metadata')->nullable();

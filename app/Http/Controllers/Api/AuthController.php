@@ -167,10 +167,17 @@ class AuthController extends Controller
             $organizationName = "Negocio de {$cleanName}";
 
             $slugBase = Str::slug($cleanName);
-            $organizationSlug = "org-{$user->id}-{$slugBase}";
+            //$organizationSlug = "org-{$user->id}-{$slugBase}";
+            $organizationSlug = "org-{$user->id}";
 
             //$branchName = $organizationName;
             //$branchSlug = "{$organizationSlug}-principal";
+
+            $timezone = $request->input('timezone', 'UTC');
+
+            if (!in_array($timezone, timezone_identifiers_list())) {
+                $timezone = 'UTC';
+            }
 
             $organization = Organization::create([
                 'name' => $organizationName,
@@ -178,7 +185,7 @@ class AuthController extends Controller
                 'reference_prefix' => $referencePrefix,
                 'owner_user_id' => $user->id,
                 'status' => 'active',
-                'timezone' => 'America/Mexico_City',
+                'timezone' => $timezone,
             ]);
 
             /*
@@ -326,7 +333,7 @@ class AuthController extends Controller
 
                 // Correo para cliente
                 $CITARA_url = config('services.citara.front_url');
-                
+
                 $this->notificationService->trigger(
                     type: 'auth_welcome_user',
                     data: [

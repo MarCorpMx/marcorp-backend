@@ -26,7 +26,7 @@ return new class extends Migration
             $table->integer('minimum_notice_hours')->default(2);
             $table->boolean('allow_cancellation')->default(true);
             $table->integer('cancellation_limit_hours')->default(12);
-            $table->string('timezone')->default('America/Mexico_City');
+            $table->string('timezone')->default('UTC');
 
             $table->timestamps();
 

@@ -20,7 +20,8 @@ class OrganizationObserver
             [
                 //'name' => 'Sucursal Principal',
                 'name' => $organization->name,
-                'slug' => $organization->slug . '-principal',
+                //'slug' => $organization->slug . '-principal',
+                'slug' => 'principal',
                 'is_active' => true,
 
                 // Herencia inteligente (solo base mínima)

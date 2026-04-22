@@ -48,6 +48,7 @@ class AuthContextService
                         ->map(fn($access) => [
                             'branch_id' => $access->branch->id,
                             'branch_name' => $access->branch->name,
+                            'branch_primary' => $access->branch->is_primary,
                             'role' => $access->role?->key,
                             'role_name' => $access->role?->name,
                         ])
@@ -95,7 +96,6 @@ class AuthContextService
             ->first();
 
 
-
         return [
             'user' => [
                 'id' => $user->id,
@@ -106,14 +106,14 @@ class AuthContextService
             ],
 
             'systems' => $systems,
-            
+
             'organization' => $organization ? [
                 'id' => $organization->id,
                 'name' => $organization->name,
                 'onboarding_step' => $organization->onboarding_step,
                 'onboarding_completed_at' => $organization->onboarding_completed_at,
             ] : null,
-            
+
             'meta' => [
                 'organizations_count' => $systems->pluck('organization_id')->unique()->count(),
                 'systems_count' => $systems->count(),

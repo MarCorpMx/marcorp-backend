@@ -50,7 +50,7 @@ class StaffMemberAgendaController extends Controller
                 'minimum_notice_hours' => 2,
                 'allow_cancellation' => true,
                 'cancellation_limit_hours' => 12,
-                'timezone' => 'America/Mexico_City',
+                //'timezone' => 'rombiAmerica/Mexico_City',
             ]);
         }
 
