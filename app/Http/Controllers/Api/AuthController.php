@@ -10,7 +10,6 @@ use App\Models\Organization;
 use App\Models\OrganizationSubsystem;
 use App\Models\OrganizationUser;
 use App\Models\Role;
-use App\Models\UserSubsystemRole;
 use App\Models\Plan;
 use App\Models\OrganizationNotificationSetting;
 use App\Models\Branch;
@@ -227,23 +226,6 @@ class AuthController extends Controller
                 'is_paid' => false,
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Asignar rol OWNER real (clave SaaS)
-            |--------------------------------------------------------------------------
-            */
-            $ownerRole = Role::where('key', 'owner')->firstOrFail();
-
-            UserSubsystemRole::updateOrCreate(
-                [
-                    'organization_id' => $organization->id,
-                    'user_id' => $user->id,
-                    'subsystem_id' => $subsystemId,
-                ],
-                [
-                    'role_id' => $ownerRole->id,
-                ]
-            );
 
             /*
             |--------------------------------------------------------------------------

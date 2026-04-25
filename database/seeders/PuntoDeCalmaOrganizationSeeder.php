@@ -13,7 +13,6 @@ use App\Models\OrganizationSubsystem;
 use App\Models\OrganizationNotificationSetting;
 use App\Models\Subsystem;
 use App\Models\Plan;
-use App\Models\UserSubsystemRole;
 use App\Models\Role;
 use App\Models\Branch;
 use App\Models\BranchUserAccess;
@@ -21,6 +20,8 @@ use App\Models\StaffMember;
 use App\Models\BranchStaff;
 
 use App\Services\SubscriptionService;
+
+use function Symfony\Component\Clock\now;
 
 class PuntoDeCalmaOrganizationSeeder extends Seeder
 {
@@ -51,6 +52,7 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                         'personal'  => '777 351 9640',
                     ],
                     'status'         => 'active',
+                    'email_verified_at' => now(),
                 ]
             );
 
@@ -70,6 +72,10 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                     'is_internal'    => false,
                     'owner_user_id'  => $michel->id,
                     'status'         => 'active',
+                    
+                    'onboarding_step' => 'completed',
+                    'onboarding_completed_at' => now(),
+                    
                     'email'          => 'contacto@punto-de-calma.com',
                     'phone'          => [
                         "number" => "7773519640",
@@ -186,12 +192,12 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
 
             // Asignar role (user → organization → subsystem → role)
             // necesario para permisos globales
-            $this->assignRole(
+            /*$this->assignRole(
                 $michel->id,
                 $organization->id,
                 $appointmentsSubsystem->id,
                 'owner'
-            );
+            );*/
 
 
 
@@ -254,18 +260,6 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
         });
     }
 
-    private function assignRole($userId, $organizationId, $subsystemId, $roleKey)
-    {
-        $role = Role::where('key', $roleKey)->firstOrFail();
-
-        UserSubsystemRole::updateOrCreate([
-            'organization_id' => $organizationId,
-            'user_id' => $userId,
-            'subsystem_id' => $subsystemId,
-        ], [
-            'role_id' => $role->id,
-        ]);
-    }
 
     private function assignBranchAccess($userId, $organizationId, $subsystemId, $roleKey)
     {

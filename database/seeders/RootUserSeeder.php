@@ -13,7 +13,6 @@ use App\Models\OrganizationSubsystem;
 use App\Models\OrganizationNotificationSetting;
 use App\Models\Subsystem;
 use App\Models\Plan;
-use App\Models\UserSubsystemRole;
 use App\Models\Role;
 use App\Models\Branch;
 use App\Models\BranchUserAccess;
@@ -181,13 +180,6 @@ class RootUserSeeder extends Seeder
                 ]
             );
 
-            // Asiganr role
-            $this->assignRole(
-                $user->id,
-                $organization->id,
-                $subsystem->id,
-                'root'
-            );
 
             // Acceso a sucursal
             $this->assignBranchAccess(
@@ -199,18 +191,7 @@ class RootUserSeeder extends Seeder
         }
     }
 
-    private function assignRole($userId, $organizationId, $subsystemId, $roleKey)
-    {
-        $role = Role::where('key', $roleKey)->firstOrFail();
-
-        UserSubsystemRole::updateOrCreate([
-            'organization_id' => $organizationId,
-            'user_id' => $userId,
-            'subsystem_id' => $subsystemId,
-        ], [
-            'role_id' => $role->id,
-        ]);
-    }
+   
 
     private function assignBranchAccess($userId, $organizationId, $subsystemId, $roleKey)
     {

@@ -10,10 +10,14 @@ use App\Models\Plan;
 use App\Models\PlanSubsystemFeature;
 use App\Models\Subsystem;
 
+use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Services\AuthContextService;
 
 class MeController extends Controller
 {
+
+    use ResolvesOrganization;
+
     /**
      * GET /api/me
      * Info básica del usuario autenticado
@@ -221,7 +225,8 @@ class MeController extends Controller
      */
     public function updateOrganization(Request $request)
     {
-        $organization = $request->user()->currentOrganization();
+
+        $organization = $this->getOrganization($request);
 
         /*
         |----------------------------------------------------------
@@ -247,41 +252,75 @@ class MeController extends Controller
             ]);
         } else {
 
-            $data = $request->validate([
-                'name' => ['required', 'string', 'min:3', 'max:120'],
-                'email' => ['nullable', 'email', 'max:255'],
+            $data = $request->validate(
+                [
+                    'name' => ['required', 'string', 'min:3', 'max:120'],
+                    'slug' => [
+                        'required',
+                        'string',
+                        'min:3',
+                        'max:120',
+                        'alpha_dash',
+                        'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/',
+                        'unique:organizations,slug,' . $organization->id,
+                    ],
+                    'reference_prefix' => [
+                        'required',
+                        'string',
+                        'min:2',
+                        'max:5',
+                        'alpha_dash',
+                        'regex:/^(?=.*[A-Z])[A-Z0-9]+$/',
+                    ],
 
-                'phone' => ['nullable', 'array'],
+                    'email' => ['nullable', 'email', 'max:255'],
 
-                'website' => ['nullable', 'url', 'max:255'],
+                    'phone' => ['nullable', 'array'],
 
-                // Dirección
-                'country' => ['nullable', 'string', 'size:2'],
-                'state' => ['nullable', 'string', 'max:100'],
-                'city' => ['nullable', 'string', 'max:100'],
-                'zip_code' => ['nullable', 'string', 'max:20'],
-                'address' => ['nullable', 'string', 'max:255'],
+                    'website' => ['nullable', 'url', 'max:255'],
 
-                // Branding
-                'primary_color' => ['nullable', 'string', 'max:20'],
-                'secondary_color' => ['nullable', 'string', 'max:20'],
-                'logo_url' => ['nullable', 'url'],
+                    // Dirección
+                    'country' => ['nullable', 'string', 'size:2'],
+                    'state' => ['nullable', 'string', 'max:100'],
+                    'city' => ['nullable', 'string', 'max:100'],
+                    'zip_code' => ['nullable', 'string', 'max:20'],
+                    'address' => ['nullable', 'string', 'max:255'],
 
-                // Sistema
-                //'timezone' => ['required', 'string'],
-                'timezone' => ['nullable', 'string'],
+                    // Branding
+                    'primary_color' => ['nullable', 'string', 'max:20'],
+                    'secondary_color' => ['nullable', 'string', 'max:20'],
+                    'logo_url' => ['nullable', 'url'],
 
-                // Dominios
-                'primary_domain' => ['nullable', 'string', 'max:255'],
-                'domains' => ['nullable', 'array'],
+                    // Sistema
+                    //'timezone' => ['required', 'string'],
+                    'timezone' => ['nullable', 'string'],
 
-                // FACTURACIÓN (NUEVO)
-                'legal_name' => ['nullable', 'string', 'max:255'],
-                'tax_id' => ['nullable', 'string', 'max:20'],
-                'tax_regime' => ['nullable', 'string', 'max:10'],
-                'invoice_zip_code' => ['nullable', 'string', 'max:10'],
-                'cfdi_email' => ['nullable', 'email', 'max:150'],
-            ]);
+                    // Dominios
+                    'primary_domain' => ['nullable', 'string', 'max:255'],
+                    'domains' => ['nullable', 'array'],
+
+                    // FACTURACIÓN (NUEVO)
+                    'legal_name' => ['nullable', 'string', 'max:255'],
+                    'tax_id' => ['nullable', 'string', 'max:20'],
+                    'tax_regime' => ['nullable', 'string', 'max:10'],
+                    'invoice_zip_code' => ['nullable', 'string', 'max:10'],
+                    'cfdi_email' => ['nullable', 'email', 'max:150'],
+                ],
+                [
+                    'slug.required' => 'El enlace es obligatorio.',
+                    'slug.min' => 'El enlace debe tener al menos 3 caracteres.',
+                    'slug.max' => 'El enlace no puede superar los 120 caracteres.',
+                    'slug.regex' => 'Solo minúsculas, números y guiones (ej: punto-de-calma).',
+                    'slug.unique' => 'El enlace ya está siendo usado. Prueba con otro.',
+                    'slug.alpha_dash' => 'Solo letras, números y guiones.',
+
+                    'reference_prefix.required' => 'El prefijo es obligatorio.',
+                    'reference_prefix.min' => 'Mínimo 2 caracteres.',
+                    'reference_prefix.max' => 'Máximo 5 caracteres.',
+                    'reference_prefix.regex' => 'Solo letras mayúsculas y números (ej: PDC).',
+                    'reference_prefix.alpha_dash' => 'Solo letras, números y guiones.',
+                ]
+            );
 
             $billingEnabled = false;
             if (!$billingEnabled) {
@@ -293,20 +332,28 @@ class MeController extends Controller
                     $data['cfdi_email']
                 );
             }
+
+            if (isset($data['slug'])) {
+                $data['slug'] = strtolower($data['slug']);
+            }
+
+            if (isset($data['reference_prefix'])) {
+                $data['reference_prefix'] = strtoupper($data['reference_prefix']);
+            }
         }
 
         /*
-    |----------------------------------------------------------
-    | UPDATE ORGANIZATION
-    |----------------------------------------------------------
-    */
+        |----------------------------------------------------------
+        | UPDATE ORGANIZATION
+        |----------------------------------------------------------
+        */
         $organization->update($data);
 
         /*
-    |----------------------------------------------------------
-    | 🔥 SYNC CON PRIMARY BRANCH (SOLO ONBOARDING)
-    |----------------------------------------------------------
-    */
+        |----------------------------------------------------------
+        | SYNC CON PRIMARY BRANCH (SOLO ONBOARDING)
+        |----------------------------------------------------------
+        */
         if ($isOnboarding) {
 
             $primaryBranch = $organization->branches()
@@ -325,10 +372,10 @@ class MeController extends Controller
         }
 
         /*
-    |----------------------------------------------------------
-    | ONBOARDING FLOW
-    |----------------------------------------------------------
-    */
+        |----------------------------------------------------------
+        | ONBOARDING FLOW
+        |----------------------------------------------------------
+        */
         if ($isOnboarding) {
 
             if (
@@ -353,10 +400,10 @@ class MeController extends Controller
         }
 
         /*
-    |----------------------------------------------------------
-    | FLOW NORMAL
-    |----------------------------------------------------------
-    */
+        |----------------------------------------------------------
+        | FLOW NORMAL
+        |----------------------------------------------------------
+        */
         return response()->json([
             'message' => 'Organización actualizada correctamente',
             'organization' => [

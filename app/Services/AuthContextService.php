@@ -10,15 +10,15 @@ class AuthContextService
 {
     public function build(User $user)
     {
-        //$user->load('subsystemRoles.role');
         $user->load([
-            'subsystemRoles.role',
             'staff'
         ]);
 
-        $userRoles = $user->subsystemRoles
-            ->keyBy(fn($r) => "{$r->organization_id}_{$r->subsystem_id}");
-
+        /*
+        |----------------------------------------------------------------------
+        | 🔥 Obtener accesos por sucursal (fuente única de verdad)
+        |----------------------------------------------------------------------
+        */
         $branchAccesses = BranchUserAccess::where('user_id', $user->id)
             ->where('is_active', true)
             ->whereHas('organization', fn($q) => $q->where('status', 'active'))
@@ -27,37 +27,85 @@ class AuthContextService
 
         $featureService = app(FeatureService::class);
 
+        /*
+        |----------------------------------------------------------------------
+        | 🔥 Sistemas (org + subsystem)
+        |----------------------------------------------------------------------
+        */
         $systems = OrganizationUser::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with([
+            /*->with([
                 'organization.subsystems.subsystem',
                 'organization.subsystems.plan',
+            ])*/
+            ->with([
+                'organization.organizationSubsystems.subsystem',
+                'organization.organizationSubsystems.plan',
             ])
             ->get()
-            ->flatMap(function ($orgUser) use ($branchAccesses, $userRoles, $featureService) {
+            ->flatMap(function ($orgUser) use ($branchAccesses, $featureService, $user) {
 
-                return $orgUser->organization->subsystems->map(function ($orgSubsystem) use ($orgUser, $branchAccesses, $userRoles, $featureService) {
+                //return $orgUser->organization->subsystems->map(function ($orgSubsystem) use ($orgUser, $branchAccesses, $featureService, $user) {
+                return $orgUser->organization->organizationSubsystems->map(function ($orgSubsystem) use ($orgUser, $branchAccesses, $featureService, $user) {
 
                     $plan = $orgSubsystem->plan;
 
-                    $role = $userRoles["{$orgUser->organization_id}_{$orgSubsystem->subsystem_id}"]?->role ?? null;
-
-                    $branches = $branchAccesses
+                    /*
+                    |----------------------------------------------------------------------
+                    | 🔥 Branches del usuario en este org + subsystem
+                    |----------------------------------------------------------------------
+                    */
+                    $branchesCollection = $branchAccesses
                         ->where('organization_id', $orgUser->organization_id)
-                        ->where('subsystem_id', $orgSubsystem->subsystem_id)
+                        ->where('subsystem_id', $orgSubsystem->subsystem_id);
+
+                    if ($branchesCollection->isEmpty()) {
+                        return null;
+                    }
+
+                    $branches = $branchesCollection
+                        ->sortBy([
+                            ['branch.is_primary', 'desc'],
+                            ['branch.is_active', 'desc'],
+                            ['branch.id', 'asc'],
+                        ])
                         ->map(fn($access) => [
                             'branch_id' => $access->branch->id,
                             'branch_name' => $access->branch->name,
                             'branch_primary' => $access->branch->is_primary,
+                            'branch_is_active' => $access->branch->is_active,
+                            'branch_locked_by_plan' => $access->branch->locked_by_plan,
                             'role' => $access->role?->key,
                             'role_name' => $access->role?->name,
                         ])
                         ->values();
 
+                    /*
+                    |----------------------------------------------------------------------
+                    | 🔥 Resolver rol global (jerarquía)
+                    |----------------------------------------------------------------------
+                    */
+                    $roleKey = $this->resolveRoleFromBranches($branchesCollection);
+
+                    /*
+                    |----------------------------------------------------------------------
+                    | 🔥 Default branch inteligente
+                    |----------------------------------------------------------------------
+                    */
+                    $defaultBranch = $branchesCollection
+                        ->sortByDesc(fn($a) => $a->branch->is_primary) // prioridad primary
+                        ->first();
+
+                    /*
+                    |----------------------------------------------------------------------
+                    | 🔥 Features (nuevo FeatureService)
+                    |----------------------------------------------------------------------
+                    */
                     $features = $featureService->getFeaturesFor(
                         $orgSubsystem->subsystem_id,
                         $plan?->id,
-                        $role?->key
+                        $orgUser->organization_id,
+                        $user->id
                     );
 
                     return [
@@ -79,22 +127,28 @@ class AuthContextService
 
                         'plan_key' => $plan?->key,
 
-                        'role' => $role?->key,
+                        // 🔥 IMPORTANTE: ahora viene de branch_user_access
+                        'role' => $roleKey,
 
                         'branches' => $branches,
-                        'default_branch_id' => $branches->first()['branch_id'] ?? null,
+
+                        'default_branch_id' => $defaultBranch?->branch_id,
 
                         'features' => $features,
                     ];
                 });
             })
-            ->filter(fn($s) => count($s['branches']) > 0)
+            ->filter() // quita nulls
             ->values();
 
+        /*
+        |----------------------------------------------------------------------
+        | 🔥 Organización actual (puedes mejorar esto luego)
+        |----------------------------------------------------------------------
+        */
         $organization = $user->organizations()
             ->wherePivot('status', 'active')
             ->first();
-
 
         return [
             'user' => [
@@ -119,5 +173,33 @@ class AuthContextService
                 'systems_count' => $systems->count(),
             ]
         ];
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | 🔥 Resolver rol por jerarquía (igual que FeatureService)
+    |----------------------------------------------------------------------
+    */
+    protected function resolveRoleFromBranches($branchesCollection): ?string
+    {
+        $roles = $branchesCollection
+            ->pluck('role.key')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        if (empty($roles)) {
+            return null;
+        }
+
+        $hierarchy = ['root', 'owner', 'admin', 'receptionist', 'staff'];
+
+        foreach ($hierarchy as $role) {
+            if (in_array($role, $roles)) {
+                return $role;
+            }
+        }
+
+        return null;
     }
 }

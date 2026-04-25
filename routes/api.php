@@ -1,7 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\OnboardingController;
+use App\Http\Controllers\Api\MeController; // rombi falta verificar funciones
+use App\Http\Controllers\Api\BranchController;
+
+
+
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ServiceController;
 
@@ -14,7 +19,7 @@ use App\Http\Controllers\Api\TeamController;
 
 use App\Http\Controllers\Api\NotificationController;
 
-use App\Http\Controllers\Api\OnboardingController;
+
 
 use App\Http\Controllers\Api\ScheduleSettingController; // Verificar uso
 
@@ -157,6 +162,16 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('/organization', [MeController::class, 'organization']);
     Route::put('/organization', [MeController::class, 'updateOrganization']); // rombi - onboarding
 
+    /*
+    |--------------------------------------------------------------------------
+    | BRANCHES (Sucursales de la organización)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/branches', [BranchController::class, 'index']);
+    Route::post('/branches', [BranchController::class, 'store']);
+    Route::get('/branches/{branch}', [BranchController::class, 'show']);
+    Route::put('/branches/{branch}', [BranchController::class, 'update']);
+    //Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
 
 
     /*

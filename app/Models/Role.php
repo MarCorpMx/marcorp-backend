@@ -14,8 +14,5 @@ class Role extends Model
         'name',
     ];
 
-    public function userSubsystemRoles()
-    {
-        return $this->hasMany(UserSubsystemRole::class);
-    }
+    
 }

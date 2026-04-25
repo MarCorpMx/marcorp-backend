@@ -14,6 +14,7 @@ class Branch extends Model
         'reference_prefix',
         'is_active',
         'is_primary',
+        'locked_by_plan',
 
         // contacto
         'phone',
@@ -45,12 +46,14 @@ class Branch extends Model
     ];
 
     protected $casts = [
-        'phone' => 'array',
-        'domains' => 'array',
+        'phone'    => 'array',
+        'domains'  => 'array',
         'metadata' => 'array',
+        'phone'    => 'array',
 
-        'is_active' => 'boolean',
-        'is_primary' => 'boolean',
+        'is_active'   => 'boolean',
+        'is_primary'  => 'boolean',
+        'locked_by_plan'  => 'boolean',
         'white_label' => 'boolean',
         'force_https' => 'boolean',
     ];
@@ -84,7 +87,14 @@ class Branch extends Model
 
     public function getPhoneAttribute($value)
     {
-        return $value ?? $this->organization?->phone;
+        $phone = $value ?? $this->organization?->phone;
+
+        if (is_string($phone)) {
+            $decoded = json_decode($phone, true);
+            return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+        }
+
+        return $phone;
     }
 
     public function getEmailAttribute($value)

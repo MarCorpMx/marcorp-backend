@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\PlanSubsystemFeature;
 use App\Models\Subsystem;
 use App\Models\Feature;
+use App\Models\BranchUserAccess;
 use Illuminate\Support\Facades\Cache;
 
 class FeatureService
@@ -14,15 +15,34 @@ class FeatureService
 
     /*
     |----------------------------------------------------------------------
-    | 🔥 CORE: Obtener features por subsystem
+    | 🔥 CORE: Obtener features usando branch_user_access
     |----------------------------------------------------------------------
     */
     public function getFeaturesFor(
         int $subsystemId,
         ?int $planId,
-        ?string $roleKey,
-        ?int $organizationId = null
+        int $organizationId,
+        ?int $userId
     ) {
+
+        // 🔥 SI NO HAY PLAN → NO HAY FEATURES
+        if (!$planId) {
+            return collect();
+        }
+
+        /*$roleKey = $this->resolveRoleFromBranches(
+            $userId,
+            $organizationId,
+            $subsystemId
+        );*/
+
+        $roleKey = $userId
+            ? $this->resolveRoleFromBranches(
+                $userId,
+                $organizationId,
+                $subsystemId
+            )
+            : 'owner';
 
         $cacheKey = "features:org:{$organizationId}:subsystem:{$subsystemId}:plan:{$planId}:role:{$roleKey}";
 
@@ -70,21 +90,78 @@ class FeatureService
 
     /*
     |----------------------------------------------------------------------
-    | 🔥 Obtener UNA feature (clave tipo: citas.branches)
+    | 🔥 Resolver rol REAL desde branch_user_access
     |----------------------------------------------------------------------
     */
-    public function get(Organization $org, string $subsystemKey, string $featureKey): ?array
+    protected function resolveRoleFromBranches(
+        int $userId,
+        int $organizationId,
+        int $subsystemId
+    ): ?string {
+
+        $roles = BranchUserAccess::where('user_id', $userId)
+            ->where('organization_id', $organizationId)
+            ->where('subsystem_id', $subsystemId)
+            ->where('is_active', true)
+            ->with('role')
+            ->get()
+            ->pluck('role.key')
+            ->unique()
+            ->toArray();
+
+        if (empty($roles)) {
+            return null;
+        }
+
+        $hierarchy = ['root', 'owner', 'admin', 'receptionist', 'staff'];
+
+        foreach ($hierarchy as $role) {
+            if (in_array($role, $roles)) {
+                return $role;
+            }
+        }
+
+        return null;
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | 🔥 Obtener plan_id desde organization_subsystems
+    |----------------------------------------------------------------------
+    */
+    protected function resolvePlanId(Organization $org, int $subsystemId): ?int
     {
-        $subsystem = Subsystem::where('key', $subsystemKey)->first();
+        $cacheKey = "org:{$org->id}:subsystem:{$subsystemId}:plan";
+
+        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($org, $subsystemId) {
+
+            $orgSubsystem = $org->subsystems()
+                ->where('subsystem_id', $subsystemId)
+                ->first();
+
+            return $orgSubsystem?->pivot?->plan_id;
+        });
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | 🔥 Obtener UNA feature
+    |----------------------------------------------------------------------
+    */
+    public function get(
+        Organization $org,
+        ?int $userId,
+        string $subsystemKey,
+        string $featureKey
+    ): ?array {
+
+        [$subsystem, $features] = $this->resolveSubsystemAndFeatures(
+            $org,
+            $userId,
+            $subsystemKey
+        );
 
         if (!$subsystem) return null;
-
-        $features = $this->getFeaturesFor(
-            $subsystem->id,
-            $org->plan_id,
-            $org->role_key ?? 'owner',
-            $org->id
-        );
 
         return collect($features)->firstWhere('key', $featureKey);
     }
@@ -94,11 +171,15 @@ class FeatureService
     | 🔥 ¿Puede usar la feature?
     |----------------------------------------------------------------------
     */
-    public function can(Organization $org, string $key): bool
-    {
+    public function can(
+        Organization $org,
+        int $userId,
+        string $key
+    ): bool {
+
         [$subsystemKey, $featureKey] = explode('.', $key);
 
-        $feature = $this->get($org, $subsystemKey, $featureKey);
+        $feature = $this->get($org, $userId, $subsystemKey, $featureKey);
 
         return $feature['enabled'] ?? false;
     }
@@ -108,13 +189,76 @@ class FeatureService
     | 🔥 Obtener límite
     |----------------------------------------------------------------------
     */
-    public function limit(Organization $org, string $key): ?int
-    {
+    public function limit(
+        Organization $org,
+        ?int $userId,
+        string $key
+    ): ?int {
+
         [$subsystemKey, $featureKey] = explode('.', $key);
 
-        $feature = $this->get($org, $subsystemKey, $featureKey);
+        $feature = $this->get($org, $userId, $subsystemKey, $featureKey);
 
         return $feature['limit'] ?? null;
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | 🆕 Obtener feature RAW (solo plan)
+    |----------------------------------------------------------------------
+    */
+    public function getRawFeature(
+        Organization $org,
+        string $subsystemKey,
+        string $featureKey
+    ): ?PlanSubsystemFeature {
+
+        $subsystem = Subsystem::where('key', $subsystemKey)->first();
+        if (!$subsystem) return null;
+
+        $planId = $this->resolvePlanId($org, $subsystem->id);
+        if (!$planId) return null;
+
+        $feature = Feature::where('subsystem_id', $subsystem->id)
+            ->where('key', $featureKey)
+            ->first();
+
+        if (!$feature) return null;
+
+        return PlanSubsystemFeature::where('plan_id', $planId)
+            ->where('subsystem_id', $subsystem->id)
+            ->where('feature_id', $feature->id)
+            ->first();
+    }
+
+    /*
+    |----------------------------------------------------------------------
+    | 🔥 Helper interno
+    |----------------------------------------------------------------------
+    */
+    protected function resolveSubsystemAndFeatures(
+        Organization $org,
+        ?int $userId,
+        string $subsystemKey
+    ): array {
+
+        $subsystem = Subsystem::where('key', $subsystemKey)->first();
+
+        if (!$subsystem) {
+            return [null, collect()];
+        }
+
+        // 🔥 AQUÍ ESTÁ EL CAMBIO CLAVE
+        $planId = $this->resolvePlanId($org, $subsystem->id);
+
+        $features = $this->getFeaturesFor(
+            $subsystem->id,
+            $planId,
+            $org->id,
+            $userId
+        );
+
+        return [$subsystem, $features];
     }
 
     /*
@@ -162,8 +306,8 @@ class FeatureService
     | 🔥 Limpiar cache
     |----------------------------------------------------------------------
     */
-    public function clearCache(Organization $org): void
+    public function clearCache(): void
     {
-        Cache::flush(); // 🔥 simplificado (puedes hacerlo más fino luego)
+        Cache::flush();
     }
 }

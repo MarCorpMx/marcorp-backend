@@ -24,9 +24,10 @@ return new class extends Migration
             $table->string('reference_prefix', 10)->nullable();
 
             // Estatus
-            $table->boolean('is_active')->default(true);
             $table->boolean('is_primary')->default(false);
-
+            $table->boolean('is_active')->default(true);
+            $table->boolean('locked_by_plan')->default(false);
+            
             // Contacto
             $table->json('phone')->nullable();
             $table->string('email')->nullable();

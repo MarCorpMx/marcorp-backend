@@ -88,10 +88,12 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      *  Relación con roles del usuario
      */
-    public function subsystemRoles()
+
+    // rombi verificar como jalaba esa funcion
+    /*public function subsystemRoles()
     {
         return $this->hasMany(UserSubsystemRole::class);
-    }
+    }*/
 
 
     /****************************************** */

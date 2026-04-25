@@ -109,9 +109,32 @@ class Organization extends Model
             ->withTimestamps();
     }
 
-    public function subsystems()
+    /*public function subsystems()
     {
         return $this->hasMany(OrganizationSubsystem::class);
+    }*/
+
+    // Para lógica interna (login, register, control total)
+    public function organizationSubsystems()
+    {
+        return $this->hasMany(\App\Models\OrganizationSubsystem::class);
+    }
+
+    // Para acceso directo a subsystems (FeatureService)
+    public function subsystems()
+    {
+        return $this->belongsToMany(\App\Models\Subsystem::class, 'organization_subsystems')
+            ->withPivot([
+                'plan_id',
+                'status',
+                'started_at',
+                'expires_at',
+                'renews_at',
+                'cancelled_at',
+                'is_paid',
+                'metadata'
+            ])
+            ->withTimestamps();
     }
 
     public function branches()

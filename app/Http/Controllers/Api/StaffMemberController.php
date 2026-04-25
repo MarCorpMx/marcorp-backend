@@ -33,11 +33,15 @@ class StaffMemberController extends Controller
         $subsystemCode = $request->get('subsystem', 'citas');
         $subsystemId = $this->subsystemResolver->resolve($subsystemCode);
 
-        $role = DB::table('user_subsystem_roles as usr')
-            ->join('roles as r', 'r.id', '=', 'usr.role_id')
-            ->where('usr.organization_id', $organization->id)
-            ->where('usr.user_id', $user->id)
-            ->where('usr.subsystem_id', $subsystemId)
+        $branchId = $request->header('X-Branch-Id');
+
+        $role = DB::table('branch_user_access as bua')
+            ->join('roles as r', 'r.id', '=', 'bua.role_id')
+            ->where('bua.organization_id', $organization->id)
+            ->where('bua.user_id', $user->id)
+            ->where('bua.subsystem_id', $subsystemId)
+            ->where('bua.branch_id', $branchId)
+            ->where('bua.is_active', true)
             ->value('r.key');
 
         if (!$role) {
@@ -48,9 +52,8 @@ class StaffMemberController extends Controller
 
         $query = $organization->staffMembers()
             ->with(['agendaSetting'])
-            ->whereHas('user.subsystemRoles', function ($q) use ($organization, $subsystemId) {
-                $q->where('organization_id', $organization->id)
-                    ->where('subsystem_id', $subsystemId);
+            ->whereHas('branchStaff', function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
             });
 
         Log::info('Appointments filter', [
@@ -81,7 +84,22 @@ class StaffMemberController extends Controller
         }
 
         // FILTRO: excluir rol
+        // rombi debemos verificar como obtener el brach id
+
+        $branchId = $request->header('X-Branch-Id');
         if ($request->filled('exclude_role')) {
+            $query->whereDoesntHave('user.branchUserAccesses', function ($q) use ($request, $organization, $subsystemId, $branchId) {
+
+                $q->where('organization_id', $organization->id)
+                    ->where('subsystem_id', $subsystemId)
+                    ->where('branch_id', $branchId)
+                    ->where('is_active', true)
+                    ->whereHas('role', function ($roleQ) use ($request) {
+                        $roleQ->where('key', $request->exclude_role);
+                    });
+            });
+        }
+        /*if ($request->filled('exclude_role')) {
             $query->whereDoesntHave('user.subsystemRoles', function ($q) use ($request, $organization, $subsystemId) {
                 $q->where('organization_id', $organization->id)
                     ->where('subsystem_id', $subsystemId)
@@ -89,7 +107,7 @@ class StaffMemberController extends Controller
                         $roleQ->where('key', $request->exclude_role);
                     });
             });
-        }
+        }*/
 
         $staffMembers = $query
             ->orderBy('created_at', 'desc')
@@ -242,9 +260,16 @@ class StaffMemberController extends Controller
         $organization = $this->getOrganization($request);
         $user = $request->user();
 
-        $role = $user->subsystemRoles()
-            ->where('organization_id', $organization->id)
-            ->first()?->role?->key;
+
+        $branchId = $request->header('X-Branch-Id');
+
+        $role = DB::table('branch_user_access as bua')
+            ->join('roles as r', 'r.id', '=', 'bua.role_id')
+            ->where('bua.organization_id', $organization->id)
+            ->where('bua.user_id', $user->id)
+            ->where('bua.branch_id', $branchId)
+            ->where('bua.is_active', true)
+            ->value('r.key');
 
         if (!in_array($role, $allowedRoles)) {
             abort(403, 'No tienes permisos para esta acción.');
