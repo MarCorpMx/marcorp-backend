@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Concerns\ResolvesOrganization;
 
+use Illuminate\Support\Facades\Log;
+
+
 class StaffMemberNonWorkingDayController extends Controller
 {
 
@@ -20,7 +23,16 @@ class StaffMemberNonWorkingDayController extends Controller
     {
         $this->authorizeAccess($request, $staffMember);
 
+        $branch = $request->attributes->get('branch');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Solo días no laborables de ESTA sucursal
+        |--------------------------------------------------------------------------
+        */
+
         $days = $staffMember->nonWorkingDays()
+            ->where('branch_id', $branch->id)
             ->orderBy('date', 'asc')
             ->get();
 
@@ -35,6 +47,10 @@ class StaffMemberNonWorkingDayController extends Controller
     public function store(Request $request, StaffMember $staffMember): JsonResponse
     {
         $this->authorizeAccess($request, $staffMember);
+
+
+        Log::info('dianita creadora va lola');
+
 
         $validated = $request->validate([
             'date' => ['required', 'date'],
@@ -66,6 +82,8 @@ class StaffMemberNonWorkingDayController extends Controller
         StaffMemberNonWorkingDay $day
     ): JsonResponse {
         $this->authorizeAccess($request, $staffMember);
+
+        Log::info('dianita anda de destructora');
 
         // Asegurar que el día pertenece al staff correcto
         if ($day->staff_member_id !== $staffMember->id) {

@@ -17,10 +17,10 @@ class DatabaseSeeder extends Seeder
             PlanSubsystemFeatureSeeder::class,
 
             // Usuarios + organizaciones
-            RootUserSeeder::class, // Crea MarCorp
+            //RootUserSeeder::class, // Crea MarCorp
             
 
-            // Punto de Calma
+            // Punto de Calma (se necesitan todos los de este bloque)
             PuntoDeCalmaOrganizationSeeder::class, // Crea al usuario Michelle con la organización PDC
             PuntoDeCalmaBranchesSeeder::class, // Crea Sucursales (sin permisos)
             PuntoDeCalmaBranchAccessSeeder::class, // Permisos a sucursales

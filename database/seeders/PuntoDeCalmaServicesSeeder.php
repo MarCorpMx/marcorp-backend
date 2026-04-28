@@ -29,19 +29,59 @@ class PuntoDeCalmaServicesSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | Helper
+            | Helper: asignar staff + insertar catálogo por sucursal
             |--------------------------------------------------------------------------
             */
-            $attachToAllBranches = function ($variant) use ($staff, $branches) {
-                foreach ($branches as $branch) {
-                    DB::table('service_variant_staff')->updateOrInsert([
-                        'service_variant_id' => $variant->id,
-                        'staff_member_id' => $staff->id,
-                        'branch_id' => $branch->id,
-                    ], [
-                        'updated_at' => now(),
-                        'created_at' => now(),
-                    ]);
+            $attachToAllBranches = function ($variant) use ($staff, $branches, $organization) {
+
+                foreach ($branches as $index => $branch) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Staff asignado
+                    |--------------------------------------------------------------------------
+                    */
+                    DB::table('service_variant_staff')->updateOrInsert(
+                        [
+                            'service_variant_id' => $variant->id,
+                            'staff_member_id' => $staff->id,
+                            'branch_id' => $branch->id,
+                        ],
+                        [
+                            'updated_at' => now(),
+                            'created_at' => now(),
+                        ]
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Disponible en sucursal
+                    |--------------------------------------------------------------------------
+                    */
+                    DB::table('branch_service_variant')->updateOrInsert(
+                        [
+                            'branch_id' => $branch->id,
+                            'service_variant_id' => $variant->id,
+                        ],
+                        [
+                            'organization_id' => $organization->id,
+
+                            'name' => $variant->name,
+                            'description' => $variant->description,
+
+                            'duration_minutes' => $variant->duration_minutes,
+                            'price' => $variant->price,
+                            'max_capacity' => $variant->max_capacity,
+                            'mode' => $variant->mode,
+                            'includes_material' => $variant->includes_material,
+                            'active' => $variant->active,
+
+                            'sort_order' => $index,
+
+                            'updated_at' => now(),
+                            'created_at' => now(),
+                        ]
+                    );
                 }
             };
 
@@ -56,7 +96,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Psicoterapia Humanista',
                 ],
                 [
-                    'description' => 'Acompañamiento terapéutico centrado en la persona...',
+                    'description' => 'Acompañamiento terapéutico centrado en la persona para fortalecer bienestar emocional y crecimiento personal.',
                     'active' => true,
                     'color' => '#6E8B7B'
                 ]
@@ -68,6 +108,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Sesión individual',
                 ],
                 [
+                    'description' => 'Espacio terapéutico individual para trabajar emociones, claridad mental y procesos personales.',
                     'duration_minutes' => 50,
                     'price' => 600,
                     'max_capacity' => 1,
@@ -90,7 +131,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Masaje sanador del alma',
                 ],
                 [
-                    'description' => 'Terapia corporal holística...',
+                    'description' => 'Terapia corporal holística orientada a liberar tensión y recuperar equilibrio físico-emocional.',
                     'active' => true,
                     'color' => '#6E8B7B'
                 ]
@@ -102,6 +143,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Sesión individual',
                 ],
                 [
+                    'description' => 'Masaje relajante personalizado para descanso profundo y renovación energética.',
                     'duration_minutes' => 60,
                     'price' => 600,
                     'max_capacity' => 1,
@@ -124,7 +166,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Auriculoterapia',
                 ],
                 [
-                    'description' => 'Medicina tradicional china...',
+                    'description' => 'Técnica inspirada en medicina tradicional para apoyar equilibrio integral mediante puntos auriculares.',
                     'active' => true,
                     'color' => '#6E8B7B'
                 ]
@@ -136,6 +178,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Sesión individual',
                 ],
                 [
+                    'description' => 'Sesión enfocada en estrés, ansiedad, descanso y armonización general.',
                     'duration_minutes' => 40,
                     'price' => 400,
                     'max_capacity' => 1,
@@ -158,7 +201,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                     'name' => 'Arteterapia',
                 ],
                 [
-                    'description' => 'Expresión artística terapéutica...',
+                    'description' => 'Proceso terapéutico creativo para expresar emociones y fomentar autoconocimiento.',
                     'active' => true,
                     'color' => '#8B907E',
                 ]
@@ -167,6 +210,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
             $variants = [
                 [
                     'name' => 'Sesión individual',
+                    'description' => 'Acompañamiento creativo personalizado en un entorno seguro y guiado.',
                     'duration_minutes' => 60,
                     'price' => 600,
                     'max_capacity' => 1,
@@ -176,6 +220,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
                 ],
                 [
                     'name' => 'Sesión grupal',
+                    'description' => 'Experiencia grupal enfocada en conexión, expresión colectiva y bienestar compartido.',
                     'duration_minutes' => 60,
                     'price' => 2000,
                     'max_capacity' => 10,
@@ -186,6 +231,7 @@ class PuntoDeCalmaServicesSeeder extends Seeder
             ];
 
             foreach ($variants as $variantData) {
+
                 $variant = ServiceVariant::updateOrCreate(
                     [
                         'service_id' => $arteterapia->id,

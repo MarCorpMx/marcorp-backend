@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\StaffMemberNonWorkingDayController;
 use App\Http\Controllers\Api\StaffMemberScheduleController;
 
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\ClientController;
 
 use App\Http\Controllers\Api\NotificationController;
 
@@ -133,7 +134,8 @@ Route::middleware('auth:sanctum')
 | ME (contexto del usuario autenticado)
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth:sanctum')->prefix('me')->group(function () {
+
+Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->prefix('me')->group(function () {
 
     Route::get('/', [MeController::class, 'index']); // rombi
     // GET /api/me
@@ -172,6 +174,18 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('/branches/{branch}', [BranchController::class, 'show']);
     Route::put('/branches/{branch}', [BranchController::class, 'update']);
     //Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | TEAM (admins, staff, recepcionistas, invitados)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/team', [TeamController::class, 'index']); // rombi
+    Route::post('/team', [TeamController::class, 'store']); // rombi
+    Route::put('/team/{id}', [TeamController::class, 'update']); // rombi - sin uso aun
+    Route::patch('/team/{id}/toggle-access', [TeamController::class, 'toggleAccess']);
+    //Route::post('/team/{id}/suspend', [TeamController::class, 'suspend']);
+    //Route::post('/team/{id}/activate', [TeamController::class, 'activate']);
 
 
     /*
@@ -218,10 +232,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/staff-members', [StaffMemberController::class, 'index']);
-    Route::post('/staff-members', [StaffMemberController::class, 'store']);
-    Route::get('/staff-members/{staffMember}', [StaffMemberController::class, 'show']);
-    Route::put('/staff-members/{staffMember}', [StaffMemberController::class, 'update']);
-    Route::delete('/staff-members/{staffMember}', [StaffMemberController::class, 'destroy']);
+    //Route::post('/staff-members', [StaffMemberController::class, 'store']);
+    //Route::get('/staff-members/{staffMember}', [StaffMemberController::class, 'show']);
+    //Route::put('/staff-members/{staffMember}', [StaffMemberController::class, 'update']);
+    //Route::delete('/staff-members/{staffMember}', [StaffMemberController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------
@@ -279,15 +293,15 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         [StaffMemberNonWorkingDayController::class, 'index']
     );
 
-    Route::post(
+    /*Route::post(
         '/staff-members/{staffMember}/non-working-days',
         [StaffMemberNonWorkingDayController::class, 'store']
-    );
+    );*/
 
-    Route::delete(
+    /*Route::delete(
         '/staff-members/{staffMember}/non-working-days/{day}',
         [StaffMemberNonWorkingDayController::class, 'destroy']
-    );
+    );*/
 
     /*
     |--------------------------------------------------------------------------
@@ -303,17 +317,6 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         '/staff-members/{staffMember}/schedules',
         [StaffMemberScheduleController::class, 'update']
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | TEAM (admins, staff, recepcionistas, invitados)
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/team', [TeamController::class, 'index']);
-    Route::post('/team', [TeamController::class, 'store']);
-    Route::put('/team/{id}', [TeamController::class, 'update']);
-    Route::post('/team/{id}/suspend', [TeamController::class, 'suspend']);
-    Route::post('/team/{id}/activate', [TeamController::class, 'activate']);
 
 
     /*
@@ -331,12 +334,12 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     | CLIENTES
     |--------------------------------------------------------------------------
     */
-    Route::get('/clients', [\App\Http\Controllers\Api\ClientController::class, 'index']);
-    Route::get('/clients/list', [\App\Http\Controllers\Api\ClientController::class, 'list']); // select interno
-    Route::post('/clients', [\App\Http\Controllers\Api\ClientController::class, 'store']);
-    Route::get('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'show']);
-    Route::put('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'update']);
-    Route::delete('/clients/{client}', [\App\Http\Controllers\Api\ClientController::class, 'destroy']);
+    Route::get('/clients', [ClientController::class, 'index']);
+    Route::get('/clients/list', [ClientController::class, 'list']); // select interno
+    Route::post('/clients', [ClientController::class, 'store']);
+    Route::get('/clients/{client}', [ClientController::class, 'show']);
+    Route::put('/clients/{client}', [ClientController::class, 'update']);
+    Route::delete('/clients/{client}', [ClientController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------

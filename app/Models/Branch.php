@@ -79,6 +79,14 @@ class Branch extends Model
         )->withTimestamps();
     }
 
+    public function serviceVariants()
+    {
+        return $this->belongsToMany(
+            ServiceVariant::class,
+            'branch_service_variant'
+        )->withTimestamps();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | FALLBACKS AUTOMÁTICOS

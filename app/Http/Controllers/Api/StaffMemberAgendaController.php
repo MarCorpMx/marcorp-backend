@@ -16,10 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
-
-
 
 
 class StaffMemberAgendaController extends Controller
@@ -37,37 +35,73 @@ class StaffMemberAgendaController extends Controller
      */
     public function show(Request $request, StaffMember $staffMember): JsonResponse
     {
+        $branch = $request->attributes->get('branch');
+
         $this->authorizeAccess($request, $staffMember);
 
-        $agenda = $staffMember->agendaSetting;
+        /*
+        |--------------------------------------------------------------------------
+        | CONFIGURACIÓN POR SUCURSAL
+        |--------------------------------------------------------------------------
+        */
 
-        // Crear configuración por defecto si no existe
+        $agenda = $staffMember->agendaSettings()
+            ->where('branch_id', $branch->id)
+            ->first();
+
+        /*
+        |--------------------------------------------------------------------------
+        | CREAR DEFAULT SI NO EXISTE
+        |--------------------------------------------------------------------------
+        */
+
         if (!$agenda) {
-            $agenda = $staffMember->agendaSetting()->create([
-                'appointment_duration' => 60,
+            $agenda = $staffMember->agendaSettings()->create([
+                'branch_id' => $branch->id,
+                'appointment_duration' => 15,
                 'break_between_appointments' => 0,
                 'allow_online_booking' => true,
                 'minimum_notice_hours' => 2,
                 'allow_cancellation' => true,
                 'cancellation_limit_hours' => 12,
-                //'timezone' => 'rombiAmerica/Mexico_City',
             ]);
         }
 
-        $staffMember->load([
-            'schedules',
-            'recurringBlocks',
-            'blockedSlots',
-            'nonWorkingDays'
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | CARGAR RELACIONES DE ESA SUCURSAL
+        |--------------------------------------------------------------------------
+        */
+
+        $weeklySchedule = $staffMember->schedules()
+            ->where('branch_id', $branch->id)
+            ->get();
+
+        $recurringBlocks = $staffMember->recurringBlocks()
+            ->where('branch_id', $branch->id)
+            ->get();
+
+        $blockedSlots = $staffMember->blockedSlots()
+            ->where('branch_id', $branch->id)
+            ->get();
+
+        $nonWorkingDays = $staffMember->nonWorkingDays()
+            ->where('branch_id', $branch->id)
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
 
         return response()->json([
             'data' => [
                 'settings' => $agenda,
-                'weekly_schedule' => $staffMember->schedules ?? [],
-                'recurring_blocks' => $staffMember->recurringBlocks ?? [],
-                'non_working_days' => $staffMember->nonWorkingDays ?? [],
-                'blocked_slots' => $staffMember->blockedSlots ?? []
+                'weekly_schedule' => $weeklySchedule,
+                'recurring_blocks' => $recurringBlocks,
+                'non_working_days' => $nonWorkingDays,
+                'blocked_slots' => $blockedSlots,
             ]
         ]);
     }
@@ -76,7 +110,7 @@ class StaffMemberAgendaController extends Controller
      * Actualizar configuración de agenda
      */
 
-    protected function getBranchId(Request $request, Organization $organization): int
+    /*protected function getBranchId(Request $request, Organization $organization): int
     {
         $user = $request->user();
         $branchId = (int) $request->header('X-Branch-Id');
@@ -97,13 +131,17 @@ class StaffMemberAgendaController extends Controller
         }
 
         return $branchId;
-    }
+    }*/
 
 
     public function update(Request $request, StaffMember $staffMember): JsonResponse
     {
+        //$organization = $staffMember->organization;
+
+        $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+
         $user = $request->user();
-        $organization = $staffMember->organization;
 
         /*
         |----------------------------------------------------------
@@ -139,12 +177,11 @@ class StaffMemberAgendaController extends Controller
             $branchId = $organization->branches()
                 ->where('is_primary', true)
                 ->value('id');
-
         } else {
             $this->authorizeAccess($request, $staffMember);
 
-            $branchId = $this->getBranchId($request, $organization);
-
+            //$branchId = $this->getBranchId($request, $organization);
+            $branchId = $branch->id;
         }
 
         /*
@@ -153,42 +190,133 @@ class StaffMemberAgendaController extends Controller
         |----------------------------------------------------------
         */
         if ($isOnboarding) {
-            $validated = $request->validate([
-                'appointment_duration' => ['required', 'integer', 'min:5', 'max:480'],
-                'break_between_appointments' => ['nullable', 'integer', 'min:0', 'max:240'],
-                'allow_online_booking' => ['required', 'boolean'],
-                'minimum_notice_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
-                'allow_cancellation' => ['required', 'boolean'],
-                'cancellation_limit_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
-                'timezone' => ['nullable', 'string'],
+            $validated = $request->validate(
+                [
+                    'appointment_duration' => ['required', 'integer', Rule::in([15, 30, 60])],
+                    'break_between_appointments' => ['nullable', 'integer', Rule::in([0, 5, 10, 15])],
+                    'allow_online_booking' => ['required', 'boolean'],
+                    'minimum_notice_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
+                    'allow_cancellation' => ['required', 'boolean'],
+                    'cancellation_limit_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
+                    'timezone' => ['nullable', 'string'],
 
-                'weekly_schedule' => ['required', 'array', 'min:1'],
-                'weekly_schedule.*.day_of_week' => ['required', 'integer', 'between:0,6'],
-                'weekly_schedule.*.start_time' => ['required'],
-                'weekly_schedule.*.end_time' => ['required'],
-            ]);
+                    'weekly_schedule' => ['required', 'array', 'min:1'],
+                    'weekly_schedule.*.day_of_week' => ['required', 'integer', 'between:0,6'],
+                    'weekly_schedule.*.start_time' => ['required'],
+                    'weekly_schedule.*.end_time' => ['required'],
+                ],
+                [
+                    'appointment_duration.required' => 'Selecciona cada cuánto mostrar horarios disponibles.',
+
+                    'appointment_duration.in' =>
+                    'Solo puedes elegir 15, 30 o 60 minutos.',
+
+                    'break_between_appointments.in' =>
+                    'Solo puedes elegir 0, 5, 10 o 15 minutos.',
+
+                    'weekly_schedule.required' =>
+                    'Debes configurar al menos un día laboral.',
+                ]
+            );
         } else {
-            $validated = $request->validate([
-                'appointment_duration' => ['required', 'integer', 'min:5', 'max:480'],
-                'break_between_appointments' => ['nullable', 'integer', 'min:0', 'max:240'],
-                'allow_online_booking' => ['required', 'boolean'],
-                'minimum_notice_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
-                'allow_cancellation' => ['required', 'boolean'],
-                'cancellation_limit_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
-                'timezone' => ['nullable', 'string'],
+            $validated = $request->validate(
+                [
+                    'appointment_duration' => ['required', 'integer', Rule::in([5, 10, 15, 20, 30, 45, 60, 90, 120])],
+                    'break_between_appointments' => ['nullable', 'integer', Rule::in([0, 5, 10, 15, 20, 30, 45, 60])],
+                    'allow_online_booking' => ['required', 'boolean'],
+                    'minimum_notice_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
+                    'allow_cancellation' => ['required', 'boolean'],
+                    'cancellation_limit_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
+                    'timezone' => ['nullable', 'string'],
 
-                'weekly_schedule' => ['required', 'array'],
+                    'weekly_schedule' => ['required', 'array'],
 
-                'non_working_days' => ['nullable', 'array'],
-                'non_working_days.*.date' => ['required', 'date'],
-                'non_working_days.*.reason' => ['nullable', 'string'],
+                    'non_working_days' => ['nullable', 'array'],
+                    'non_working_days.*.date' => ['required', 'date'],
+                    'non_working_days.*.reason' => ['nullable', 'string'],
 
-                'recurring_blocks' => ['nullable', 'array'],
-                'recurring_blocks.*.day_of_week' => ['required', 'integer', 'between:0,6'],
-                'recurring_blocks.*.start' => ['required'],
-                'recurring_blocks.*.end' => ['required'],
-                'recurring_blocks.*.label' => ['nullable', 'string'],
-            ]);
+                    'recurring_blocks' => ['nullable', 'array'],
+                    'recurring_blocks.*.day_of_week' => ['required', 'integer', 'between:0,6'],
+                    'recurring_blocks.*.start' => ['required'],
+                    'recurring_blocks.*.end' => ['required'],
+                    'recurring_blocks.*.label' => ['nullable', 'string'],
+                ],
+                [
+                    // Intervalo de horarios
+                    'appointment_duration.required' =>
+                    'Selecciona cada cuánto mostrar horarios disponibles.',
+
+                    'appointment_duration.in' =>
+                    'Elige un intervalo válido: 5, 10, 15, 20, 30, 45, 60, 90 o 120 minutos.',
+
+                    'break_between_appointments.in' =>
+                    'Solo puedes elegir 0, 5, 10, 15, 20, 30, 45 o 60 minutos.',
+
+                    // Espacio entre citas
+                    'break_between_appointments.integer' =>
+                    'El espacio entre citas debe ser un número.',
+
+                    'break_between_appointments.min' =>
+                    'El espacio entre citas no puede ser negativo.',
+
+                    'break_between_appointments.max' =>
+                    'El espacio entre citas no puede superar 240 minutos.',
+
+                    // Anticipación mínima
+                    'minimum_notice_hours.integer' =>
+                    'La anticipación mínima debe estar en horas.',
+
+                    'minimum_notice_hours.min' =>
+                    'La anticipación mínima no puede ser negativa.',
+
+                    'minimum_notice_hours.max' =>
+                    'La anticipación mínima no puede superar 168 horas (7 días).',
+
+                    // Cancelación
+                    'cancellation_limit_hours.integer' =>
+                    'El límite de cancelación debe estar en horas.',
+
+                    'cancellation_limit_hours.min' =>
+                    'El límite de cancelación no puede ser negativo.',
+
+                    'cancellation_limit_hours.max' =>
+                    'El límite de cancelación no puede superar 168 horas (7 días).',
+
+                    // Horario semanal
+                    'weekly_schedule.required' =>
+                    'Configura al menos un horario de trabajo.',
+
+                    'weekly_schedule.array' =>
+                    'El horario semanal no tiene un formato válido.',
+
+                    // Días no laborables
+                    'non_working_days.*.date.required' =>
+                    'Selecciona la fecha del día no laborable.',
+
+                    'non_working_days.*.date.date' =>
+                    'Ingresa una fecha válida para el día no laborable.',
+
+                    // Bloqueos recurrentes
+                    'recurring_blocks.*.day_of_week.required' =>
+                    'Selecciona el día del bloqueo recurrente.',
+
+                    'recurring_blocks.*.day_of_week.between' =>
+                    'El día del bloqueo no es válido.',
+
+                    'recurring_blocks.*.start.required' =>
+                    'Indica la hora de inicio del bloqueo.',
+
+                    'recurring_blocks.*.end.required' =>
+                    'Indica la hora de fin del bloqueo.',
+                ],
+                [
+                    'appointment_duration' => 'intervalo de horarios',
+                    'break_between_appointments' => 'espacio entre citas',
+                    'minimum_notice_hours' => 'anticipación mínima',
+                    'cancellation_limit_hours' => 'límite de cancelación',
+                    'weekly_schedule' => 'horario semanal',
+                ]
+            );
         }
 
         /*
@@ -356,7 +484,7 @@ class StaffMemberAgendaController extends Controller
         |----------------------------------------------------------
         */
         $staffMember->load([
-            'agendaSetting' => fn($q) => $q->where('branch_id', $branchId),
+            'agendaSettings' => fn($q) => $q->where('branch_id', $branchId),
             'schedules' => fn($q) => $q->where('branch_id', $branchId),
             'nonWorkingDays' => fn($q) => $q->where('branch_id', $branchId),
             'recurringBlocks' => fn($q) => $q->where('branch_id', $branchId),
@@ -365,7 +493,7 @@ class StaffMemberAgendaController extends Controller
         return response()->json([
             'message' => 'Agenda updated successfully',
             'data' => [
-                'settings' => $staffMember->agendaSetting,
+                'settings' => $staffMember->agendaSettings->first(),
                 'weekly_schedule' => $staffMember->schedules,
                 'non_working_days' => $staffMember->nonWorkingDays,
                 'recurring_blocks' => $staffMember->recurringBlocks,
@@ -373,177 +501,7 @@ class StaffMemberAgendaController extends Controller
         ]);
     }
 
-    // ESTA FUNCION ES LA ANTERIOR
-    public function update_BKP(Request $request, StaffMember $staffMember): JsonResponse
-    {
-        $this->authorizeAccess($request, $staffMember);
 
-        $validated = $request->validate([
-            'appointment_duration' => ['required', 'integer', 'min:5', 'max:480'],
-            'break_between_appointments' => ['nullable', 'integer', 'min:0', 'max:240'],
-            'allow_online_booking' => ['required', 'boolean'],
-            'minimum_notice_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
-            'allow_cancellation' => ['required', 'boolean'],
-            'cancellation_limit_hours' => ['nullable', 'integer', 'min:0', 'max:168'],
-            'timezone' => ['nullable', 'string'],
-
-            'weekly_schedule' => ['required', 'array'],
-
-            'non_working_days' => ['nullable', 'array'],
-            'non_working_days.*.date' => ['required', 'date'],
-            'non_working_days.*.reason' => ['nullable', 'string'],
-
-            'recurring_blocks' => ['nullable', 'array'],
-            'recurring_blocks.*.day_of_week' => ['required', 'integer', 'between:0,6'],
-            'recurring_blocks.*.start' => ['required'],
-            'recurring_blocks.*.end' => ['required'],
-            'recurring_blocks.*.label' => ['nullable', 'string'],
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDACIONES
-        |--------------------------------------------------------------------------
-        */
-
-        // Validar horarios de atención
-        foreach ($validated['weekly_schedule'] as $day) {
-            if ($day['start_time'] >= $day['end_time']) {
-                return response()->json([
-                    'message' => 'Horario inválido en agenda'
-                ], 422);
-            }
-        }
-
-        // Agrupar bloques por día
-        $blocksByDay = collect($validated['recurring_blocks'] ?? [])
-            ->groupBy('day_of_week');
-
-        $scheduleByDay = collect($validated['weekly_schedule'])
-            ->keyBy('day_of_week');
-
-        foreach ($blocksByDay as $day => $blocks) {
-
-            // Día debe existir en horario
-            if (!isset($scheduleByDay[$day])) {
-                return response()->json([
-                    'message' => 'Bloque en día no laboral'
-                ], 422);
-            }
-
-            $workDay = $scheduleByDay[$day];
-
-            // Ordenar bloques
-            $sorted = collect($blocks)->sortBy('start')->values();
-
-            foreach ($sorted as $index => $block) {
-
-                // start < end
-                if ($block['start'] >= $block['end']) {
-                    return response()->json([
-                        'message' => 'Bloque con horario inválido'
-                    ], 422);
-                }
-
-                // dentro del horario laboral
-                if (
-                    $block['start'] < $workDay['start_time'] ||
-                    $block['end'] > $workDay['end_time']
-                ) {
-                    return response()->json([
-                        'message' => 'Bloque fuera de horario laboral'
-                    ], 422);
-                }
-
-                // validar encimados
-                if ($index < count($sorted) - 1) {
-                    $next = $sorted[$index + 1];
-
-                    if ($block['end'] > $next['start']) {
-                        return response()->json([
-                            'message' => 'Bloques encimados'
-                        ], 422);
-                    }
-                }
-            }
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | GUARDAR
-        |--------------------------------------------------------------------------
-        */
-
-        // Settings
-        $staffMember->agendaSetting()->updateOrCreate(
-            ['staff_member_id' => $staffMember->id],
-            [
-                'appointment_duration' => $validated['appointment_duration'],
-                'break_between_appointments' => $validated['break_between_appointments'] ?? 0,
-                'minimum_notice_hours' => $validated['minimum_notice_hours'] ?? 0,
-                'cancellation_limit_hours' => $validated['cancellation_limit_hours'] ?? 0,
-                'allow_online_booking' => $validated['allow_online_booking'],
-                'allow_cancellation' => $validated['allow_cancellation'],
-                'timezone' => $validated['timezone'] ?? 'America/Mexico_City',
-            ]
-        );
-
-        // Weekly schedule
-        $staffMember->schedules()->delete();
-
-        foreach ($validated['weekly_schedule'] as $day) {
-            $staffMember->schedules()->create([
-                'day_of_week' => $day['day_of_week'],
-                'start_time' => $day['start_time'],
-                'end_time' => $day['end_time'],
-            ]);
-        }
-
-        // Non working days
-        $staffMember->nonWorkingDays()->delete();
-
-        foreach ($validated['non_working_days'] ?? [] as $day) {
-            $staffMember->nonWorkingDays()->create([
-                'date' => $day['date'],
-                'reason' => $day['reason'] ?? null,
-            ]);
-        }
-
-        // Recurring blocks
-        $staffMember->recurringBlocks()->delete();
-
-        foreach ($validated['recurring_blocks'] ?? [] as $block) {
-            $staffMember->recurringBlocks()->create([
-                'day_of_week' => $block['day_of_week'],
-                'start_time' => $block['start'],
-                'end_time' => $block['end'],
-                'label' => $block['label'] ?? null,
-            ]);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
-
-        $staffMember->load([
-            'agendaSetting',
-            'schedules',
-            'nonWorkingDays',
-            'recurringBlocks'
-        ]);
-
-        return response()->json([
-            'message' => 'Agenda updated successfully',
-            'data' => [
-                'settings' => $staffMember->agendaSetting,
-                'weekly_schedule' => $staffMember->schedules,
-                'non_working_days' => $staffMember->nonWorkingDays,
-                'recurring_blocks' => $staffMember->recurringBlocks,
-            ]
-        ]);
-    }
 
 
     // nueva funcion para bloqueos individuales - tiene fallas

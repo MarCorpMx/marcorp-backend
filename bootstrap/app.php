@@ -20,8 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
 
         $middleware->alias([
+            
+            'organization' => \App\Http\Middleware\ResolveOrganization::class,
+            'branch' => \App\Http\Middleware\ResolveBranch::class,
+            'subsystem' => \App\Http\Middleware\ResolveSubsystem::class,
+
             'feature' => CheckFeature::class,
         ]);
+
 
         // IMPORTANTE: Esto es lo que necesita Sanctum
         //$middleware->statefulApi();

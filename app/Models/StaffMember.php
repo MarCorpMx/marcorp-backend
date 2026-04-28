@@ -63,7 +63,7 @@ class StaffMember extends Model
         return $this->belongsToMany(
             Branch::class,
             'branch_staff',
-            'staff_id',
+            'staff_member_id',
             'branch_id'
         )->withTimestamps();
     }
@@ -73,6 +73,11 @@ class StaffMember extends Model
         return $this->branches()
             ->where('branch_id', $branchId)
             ->exists();
+    }
+
+    public function branchStaff()
+    {
+        return $this->hasMany(BranchStaff::class, 'staff_member_id');
     }
 
     // Usuario del sistema (si aplica)

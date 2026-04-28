@@ -41,8 +41,6 @@ class NotificationService
             throw new \Exception("Subsystem '{$subsystemCode}' not found or inactive.");
         }
 
-
-
         $notification = new Notification([
             'organization_id' => $organization?->id,
             'subsystem_id'    => $subsystemId,

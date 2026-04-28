@@ -28,12 +28,13 @@ class StaffMemberController extends Controller
     public function index(Request $request): JsonResponse
     {
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+        $subsystem = $request->attributes->get('subsystem');
+
         $user = $request->user();
 
-        $subsystemCode = $request->get('subsystem', 'citas');
-        $subsystemId = $this->subsystemResolver->resolve($subsystemCode);
-
-        $branchId = $request->header('X-Branch-Id');
+        $subsystemId = $subsystem->id;
+        $branchId = $branch->id;
 
         $role = DB::table('branch_user_access as bua')
             ->join('roles as r', 'r.id', '=', 'bua.role_id')
@@ -50,64 +51,46 @@ class StaffMemberController extends Controller
             ]);
         }
 
-        $query = $organization->staffMembers()
-            ->with(['agendaSetting'])
-            ->whereHas('branchStaff', function ($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            });
-
-        Log::info('Appointments filter', [
-            'subsistem' => $request->has('subsystem'),
-            'idSub' => $subsystemId,
-            'rolecitoDeCanela' => $role
-        ]);
-
         /*
-        |--------------------------------------------------------------------------
-        | FILTROS DINÁMICOS
-        |--------------------------------------------------------------------------
+        |------------------------------------------------------------------
+        | QUERY REAL (LO QUE NECESITAS)
+        |------------------------------------------------------------------
         */
 
-        // SOLO STAFF → su propio registro
+        $query = $organization->staffMembers()
+            ->where('is_active', true)
+            ->whereExists(function ($q) use ($branchId) {
+                $q->select(DB::raw(1))
+                    ->from('branch_staff as bs')
+                    ->whereColumn('bs.staff_member_id', 'staff_members.id')
+                    ->where('bs.branch_id', $branchId);
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | SOLO STAFF VE SOLO SU REGISTRO
+        |------------------------------------------------------------------
+        */
+
         if ($role === 'staff') {
             $query->where('user_id', $user->id);
         }
 
-        // FILTRO: activos
-        if ($request->has('active')) {
-            $query->where('is_active', (bool) $request->active);
-        }
+        /*
+        |------------------------------------------------------------------
+        | FILTROS OPCIONALES
+        |------------------------------------------------------------------
+        */
 
-        // FILTRO: públicos
         if ($request->has('public')) {
             $query->where('is_public', (bool) $request->public);
         }
 
-        // FILTRO: excluir rol
-        // rombi debemos verificar como obtener el brach id
-
-        $branchId = $request->header('X-Branch-Id');
-        if ($request->filled('exclude_role')) {
-            $query->whereDoesntHave('user.branchUserAccesses', function ($q) use ($request, $organization, $subsystemId, $branchId) {
-
-                $q->where('organization_id', $organization->id)
-                    ->where('subsystem_id', $subsystemId)
-                    ->where('branch_id', $branchId)
-                    ->where('is_active', true)
-                    ->whereHas('role', function ($roleQ) use ($request) {
-                        $roleQ->where('key', $request->exclude_role);
-                    });
-            });
-        }
-        /*if ($request->filled('exclude_role')) {
-            $query->whereDoesntHave('user.subsystemRoles', function ($q) use ($request, $organization, $subsystemId) {
-                $q->where('organization_id', $organization->id)
-                    ->where('subsystem_id', $subsystemId)
-                    ->whereHas('role', function ($roleQ) use ($request) {
-                        $roleQ->where('key', $request->exclude_role);
-                    });
-            });
-        }*/
+        /*
+        |------------------------------------------------------------------
+        | RESULT
+        |------------------------------------------------------------------
+        */
 
         $staffMembers = $query
             ->orderBy('created_at', 'desc')
@@ -124,22 +107,40 @@ class StaffMemberController extends Controller
     public function serviceVariants(Request $request, StaffMember $staffMember)
     {
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+
+        /*
+    |--------------------------------------------------------------------------
+    | Seguridad
+    |--------------------------------------------------------------------------
+    */
 
         if ($staffMember->organization_id !== $organization->id) {
             abort(403);
         }
 
+        /*
+    |--------------------------------------------------------------------------
+    | Solo servicios asignados en ESTA sucursal
+    |--------------------------------------------------------------------------
+    */
+
+        $ids = $staffMember->serviceVariants()
+            ->wherePivot('branch_id', $branch->id)
+            ->pluck('service_variants.id');
+
         return response()->json([
-            'data' => $staffMember->serviceVariants()->pluck('service_variants.id')
+            'data' => $ids
         ]);
     }
 
     /**
-     * Sincronizar servicios
+     * Se usa para actualizar los servicios del staff
      */
     public function syncServiceVariants(Request $request, StaffMember $staffMember)
     {
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
 
         if ($staffMember->organization_id !== $organization->id) {
             abort(403);
@@ -150,7 +151,12 @@ class StaffMemberController extends Controller
             'service_variant_ids.*' => ['exists:service_variants,id']
         ]);
 
-        // Validar que pertenezcan a la organización
+        /*
+        |--------------------------------------------------------------------------
+        | Validar que los servicios pertenezcan a la organización
+        |--------------------------------------------------------------------------
+        */
+
         $validIds = ServiceVariant::whereIn('id', $validated['service_variant_ids'])
             ->whereHas('service', function ($q) use ($organization) {
                 $q->where('organization_id', $organization->id);
@@ -158,19 +164,47 @@ class StaffMemberController extends Controller
             ->pluck('id')
             ->toArray();
 
-        $staffMember->serviceVariants()->sync($validIds);
+        /*
+        |--------------------------------------------------------------------------
+        | Borrar SOLO de esta sucursal
+        |--------------------------------------------------------------------------
+        */
+
+        DB::table('service_variant_staff')
+            ->where('staff_member_id', $staffMember->id)
+            ->where('branch_id', $branch->id)
+            ->delete();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Insertar nuevos
+        |--------------------------------------------------------------------------
+        */
+
+        $rows = collect($validIds)->map(function ($id) use ($staffMember, $branch) {
+            return [
+                'staff_member_id' => $staffMember->id,
+                'service_variant_id' => $id,
+                'branch_id' => $branch->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        })->toArray();
+
+        if (!empty($rows)) {
+            DB::table('service_variant_staff')->insert($rows);
+        }
 
         return response()->json([
             'message' => 'Servicios sincronizados correctamente'
         ]);
     }
-    
 
 
-    //////////////////// rombi -> aquí falta validar bien la organizacion
+
 
     /**
-     * Crear nuevo staff member
+     * NO USO
      */
     public function store(Request $request): JsonResponse
     {
@@ -195,7 +229,7 @@ class StaffMemberController extends Controller
     }
 
     /**
-     * Mostrar un staff member
+     * NO USO
      */
     public function show(Request $request, StaffMember $staffMember): JsonResponse
     {
@@ -211,7 +245,7 @@ class StaffMemberController extends Controller
     }
 
     /**
-     * Actualizar staff member
+     * NO USO
      */
     public function update(Request $request, StaffMember $staffMember): JsonResponse
     {
@@ -230,7 +264,7 @@ class StaffMemberController extends Controller
     }
 
     /**
-     * Eliminar staff member
+     *NO USO
      */
     public function destroy(Request $request, StaffMember $staffMember): JsonResponse
     {
@@ -244,7 +278,7 @@ class StaffMemberController extends Controller
     }
 
     /**
-     * Seguridad multi-tenant
+     * NO USO
      */
     private function authorizeAccess(Request $request, StaffMember $staffMember): void
     {
@@ -255,6 +289,8 @@ class StaffMemberController extends Controller
         }
     }
 
+
+    // NO USO
     private function authorizeRole(Request $request, array $allowedRoles): void
     {
         $organization = $this->getOrganization($request);

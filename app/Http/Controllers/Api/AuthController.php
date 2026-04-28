@@ -401,6 +401,8 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Tenmos que validar tambien branch_user_access.is_active
+
         /*
         |--------------------------------------------------------------------------
         | Revocar tokens anteriores (seguridad)

@@ -71,21 +71,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     *  Relación con sistemas del usuario
-     */
-    public function subsystems()
-    {
-        return $this->belongsToMany(Subsystem::class, 'user_subsystems')
-            ->withPivot(['is_paid'])
-            ->withTimestamps();
-    }
-
-    public function userSubsystems()
-    {
-        return $this->hasMany(UserSubsystem::class);
-    }
-
-    /**
      *  Relación con roles del usuario
      */
 

@@ -36,7 +36,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'dashboard' => ['enabled' => true],
                     'agenda'    => ['enabled' => true,  'limit' => 30],     // 30 citas al mes
                     'clients'   => ['enabled' => true,  'limit' => 30],     // 30 clientes
-                    'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios
+                    'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios - 3 variantes por servicio
                     'schedule'  => ['enabled' => false, 'visible' => true], // BLOQUEADO
                     'reminders' => ['enabled' => false, 'visible' => true], // BLOQUEADO
                     'reports'   => ['enabled' => false, 'visible' => true], // Sin reportes
@@ -59,7 +59,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'dashboard' => ['enabled' => true],
                     'agenda'   => ['enabled' => true, 'limit' => 150],
                     'clients'  => ['enabled' => true, 'limit' => 200],
-                    'services' => ['enabled' => true, 'limit' => 10],
+                    'services' => ['enabled' => true, 'limit' => 10], // 10 servicios - 10 variantes por servicio
                     'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true, 'limit' => 100],     // 100 envios por mes
                     'reports'   => ['enabled' => false, 'visible' => true], // BLOQUEADO

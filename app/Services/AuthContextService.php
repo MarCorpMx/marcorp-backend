@@ -34,10 +34,6 @@ class AuthContextService
         */
         $systems = OrganizationUser::where('user_id', $user->id)
             ->where('status', 'active')
-            /*->with([
-                'organization.subsystems.subsystem',
-                'organization.subsystems.plan',
-            ])*/
             ->with([
                 'organization.organizationSubsystems.subsystem',
                 'organization.organizationSubsystems.plan',
@@ -127,7 +123,7 @@ class AuthContextService
 
                         'plan_key' => $plan?->key,
 
-                        // 🔥 IMPORTANTE: ahora viene de branch_user_access
+                        // IMPORTANTE: ahora viene de branch_user_access
                         'role' => $roleKey,
 
                         'branches' => $branches,

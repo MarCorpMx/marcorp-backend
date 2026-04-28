@@ -19,6 +19,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->string('name');
+            $table->text('description')->nullable();
 
             $table->unsignedInteger('duration_minutes');
 

@@ -112,26 +112,11 @@ class ClientController extends Controller
         $organization = $this->getOrganization($request);
 
         $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-
-            'email' => [
-                'nullable',
-                'email',
-                Rule::unique('clients')
-                    ->where(
-                        fn($q) =>
-                        $q->where('organization_id', $organization->id)
-                    )
-            ],
-
-            'phone' => ['nullable', 'array'],
-            'phone.number' => ['nullable', 'string'],
-            'phone.e164Number' => ['nullable', 'string'],
-            'phone.countryCode' => ['nullable', 'string', 'size:2'],
-            'phone.dialCode' => ['nullable', 'string'],
-
-            'birth_date' => ['nullable', 'date'],
+            'first_name' => 'required|string|max:100',
+            'last_name'  => 'nullable|string|max:100',
+            'email'      => 'required|email|max:150',
+            'phone'      => 'nullable|array',
+            'birth_date' => 'nullable|date',
         ]);
 
         $client = Client::create([

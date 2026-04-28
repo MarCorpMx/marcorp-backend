@@ -270,10 +270,27 @@ class FeatureService
     {
         if (!$roleKey) return false;
 
+        // rombi -> role_feature_permissions (futura tabla para que el cliente pueda controlar su putos accesos el solo)
         $map = [
             'root' => ['*'],
             'owner' => ['*'],
-            'admin' => ['*'],
+
+            'admin' => [
+                'dashboard',
+                'agenda',
+                'clients',
+                'services',
+                'schedule',
+                'team',
+                'reports',
+
+                'settings',
+                'schedule_config',
+
+                // NO incluir:
+                // billing
+                // advanced
+            ],
 
             'receptionist' => [
                 'dashboard',
@@ -285,7 +302,7 @@ class FeatureService
                 'reports',
                 'team',
                 'settings',
-                'profile',
+                //'profile',
                 'schedule_config'
             ],
 
@@ -293,6 +310,9 @@ class FeatureService
                 'dashboard',
                 'agenda',
                 'clients',
+                'schedule',         // disponibilidad personal
+                'settings',
+                'schedule_config',  // su horario base
             ],
         ];
 

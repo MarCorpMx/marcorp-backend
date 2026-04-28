@@ -17,17 +17,6 @@ class Subsystem extends Model
         'is_selectable',
     ];
 
-    public function users()
-    {
-        return $this->belongsToMany(User::class, 'user_subsystems')
-            ->withPivot(['is_paid'])
-            ->withTimestamps();
-    }
-
-    public function userSubsystems()
-    {
-        return $this->hasMany(UserSubsystem::class);
-    }
 
     /************************************************ */
     public function organizations()

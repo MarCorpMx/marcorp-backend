@@ -58,8 +58,7 @@ return new class extends Migration
                 'organization_id',
                 'user_id',
                 'branch_id',
-                'subsystem_id',
-                'role_id'
+                'subsystem_id'
             ], 'branch_user_access_unique');
 
             // Índices para performance (muy importantes en SaaS)

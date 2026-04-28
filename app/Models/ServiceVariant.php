@@ -12,6 +12,7 @@ class ServiceVariant extends Model
     protected $fillable = [
         'service_id',
         'name',
+        'description',
         'duration_minutes',
         'price',
         'max_capacity',
@@ -37,6 +38,14 @@ class ServiceVariant extends Model
         return $this->belongsTo(Service::class);
     }
 
+    public function branchVariants()
+    {
+        return $this->hasMany(
+            BranchServiceVariant::class,
+            'service_variant_id'
+        );
+    }
+
     public function organization()
     {
         return $this->service?->organization();
@@ -58,6 +67,14 @@ class ServiceVariant extends Model
             'staff_member_id'
         )->withPivot('branch_id')
             ->withTimestamps();
+    }
+
+    public function branches()
+    {
+        return $this->belongsToMany(
+            Branch::class,
+            'branch_service_variant'
+        )->withTimestamps();
     }
 
     public function appointments(): HasMany
