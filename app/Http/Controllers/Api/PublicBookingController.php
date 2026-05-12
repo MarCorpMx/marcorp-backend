@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
-use App\Models\ServiceVariant;
+use App\Models\BranchServiceVariant;
 use App\Models\Appointment;
 use App\Services\NotificationService;
 use App\Models\AppointmentActionToken;

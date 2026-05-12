@@ -3,18 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BranchServiceVariant extends Model
 {
+
+    use SoftDeletes;
+
     protected $table = 'branch_service_variant';
 
     protected $fillable = [
         'organization_id',
         'branch_id',
-        'service_variant_id',
-
-        'active',
-        'sort_order',
+        'branch_service_id',
 
         'name',
         'description',
@@ -23,22 +25,24 @@ class BranchServiceVariant extends Model
         'max_capacity',
         'mode',
         'includes_material',
+
+        'requires_meeting_link',
+        'meeting_provider',
+
+        'active',
+        'sort_order',
     ];
 
     protected $casts = [
         'active' => 'boolean',
         'includes_material' => 'boolean',
+        'requires_meeting_link' => 'boolean',
         'duration_minutes' => 'integer',
         'max_capacity' => 'integer',
         'price' => 'decimal:2',
         'sort_order' => 'integer',
+        'deleted_at' => 'datetime',
     ];
-
-    /*
-    |------------------------------------------------------------------
-    | RELACIONES
-    |------------------------------------------------------------------
-    */
 
     public function organization()
     {
@@ -50,50 +54,40 @@ class BranchServiceVariant extends Model
         return $this->belongsTo(Branch::class);
     }
 
-    public function variant()
+    public function branchService()
     {
-        return $this->belongsTo(ServiceVariant::class, 'service_variant_id');
+        return $this->belongsTo(
+            BranchService::class,
+            'branch_service_id'
+        );
     }
 
-    /*
-    |------------------------------------------------------------------
-    | HELPERS OVERRIDE
-    |------------------------------------------------------------------
-    | Si el campo local es null, usa valor global de service_variants
-    */
-
-    public function getResolvedNameAttribute(): ?string
+    public function service()
     {
-        return $this->name ?? $this->variant?->name;
+        return $this->belongsTo(
+            BranchService::class,
+            'branch_service_id'
+        );
     }
 
-    public function getResolvedDescriptionAttribute(): ?string
+    public function staffAssignments()
     {
-        return $this->description ?? $this->variant?->description;
+        return $this->hasMany(
+            BranchServiceVariantStaff::class,
+            'branch_service_variant_id'
+        );
     }
 
-    public function getResolvedDurationMinutesAttribute(): ?int
+    public function appointments()
     {
-        return $this->duration_minutes ?? $this->variant?->duration_minutes;
+        return $this->hasMany(
+            Appointment::class,
+            'branch_service_variant_id'
+        );
     }
 
-    public function getResolvedPriceAttribute(): ?float
+    public function scopeActive(Builder $query)
     {
-        return $this->price ?? $this->variant?->price;
-    }
-
-    public function getResolvedMaxCapacityAttribute(): ?int
-    {
-        return $this->max_capacity ?? $this->variant?->max_capacity;
-    }
-
-    public function getResolvedModeAttribute(): ?string
-    {
-        return $this->mode ?? $this->variant?->mode;
-    }
-
-    public function getResolvedIncludesMaterialAttribute(): ?bool
-    {
-        return $this->includes_material ?? $this->variant?->includes_material;
+        return $query->where('active', true);
     }
 }

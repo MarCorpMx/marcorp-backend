@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Http\Resources\AppointmentResource;
-use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Services\AppointmentService;
 use App\Services\SubsystemResolver;
+use App\Models\Appointment;
+use App\Models\BranchUserAccess;
+use App\Models\StaffMember;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -30,59 +32,58 @@ class AppointmentController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /* rombi - implementar lo siguiente para que puedan ver las citas correspondientes de cada usuario, solo si es admin pueda ver todas man
-    $user = $request->user();
-
-$query = Appointment::query()
-    ->where('organization_id', $organization->id)
-    ->with(['client','staff','serviceVariant.service']);
-
-if ($user->role !== 'admin') {
-
-    $staffId = $organization->staffMembers()
-        ->where('user_id', $user->id)
-        ->value('id');
-
-    $query->where('staff_member_id', $staffId);
-}
-
-$appointments = $query
-    ->when(
-        $request->date,
-        fn($q) => $q->whereDate('start_datetime', $request->date)
-    )
-    ->orderBy('start_datetime')
-    ->get();*/
-
-    /*public function index(Request $request)
-    {
-        $organization = $this->getOrganization($request);
-
-        $appointments = Appointment::query()
-            ->where('organization_id', $organization->id)
-            ->with([
-                'client',
-                'staff',
-                'serviceVariant.service'
-            ])
-            ->when(
-                $request->date,
-                fn($q) =>
-                $q->whereDate('start_datetime', $request->date)
-            )
-            ->orderBy('start_datetime')
-            ->get();
-
-        return AppointmentResource::collection($appointments);
-    }*/
-
     public function index(Request $request)
     {
+        /*
+        |----------------------------------------------------------------------
+        | CONTEXTO SaaS
+        |----------------------------------------------------------------------
+        */
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
         $user = $request->user();
 
+        /*
+        |----------------------------------------------------------------------
+        | SUBSYSTEM
+        |----------------------------------------------------------------------
+        */
+        $subsystemCode = 'citas';
+
+        $subsystemId = $this->subsystemResolver->resolve($subsystemCode);
+
+        if (!$subsystemId) {
+            abort(500, "Subsystem '{$subsystemCode}' no encontrado.");
+        }
+
+        /*
+        |----------------------------------------------------------------------
+        | ACCESSO DEL USUARIO EN ESTA SUCURSAL
+        |----------------------------------------------------------------------
+        */
+        $access = BranchUserAccess::query()
+            ->active()
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->where('user_id', $user->id)
+            ->where('subsystem_id', $subsystemId)
+            ->with('role')
+            ->first();
+
+        if (!$access) {
+            abort(403, 'No tienes acceso a este módulo.');
+        }
+
+        $role = $access->role?->key;
+
+        /*
+        |----------------------------------------------------------------------
+        | QUERY BASE
+        |----------------------------------------------------------------------
+        */
         $query = Appointment::query()
             ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
             ->with([
                 'client',
                 'staff',
@@ -90,92 +91,100 @@ $appointments = $query
                 'appointmentNotes.user'
             ]);
 
-        //$subsystemCode = $data['subsystem'];
-        $subsystemCode = 'citas';
-        $subsystemId = $this->subsystemResolver->resolve($subsystemCode);
-
-        if ($subsystemCode && !$subsystemId) {
-            throw new \Exception("Subsystem '{$subsystemCode}' not found or inactive.");
-        }
-
-        $role = DB::table('user_subsystem_roles as usr')
-            ->join('roles as r', 'r.id', '=', 'usr.role_id')
-            ->where('usr.organization_id', $organization->id)
-            ->where('usr.user_id', $user->id)
-            ->where('usr.subsystem_id', $subsystemId)
-            ->value('r.key');
-
-       // Log::info('Request:', ['user' => $user->id, 'role' => $role, 'miembro' => $request->staff_member_id]);
-
-
         /*
-        |----------------------------------------------------------
-        | FILTRO POR ROL (CRÍTICO)
-        |----------------------------------------------------------
+        |----------------------------------------------------------------------
+        | FILTRO POR ROL
+        |----------------------------------------------------------------------
         */
         if ($role === 'staff') {
-            // Obtener su propio staff_member_id
-            $staffId = $organization->staffMembers()
-                ->where('user_id', $user->id)
-                ->value('id');
 
-            // SIEMPRE forzar a su propio ID (ignorar request)
-            $query->where('staff_member_id', $staffId);
+            /*
+            |--------------------------------------------------------------
+            | STAFF SOLO VE SUS CITAS
+            |--------------------------------------------------------------
+            */
+            if (!$access->staff_member_id) {
+                abort(403, 'Tu usuario no tiene staff asignado.');
+            }
+
+            $query->where(
+                'staff_member_id',
+                $access->staff_member_id
+            );
         } else {
-            // Admin / Owner / Receptionist
-            if ($request->staff_member_id) {
-                $exists = $organization->staffMembers()
+
+            /*
+            |--------------------------------------------------------------
+            | OWNER / ADMIN / RECEPTIONIST
+            |--------------------------------------------------------------
+            */
+            if ($request->filled('staff_member_id')) {
+
+                $staffExists = StaffMember::query()
+                    ->where('organization_id', $organization->id)
                     ->where('id', $request->staff_member_id)
+                    ->whereHas('branches', function ($q) use ($branch) {
+                        $q->where('branches.id', $branch->id);
+                    })
                     ->exists();
 
-                if (!$exists) {
-                    abort(403, 'No autorizado');
+                if (!$staffExists) {
+                    abort(403, 'Profesional no válido para esta sucursal.');
                 }
-                $query->where('staff_member_id', $request->staff_member_id);
+
+                $query->where(
+                    'staff_member_id',
+                    $request->staff_member_id
+                );
             }
-            // si NO viene staff_member_id → ve todas (no hacemos nada)
         }
 
-        /*Log::info('Appointments filter', [
-            'user' => $user->id,
-            'role' => $role,
-            'requested_staff' => $request->staff_member_id ?? null
-        ]);*/
-
-
         /*
-        |----------------------------------------------------------
-        | SOPORTE PARA CALENDARIO (RANGO)
-        |----------------------------------------------------------
+        |----------------------------------------------------------------------
+        | FILTRO POR RANGO (FULLCALENDAR)
+        |----------------------------------------------------------------------
         */
-        if ($request->start && $request->end) {
+        if ($request->filled('start') && $request->filled('end')) {
+
             $query->where(function ($q) use ($request) {
-                $q->whereBetween('start_datetime', [$request->start, $request->end])
-                    ->orWhereBetween('end_datetime', [$request->start, $request->end]);
+
+                $q->whereBetween('start_datetime', [
+                    $request->start,
+                    $request->end
+                ])
+                    ->orWhereBetween('end_datetime', [
+                        $request->start,
+                        $request->end
+                    ]);
             });
         }
 
-        //SOPORTE PARA AGENDA (DÍA)
-        elseif ($request->date) {
-            $query->whereDate('start_datetime', $request->date);
+        /*
+        |----------------------------------------------------------------------
+        | FILTRO POR DÍA
+        |----------------------------------------------------------------------
+        */ elseif ($request->filled('date')) {
+
+            $query->whereDate(
+                'start_datetime',
+                $request->date
+            );
         }
 
         /*
-        |----------------------------------------------------------
-        | EXCLUIR CANCELADAS (RECOMENDADO)
-        |----------------------------------------------------------
-        */
-        //$query->where('status', '!=', 'cancelled');
-
-        /*
-        |----------------------------------------------------------
+        |----------------------------------------------------------------------
         | ORDEN
-        |----------------------------------------------------------
+        |----------------------------------------------------------------------
         */
         $appointments = $query
             ->orderBy('start_datetime')
             ->get();
 
+        /*
+        |----------------------------------------------------------------------
+        | RESPONSE
+        |----------------------------------------------------------------------
+        */
         return AppointmentResource::collection($appointments);
     }
 
@@ -199,26 +208,7 @@ $appointments = $query
             'notes' => ['nullable', 'string'],
         ]);
 
-        /*$variant = \App\Models\ServiceVariant::findOrFail($validated['service_variant_id']);
 
-        $start = \Carbon\Carbon::parse($validated['date'] . ' ' . $validated['time']);
-        $end = $start->copy()->addMinutes($variant->duration_minutes);
-
-        $appointment = Appointment::create([
-            'organization_id' => $organization->id,
-            'client_id' => $validated['client_id'],
-            'staff_member_id' => $validated['staff_member_id'],
-            'service_variant_id' => $variant->id,
-
-            'start_datetime' => $start,
-            'end_datetime' => $end,
-
-            'capacity_reserved' => 1,
-            'status' => 'confirmed',
-            'source' => 'admin_panel',
-
-            'notes' => $validated['notes'] ?? null,
-        ]);*/
 
         $appointment = $this->appointmentService->createAppointment(
             data: $validated,

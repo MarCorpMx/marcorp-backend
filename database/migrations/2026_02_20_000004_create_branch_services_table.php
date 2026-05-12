@@ -23,11 +23,6 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
-            // Servicio maestro
-            $table->foreignId('service_id')
-                ->constrained()
-                ->cascadeOnDelete();
-
             // Overrides por sucursal
             $table->string('name');
             $table->text('description')->nullable();
@@ -42,12 +37,11 @@ return new class extends Migration
             $table->timestamps();
 
             // Un servicio solo una vez por sucursal
-            $table->unique(['branch_id', 'service_id'], 'branch_service_unique');
+            $table->unique(['branch_id', 'name'], 'branch_service_name_unique');
 
             // Índices útiles
             $table->index(['organization_id', 'branch_id']);
             $table->index(['branch_id', 'active']);
-            $table->index(['branch_id', 'sort_order']);
         });
     }
 

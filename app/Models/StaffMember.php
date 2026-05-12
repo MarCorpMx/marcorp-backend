@@ -89,20 +89,17 @@ class StaffMember extends Model
     // Citas asignadas
     public function appointments()
     {
-        return $this->hasMany(Appointment::class);
+        return $this->hasMany(Appointment::class, 'staff_member_id');
     }
 
 
     // Variantes específicas que puede ofrecer
     public function serviceVariants()
     {
-        return $this->belongsToMany(
-            ServiceVariant::class,
-            'service_variant_staff',
-            'staff_member_id',
-            'service_variant_id'
-        )->withPivot('branch_id')
-            ->withTimestamps();
+        return $this->hasMany(
+            BranchServiceVariantStaff::class,
+            'staff_member_id'
+        );
     }
 
     // Horarios semanales

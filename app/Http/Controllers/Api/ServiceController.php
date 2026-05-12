@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Service;
-use App\Models\ServiceVariant;
+
+use App\Models\BranchService;
+use App\Models\BranchServiceVariant;
+use App\Models\BranchServiceVariantStaff;
+
 use App\Models\Organization;
 
 use Illuminate\Http\Request;
@@ -13,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 
 use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Services\FeatureService;
+use Illuminate\Validation\ValidationException;
 
 class ServiceController extends Controller
 {
@@ -23,7 +27,7 @@ class ServiceController extends Controller
         protected FeatureService $featureService,
     ) {}
 
-    private function authorizeService(Request $request, Service $service)
+    private function authorizeService(Request $request, BranchService $service)
     {
         $organization = $this->getOrganization($request);
 
@@ -45,63 +49,24 @@ class ServiceController extends Controller
         $organization = $this->getOrganization($request);
         $branch = $request->attributes->get('branch');
 
-        $currentBranchId = $branch->id;
-
-        /*$services = $organization->services()
-            ->with(['variants.staff'])
-            ->latest()
-            ->get();*/
-
-        $services = $organization->services()
+        $services = BranchService::query()
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
             ->with([
-                'variants.branchVariants' => function ($q) use ($currentBranchId) {
-                    $q->where('branch_id', $currentBranchId);
+                'variants' => function ($q) {
+                    $q->orderBy('active', 'desc')
+                        ->orderBy('sort_order')
+                        ->orderBy('id');
                 }
             ])
-            ->latest()
+            ->orderBy('active', 'desc')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
 
         return response()->json($services);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | myServices
-    |--------------------------------------------------------------------------
-    */
-    public function myServices(Request $request)
-    {
-        $user = $request->user();
-        $organization = $this->getOrganization($request);
-        //$branch = $request->attributes->get('branch');
-        $branch = $request->attributes->get('branch');
-
-        $branchId = $branch->id;
-
-
-        // 🔥 obtener staff correcto por sucursal
-        $staffId = $organization->staffMembers()
-            ->where('user_id', $user->id)
-            ->where('branch_id', $branchId)
-            ->value('id');
-
-        if (!$staffId) {
-            return collect();
-        }
-
-        return $organization->services()
-            ->whereHas('variants.staff', function ($q) use ($staffId, $branchId) {
-                $q->where('staff_member_id', $staffId)
-                    ->where('service_variant_staff.branch_id', $branchId);
-            })
-            ->with(['variants' => function ($q) use ($branchId, $staffId) {
-                $q->whereHas('staff', function ($q2) use ($branchId, $staffId) {
-                    $q2->where('staff_member_id', $staffId)
-                        ->where('service_variant_staff.branch_id', $branchId);
-                });
-            }])
-            ->get();
-    }
 
     /*
     |--------------------------------------------------------------------------
@@ -139,16 +104,15 @@ class ServiceController extends Controller
     {
 
         $organization = $this->getOrganization($request);
-        //$user = $request->user();
+        $branch = $request->attributes->get('branch');
 
-        $variantsQuery = \App\Models\ServiceVariant::query()
-            ->whereHas('service', function ($q) use ($organization) {
-                $q->where('organization_id', $organization->id)
-                    ->where('active', true);
+        $variants = BranchServiceVariant::query()
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->where('active', true)
+            ->whereHas('service', function ($q) {
+                $q->where('active', true);
             })
-            ->where('active', true);
-
-        return $variantsQuery
             ->with('service:id,name')
             ->orderBy('name')
             ->limit(100)
@@ -162,6 +126,8 @@ class ServiceController extends Controller
                 ];
             })
             ->values();
+
+        return response()->json($variants);
     }
 
     /*
@@ -172,20 +138,41 @@ class ServiceController extends Controller
     public function staff(Request $request, $variantId)
     {
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
 
-        $variant = \App\Models\ServiceVariant::query()
-            ->whereHas('service', function ($q) use ($organization) {
-                $q->where('organization_id', $organization->id);
+        /*
+    |--------------------------------------------------------------------------
+    | Buscar variante de la sucursal actual
+    |--------------------------------------------------------------------------
+    */
+        $variant = \App\Models\BranchServiceVariant::query()
+            ->where('id', $variantId)
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->where('active', true)
+            ->firstOrFail();
+
+        /*
+    |--------------------------------------------------------------------------
+    | Obtener staff asignado a esta variante
+    |--------------------------------------------------------------------------
+    */
+        $staff = \App\Models\BranchServiceVariantStaff::query()
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->where('branch_service_variant_id', $variant->id)
+            ->where('active', true)
+            ->with('staffMember:id,name')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'id' => $row->staffMember->id,
+                    'name' => $row->staffMember->name,
+                ];
             })
-            ->with('staff:id,name')
-            ->findOrFail($variantId);
+            ->values();
 
-        return $variant->staff->map(function ($staff) {
-            return [
-                'id' => $staff->id,
-                'name' => $staff->name,
-            ];
-        });
+        return response()->json($staff);
     }
 
 
@@ -194,15 +181,12 @@ class ServiceController extends Controller
     | Store
     |--------------------------------------------------------------------------
     */
-    /* rombi -> mejora
-hacer que cuando un admin cree un servicio se asigne automáticamente a TODO el staff activo (como hacen plataformas tipo agenda profesional).
-Eso evita un problema común en sistemas de reservas.*/
-
     public function store(Request $request)
     {
         $organization = $this->getOrganization($request);
         $user = $request->user();
         $branch = $request->attributes->get('branch');
+
 
         /*
         |--------------------------------------------------------------------------
@@ -218,21 +202,44 @@ Eso evita un problema común en sistemas de reservas.*/
         | Límite de servicios
         |--------------------------------------------------------------------------
         */
-        $limit = $this->featureService->limit(
+
+        $servicesLimit = $this->featureService->finalLimit(
             $organization,
             $user->id,
-            'citas.services'
+            'citas.services',
+            'extra_services'
         );
 
-        $currentCount = DB::table('services')
-            ->where('organization_id', $organization->id)
-            ->count();
+        $limits = $this->resolveServiceLimits($servicesLimit);
+        $variantsPerServiceLimit = $limits['variants_per_service'];
 
-        if ($limit !== null && $currentCount >= $limit) {
+        // saber si se va a crear el servicio en todas las sucursales "activas"
+        $createAllBranches = $request->boolean('create_all_branches');
+
+        // Calculamos los totales
+        $branchesToCreateCount = $createAllBranches
+            ? $organization->branches()
+            ->where('is_active', true)
+            ->count()
+            : 1; // Cuantas sucursales activas
+
+        $currentCount = $organization->services()->count(); // Cuantos servicios existen
+        $totalAfterCreation = $currentCount + $branchesToCreateCount; // Cuantos servicios habrá tras la creación
+
+
+        if (
+            $servicesLimit !== null &&
+            $totalAfterCreation > $servicesLimit
+        ) {
+
+            $remaining = max(0, $servicesLimit - $currentCount);
+
             return response()->json([
-                'message' => 'Límite alcanzado. Actualiza tu plan para agregar más servicios.'
+                'message' =>
+                "Tu plan permite hasta {$servicesLimit} servicios. Actualmente tienes {$currentCount} y esta acción creará {$branchesToCreateCount} servicio(s). Te quedan {$remaining} espacios disponibles. Puedes mejorar tu plan o adquirir addons para continuar."
             ], 403);
         }
+
 
         /*
         |--------------------------------------------------------------------------
@@ -292,6 +299,7 @@ Eso evita un problema común en sistemas de reservas.*/
 
                 'variants' => 'required|array|min:1',
 
+                'variants.0.name' => 'required|string|max:255',
                 'variants.0.duration_minutes' => 'required|integer|min:1',
                 'variants.0.price' => 'nullable|numeric|min:0',
                 'variants.0.mode' => 'required|in:online,presential,hybrid',
@@ -306,6 +314,8 @@ Eso evita un problema común en sistemas de reservas.*/
                 'description' => 'nullable|string',
                 'active' => 'boolean',
 
+                'create_all_branches' => 'boolean',
+
                 'variants' => 'required|array|min:1',
 
                 'variants.*.name' => 'required|string|max:255',
@@ -316,9 +326,6 @@ Eso evita un problema común en sistemas de reservas.*/
                 'variants.*.mode' => 'required|in:online,presential,hybrid',
                 'variants.*.includes_material' => 'boolean',
                 'variants.*.active' => 'boolean',
-
-                'variants.*.staff_ids' => 'array',
-                'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
             ]);
         }
 
@@ -328,23 +335,21 @@ Eso evita un problema común en sistemas de reservas.*/
         |--------------------------------------------------------------------------
         */
         if (!$isOnboarding) {
-
-            $maxVariantsPerService = match ($limit) {
-                5 => 3,      // FREE
-                10 => 10,     // BASIC
-                default => 999 // PRO+
-            };
-
-            if (count($validated['variants']) > $maxVariantsPerService) {
+            if (
+                $variantsPerServiceLimit !== null &&
+                count($validated['variants']) > $variantsPerServiceLimit
+            ) {
                 return response()->json([
-                    'message' => "Tu plan permite máximo {$maxVariantsPerService} variantes por servicio. Mejora tu plan para agregar más opciones."
+                    'message' =>
+                    "Tu plan permite hasta {$variantsPerServiceLimit} modalidades por servicio. Puedes mejorar tu plan o adquirir addons para ampliar este límite."
                 ], 403);
             }
         }
 
+
         /*
         |--------------------------------------------------------------------------
-        | STAFF ACTUAL
+        | STAFF ACTUAL (sirve en onboarding)
         |--------------------------------------------------------------------------
         */
         $staffId = $organization->staffMembers()
@@ -367,13 +372,17 @@ Eso evita un problema común en sistemas de reservas.*/
             ) {
 
                 $service = $organization->services()->create([
+                    'branch_id' => $branchId,
                     'name' => $validated['name'],
                     'description' => null,
                     'active' => true,
                 ]);
 
                 $variant = $service->variants()->create([
-                    'name' => 'Sesión individual',
+                    'organization_id' => $organization->id,
+                    'branch_id' => $branchId,
+
+                    'name' => $variantData['name'],
                     'description' => $variantData['description'] ?? null,
                     'duration_minutes' => $variantData['duration_minutes'],
                     'price' => $variantData['price'] ?? 0,
@@ -383,31 +392,17 @@ Eso evita un problema común en sistemas de reservas.*/
                     'active' => true,
                 ]);
 
-                DB::table('branch_service_variant')->insert([
-                    'organization_id' => $organization->id,
-                    'branch_id' => $branchId,
-                    'service_variant_id' => $variant->id,
-
-                    'name' => $variant->name,
-                    'description' => $variant->description,
-                    'duration_minutes' => $variant->duration_minutes,
-                    'price' => $variant->price,
-                    'max_capacity' => $variant->max_capacity,
-                    'mode' => $variant->mode,
-                    'includes_material' => $variant->includes_material,
-                    'active' => true,
-
-                    'sort_order' => 0,
-
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
 
                 if ($staffId) {
-                    $variant->staff()->syncWithPivotValues(
-                        [$staffId],
-                        ['branch_id' => $branchId]
-                    );
+                    BranchServiceVariantStaff::updateOrCreate([
+                        'organization_id' => $organization->id,
+                        'branch_id' => $branchId,
+                        'branch_service_variant_id' => $variant->id,
+                        'staff_member_id' => $staffId,
+                    ], [
+                        'active' => true,
+                        'sort_order' => 0,
+                    ]);
                 }
 
                 return $service;
@@ -422,6 +417,7 @@ Eso evita un problema común en sistemas de reservas.*/
                 'organization' => [
                     'id' => $organization->id,
                     'name' => $organization->name,
+                    'business_niche' => $organization->business_niche,
                     'onboarding_step' => $organization->onboarding_step,
                     'onboarding_completed_at' => $organization->onboarding_completed_at,
                 ]
@@ -433,269 +429,419 @@ Eso evita un problema común en sistemas de reservas.*/
         | FLOW NORMAL
         |--------------------------------------------------------------------------
         */
-        $service = DB::transaction(function () use (
+
+        $targetBranchIds = $createAllBranches
+            ? $organization->branches()
+            ->where('is_active', true)
+            ->pluck('id')
+            : collect([$branchId]);
+
+        $services = DB::transaction(function () use (
             $validated,
             $organization,
-            $branchId,
-            $staffId
+            $targetBranchIds
         ) {
 
-            $service = $organization->services()->create([
-                'name' => $validated['name'],
-                'description' => $validated['description'] ?? null,
-                'active' => $validated['active'] ?? true,
-            ]);
+            $createdServices = collect();
 
-            foreach ($validated['variants'] as $index => $variantData) {
+            foreach ($targetBranchIds as $targetBranchId) {
 
-                $variant = $service->variants()->create([
-                    'name' => $variantData['name'],
-                    'description' => $variantData['description'] ?? null,
-                    'duration_minutes' => $variantData['duration_minutes'],
-                    'price' => $variantData['price'] ?? null,
-                    'max_capacity' => $variantData['max_capacity'],
-                    'mode' => $variantData['mode'],
-                    'includes_material' => $variantData['includes_material'] ?? false,
-                    'active' => $variantData['active'] ?? true,
+                $service = $organization->services()->create([
+                    'branch_id' => $targetBranchId,
+                    'name' => $validated['name'],
+                    'description' => $validated['description'] ?? null,
+                    'active' => $validated['active'] ?? true,
                 ]);
 
-                DB::table('branch_service_variant')->insert([
-                    'organization_id' => $organization->id,
-                    'branch_id' => $branchId,
-                    'service_variant_id' => $variant->id,
 
-                    'name' => $variant->name,
-                    'description' => $variant->description,
-                    'duration_minutes' => $variant->duration_minutes,
-                    'price' => $variant->price,
-                    'max_capacity' => $variant->max_capacity,
-                    'mode' => $variant->mode,
-                    'includes_material' => $variant->includes_material,
-                    'active' => $variant->active,
+                $existingNames = []; // Verificar duplicidad de nombres de variantes
 
-                    'sort_order' => $index,
+                foreach ($validated['variants'] as $index => $variantData) {
 
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                    // Verificar duplicidad de nombres en variantes
+                    $normalizedName = mb_strtolower(trim($variantData['name']));
 
-                if (!empty($variantData['staff_ids'])) {
+                    if (in_array($normalizedName, $existingNames)) {
+                        return response()->json([
+                            'message' => "La modalidad '{$variantData['name']}' está duplicada."
+                        ], 422);
+                    }
 
-                    $validStaffIds = $organization->staffMembers()
-                        ->whereIn('id', $variantData['staff_ids'])
-                        ->pluck('id')
-                        ->toArray();
-                } else {
+                    $existingNames[] = $normalizedName;
 
-                    $validStaffIds = $staffId ? [$staffId] : [];
+
+                    $service->variants()->create([
+                        'organization_id' => $organization->id,
+                        'branch_id' => $targetBranchId,
+
+                        'name' => $variantData['name'],
+                        'description' => $variantData['description'] ?? null,
+                        'duration_minutes' => $variantData['duration_minutes'],
+                        'price' => $variantData['price'] ?? null,
+                        'max_capacity' => $variantData['max_capacity'],
+                        'mode' => $variantData['mode'],
+                        'includes_material' => $variantData['includes_material'] ?? false,
+                        'active' => $variantData['active'] ?? true,
+
+                        'sort_order' => $index,
+                    ]);
                 }
 
-                if (!empty($validStaffIds)) {
-                    $variant->staff()->syncWithPivotValues(
-                        $validStaffIds,
-                        ['branch_id' => $branchId]
-                    );
-                }
+                $createdServices->push(
+                    $service->load('variants')
+                );
             }
 
-            return $service;
+            return BranchService::with('variants')
+                ->find($service->id);
         });
 
         return response()->json([
-            'message' => 'Servicio creado correctamente. Puedes ajustar personal y configuración por sucursal.',
-            'data' => $service->load(['variants.staff'])
+            'message' => $createAllBranches
+                ? 'Servicios creados correctamente'
+                : 'Servicio creado correctamente',
+            'data' => $services
         ], 201);
     }
 
-    public function store_bkp(Request $request)
+    /*
+    |--------------------------------------------------------------------------
+    | Actualizar servicios/variantes
+    |--------------------------------------------------------------------------
+    */
+    public function update(Request $request, int $serviceId)
     {
         $organization = $this->getOrganization($request);
         $user = $request->user();
-
+        $branch = $request->attributes->get('branch');
 
         /*
-        |----------------------------------------------------------
-        | GUARD ANTI-BYPASS ONBOARDING
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Validamos permisos
+        |--------------------------------------------------------------------------
         */
-        if (!$organization->onboarding_completed_at) {
-
-            if ($organization->onboarding_step !== Organization::ONBOARDING_SERVICE_CREATED) {
-                return response()->json([
-                    'message' => 'No puedes crear servicios en este momento del onboarding'
-                ], 403);
-            }
+        if (
+            !$this->featureService->can(
+                $organization,
+                $user->id,
+                'citas.services'
+            )
+        ) {
+            abort(403, 'No tienes acceso a esta funcionalidad');
         }
 
         /*
-        |----------------------------------------------------------
-        | DETECTAR MODO
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Validar sucursal activa
+        |--------------------------------------------------------------------------
         */
-        $isOnboarding = !$organization->onboarding_completed_at
-            && $organization->onboarding_step === Organization::ONBOARDING_SERVICE_CREATED;
-
-        /*
-        |----------------------------------------------------------
-        | VALIDACIÓN DINÁMICA
-        |----------------------------------------------------------
-        */
-
-        if ($isOnboarding) {
-
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'variants' => 'required|array|min:1',
-                'variants.0.duration_minutes' => 'required|integer|min:1',
-                'variants.0.price' => 'nullable|numeric|min:0',
-                'variants.0.mode' => 'required|in:online,presential,hybrid',
-            ]);
-
-            $variantData = $validated['variants'][0];
-        } else {
-
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'active' => 'boolean',
-
-                'branch_id' => 'required|exists:branches,id',
-
-                'variants' => 'required|array|min:1',
-
-                'variants.*.name' => 'required|string|max:255',
-                'variants.*.duration_minutes' => 'required|integer|min:1',
-                'variants.*.price' => 'nullable|numeric|min:0',
-                'variants.*.max_capacity' => 'required|integer|min:1',
-                'variants.*.mode' => 'required|in:online,presential,hybrid',
-                'variants.*.includes_material' => 'boolean',
-                'variants.*.active' => 'boolean',
-                'variants.*.staff_ids' => 'array',
-                'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
-            ]);
+        if (!$branch) {
+            return response()->json([
+                'message' => 'Sucursal no encontrada'
+            ], 422);
         }
 
         /*
-        |----------------------------------------------------------
-        | ONBOARDING FLOW
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Buscar servicio (seguridad multi-tenant)
+        |--------------------------------------------------------------------------
         */
-        if ($isOnboarding) {
+        $service = BranchService::query()
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->with('variants')
+            ->findOrFail($serviceId);
 
-            // Branch default
-            $branchId = $organization->branches()
-                ->where('is_primary', true)
-                ->value('id');
+        /*
+        |--------------------------------------------------------------------------
+        | Límites del plan
+        |--------------------------------------------------------------------------
+        */
+        $servicesLimit = $this->featureService->finalLimit(
+            $organization,
+            $user->id,
+            'citas.services',
+            'extra_services'
+        );
 
-            // Staff del usuario actual
-            $staffId = $organization->staffMembers()
-                ->where('user_id', $user->id)
-                ->value('id');
+        $limits = $this->resolveServiceLimits($servicesLimit);
 
-            $service = DB::transaction(function () use ($validated, $variantData, $organization, $branchId, $staffId) {
+        $variantsPerServiceLimit = $limits['variants_per_service'];
+        $deletedVariantsLimit = $limits['deleted_variants_limit'];
 
-                $service = $organization->services()->create([
-                    'name' => $validated['name'],
-                    'description' => null,
-                    'active' => true,
-                ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Validación
+        |--------------------------------------------------------------------------
+        */
+        $validated = $request->validate([
 
-                $variant = $service->variants()->create([
-                    'name' => 'Sesión individual',
-                    'duration_minutes' => $variantData['duration_minutes'],
-                    'price' => $variantData['price'] ?? 0,
-                    'max_capacity' => 1,
-                    'mode' => $variantData['mode'],
-                    'includes_material' => false,
-                    'active' => true,
-                ]);
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'active' => 'boolean',
 
-                if ($staffId && $branchId) {
-                    $variant->staff()->syncWithPivotValues(
-                        [$staffId],
-                        ['branch_id' => $branchId]
-                    );
-                }
+            'variants' => 'required|array|min:1',
 
-                return $service;
-            });
+            'variants.*.id' => 'nullable|integer',
 
-            // AVANZAR ONBOARDING
-            $organization->advanceOnboarding(
-                Organization::ONBOARDING_AVAILABILITY_SET
+            'variants.*.name' => 'required|string|max:255',
+            'variants.*.description' => 'nullable|string',
+            'variants.*.duration_minutes' => 'required|integer|min:1',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.max_capacity' => 'required|integer|min:1',
+            'variants.*.mode' => 'required|in:online,presential,hybrid',
+            'variants.*.includes_material' => 'boolean',
+            'variants.*.active' => 'boolean',
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validar límite de modalidades
+        |--------------------------------------------------------------------------
+        */
+        if (
+            $variantsPerServiceLimit !== null &&
+            count($validated['variants']) > $variantsPerServiceLimit
+        ) {
+            return response()->json([
+                'message' =>
+                "Tu plan permite hasta {$variantsPerServiceLimit} modalidades por servicio. Puedes mejorar tu plan o adquirir addons para ampliar este límite."
+            ], 403);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validar nombres duplicados
+        |--------------------------------------------------------------------------
+        */
+        $normalizedNames = [];
+
+        foreach ($validated['variants'] as $variantData) {
+
+            $normalizedName = mb_strtolower(
+                trim($variantData['name'])
             );
 
-            return response()->json([
-                'message' => 'Servicio creado correctamente',
-                'organization' => [
-                    'id' => $organization->id,
-                    'name' => $organization->name,
-                    'onboarding_step' => $organization->onboarding_step,
-                    'onboarding_completed_at' => $organization->onboarding_completed_at,
-                ]
-            ], 201);
+            if (in_array($normalizedName, $normalizedNames)) {
+
+                return response()->json([
+                    'message' =>
+                    "La modalidad '{$variantData['name']}' está duplicada."
+                ], 422);
+            }
+
+            $normalizedNames[] = $normalizedName;
         }
 
         /*
-        |----------------------------------------------------------
-        | FLOW NORMAL (SIN TOCAR)
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | UPDATE
+        |--------------------------------------------------------------------------
         */
+        $service = DB::transaction(function () use (
+            $validated,
+            $service,
+            $organization,
+            $branch,
+            $deletedVariantsLimit
+        ) {
 
-        $branchId = $validated['branch_id'];
-
-        $staffId = $organization->staffMembers()
-            ->where('user_id', $user->id)
-            ->value('id');
-
-        $service = DB::transaction(function () use ($validated, $organization, $staffId, $branchId) {
-
-            $service = $organization->services()->create([
+            /*
+            |--------------------------------------------------------------------------
+            | Actualizar servicio
+            |--------------------------------------------------------------------------
+            */
+            $service->update([
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
                 'active' => $validated['active'] ?? true,
             ]);
 
-            foreach ($validated['variants'] as $variantData) {
+            /*
+            |--------------------------------------------------------------------------
+            | Variantes actuales
+            |--------------------------------------------------------------------------
+            */
+            $existingVariantIds = $service->variants
+                ->pluck('id')
+                ->toArray();
 
-                $variant = $service->variants()->create([
-                    'name' => $variantData['name'],
-                    'duration_minutes' => $variantData['duration_minutes'],
-                    'price' => $variantData['price'] ?? null,
-                    'max_capacity' => $variantData['max_capacity'],
-                    'mode' => $variantData['mode'],
-                    'includes_material' => $variantData['includes_material'] ?? false,
-                    'active' => $variantData['active'] ?? true,
-                ]);
+            /*
+            |--------------------------------------------------------------------------
+            | Variantes enviadas
+            |--------------------------------------------------------------------------
+            */
+            $payloadVariantIds = collect($validated['variants'])
+                ->pluck('id')
+                ->filter()
+                ->toArray();
 
-                // STAFF IDS
-                if (!empty($variantData['staff_ids'])) {
+            /*
+            |--------------------------------------------------------------------------
+            | Variantes eliminadas desde frontend
+            |--------------------------------------------------------------------------
+            */
+            $variantsToDelete = array_diff(
+                $existingVariantIds,
+                $payloadVariantIds
+            );
 
-                    $validStaffIds = $organization->staffMembers()
-                        ->whereIn('id', $variantData['staff_ids'])
-                        ->pluck('id')
-                        ->toArray();
-                } else {
+            /*
+            |--------------------------------------------------------------------------
+            | Validar límite de eliminadas
+            |--------------------------------------------------------------------------
+            */
+            if (!empty($variantsToDelete)) {
 
-                    $validStaffIds = $staffId ? [$staffId] : [];
+                $currentDeletedCount = BranchServiceVariant::onlyTrashed()
+                    ->where('organization_id', $organization->id)
+                    ->count();
+
+                $totalAfterDelete =
+                    $currentDeletedCount + count($variantsToDelete);
+
+                if (
+                    $deletedVariantsLimit !== null &&
+                    $totalAfterDelete > $deletedVariantsLimit
+                ) {
+
+                    throw ValidationException::withMessages([
+                        'variants' => [
+                            "Has alcanzado el límite de modalidades eliminadas ({$deletedVariantsLimit}). Restaura algunas modalidades o mejora tu plan para continuar."
+                        ]
+                    ]);
                 }
 
-                // SYNC CON BRANCH
-                if (!empty($validStaffIds)) {
-                    $variant->staff()->syncWithPivotValues(
-                        $validStaffIds,
-                        ['branch_id' => $branchId]
-                    );
+                /*
+                |--------------------------------------------------------------------------
+                | Soft delete
+                |--------------------------------------------------------------------------
+                */
+                BranchServiceVariant::query()
+                    ->where('organization_id', $organization->id)
+                    ->where('branch_id', $branch->id)
+                    ->whereIn('id', $variantsToDelete)
+                    ->delete();
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Crear / actualizar variantes
+            |--------------------------------------------------------------------------
+            */
+            foreach ($validated['variants'] as $index => $variantData) {
+
+                $variant = null;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Buscar variante existente
+                |--------------------------------------------------------------------------
+                */
+                if (!empty($variantData['id'])) {
+
+                    $variant = BranchServiceVariant::query()
+                        ->where('organization_id', $organization->id)
+                        ->where('branch_id', $branch->id)
+                        ->where('branch_service_id', $service->id)
+                        ->where('id', $variantData['id'])
+                        ->first();
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Actualizar variante
+                |--------------------------------------------------------------------------
+                */
+                if ($variant) {
+
+                    $variant->update([
+                        'name' => $variantData['name'],
+                        'description' => $variantData['description'] ?? null,
+                        'duration_minutes' => $variantData['duration_minutes'],
+                        'price' => $variantData['price'] ?? null,
+                        'max_capacity' => $variantData['max_capacity'],
+                        'mode' => $variantData['mode'],
+                        'includes_material' => $variantData['includes_material'] ?? false,
+                        'active' => $variantData['active'] ?? true,
+                        'sort_order' => $index,
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Crear nueva variante
+                |--------------------------------------------------------------------------
+                */ 
+                else {
+
+                    $service->variants()->create([
+
+                        'organization_id' => $organization->id,
+                        'branch_id' => $branch->id,
+
+                        'name' => $variantData['name'],
+                        'description' => $variantData['description'] ?? null,
+                        'duration_minutes' => $variantData['duration_minutes'],
+                        'price' => $variantData['price'] ?? null,
+                        'max_capacity' => $variantData['max_capacity'],
+                        'mode' => $variantData['mode'],
+                        'includes_material' => $variantData['includes_material'] ?? false,
+                        'active' => $variantData['active'] ?? true,
+                        'sort_order' => $index,
+                    ]);
                 }
             }
 
-            return $service;
+            return $service->fresh()->load([
+                'variants' => function ($q) {
+                    $q->orderBy('active', 'desc')
+                        ->orderBy('sort_order')
+                        ->orderBy('id');
+                }
+            ]);
         });
 
-        return response()->json(
-            $service->load(['variants.staff']),
-            201
-        );
+        return response()->json([
+            'message' => 'Servicio actualizado correctamente',
+            'data' => $service
+        ]);
+    }
+
+    private function resolveServiceLimits(?int $servicesLimit): array
+    {
+        return match ($servicesLimit) {
+
+            5 => [
+                'variants_per_service' => 3,
+                'deleted_variants_limit' => 15,
+            ],
+
+            10 => [
+                'variants_per_service' => 10,
+                'deleted_variants_limit' => 50,
+            ],
+
+            50 => [
+                'variants_per_service' => 30,
+                'deleted_variants_limit' => 300,
+            ],
+
+            100 => [
+                'variants_per_service' => 50,
+                'deleted_variants_limit' => 1000,
+            ],
+
+            null => [
+                'variants_per_service' => null,
+                'deleted_variants_limit' => null,
+            ],
+
+            default => [
+                'variants_per_service' => 3,
+                'deleted_variants_limit' => 15,
+            ],
+        };
     }
 
 
@@ -704,168 +850,179 @@ Eso evita un problema común en sistemas de reservas.*/
     | Show
     |--------------------------------------------------------------------------
     */
-
-    public function show(Request $request, Service $service)
+    public function show(Request $request, BranchService $service)
     {
-        $this->authorizeService($request, $service);
+        $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
 
-        return response()->json(
-            $service->load(['variants.staff'])
-        );
-    }
+        /*
+        |--------------------------------------------------------------------------
+        | Autorizar acceso al servicio actual
+        |--------------------------------------------------------------------------
+        */
+        if (
+            $service->organization_id !== $organization->id ||
+            $service->branch_id !== $branch->id
+        ) {
+            abort(404);
+        }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Update
-    |--------------------------------------------------------------------------
-    */
-
-    public function update(Request $request, Service $service)
-    {
-        $organization = $this->authorizeService($request, $service);
-
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'description' => 'nullable|string',
-            'active' => 'boolean',
-
-            'variants' => 'sometimes|array|min:1',
-
-            'variants.*.id' => 'nullable|integer|exists:service_variants,id',
-            'variants.*.name' => 'required|string|max:255',
-            'variants.*.duration_minutes' => 'required|integer|min:1',
-            'variants.*.price' => 'nullable|numeric|min:0',
-            'variants.*.max_capacity' => 'required|integer|min:1',
-            'variants.*.mode' => 'required|in:online,presential,hybrid',
-            'variants.*.includes_material' => 'boolean',
-            'variants.*.active' => 'boolean',
-
-            'variants.*.staff_ids' => 'array',
-            'variants.*.staff_ids.*' => 'integer|exists:staff_members,id',
+        /*
+        |--------------------------------------------------------------------------
+        | Cargar variantes + staff asignado
+        |--------------------------------------------------------------------------
+        */
+        $service->load([
+            'variants.staffAssignments.staffMember'
         ]);
 
-        DB::transaction(function () use ($service, $validated, $organization) {
-
-            /*
-        |---------------------------------------------------------
-        | 1️⃣ actualizar datos base del servicio
-        |---------------------------------------------------------
+        /*
+        |--------------------------------------------------------------------------
+        | Transformar salida compatible con frontend anterior
+        |--------------------------------------------------------------------------
         */
+        $service->variants->transform(function ($variant) {
 
-            $service->update([
-                'name' => $validated['name'] ?? $service->name,
-                'description' => $validated['description'] ?? $service->description,
-                'active' => $validated['active'] ?? $service->active,
-            ]);
+            $variant->staff = $variant->staffAssignments
+                ->map(function ($assignment) {
+                    return [
+                        'id' => $assignment->staffMember->id,
+                        'name' => $assignment->staffMember->name,
+                    ];
+                })
+                ->values();
 
-            if (!isset($validated['variants'])) {
-                return;
-            }
+            unset($variant->staffAssignments);
 
-            /*
-        |---------------------------------------------------------
-        | 2️⃣ obtener variantes actuales
-        |---------------------------------------------------------
-        */
-
-            $existingVariants = $service->variants()->get()->keyBy('id');
-
-            $receivedIds = [];
-
-            foreach ($validated['variants'] as $variantData) {
-
-                /*
-            |---------------------------------------------------------
-            | 3️⃣ UPDATE variante existente
-            |---------------------------------------------------------
-            */
-
-                if (!empty($variantData['id']) && $existingVariants->has($variantData['id'])) {
-
-                    $variant = $existingVariants[$variantData['id']];
-
-                    $variant->update([
-                        'name' => $variantData['name'],
-                        'duration_minutes' => $variantData['duration_minutes'],
-                        'price' => $variantData['price'] ?? null,
-                        'max_capacity' => $variantData['max_capacity'],
-                        'mode' => $variantData['mode'],
-                        'includes_material' => $variantData['includes_material'] ?? false,
-                        'active' => $variantData['active'] ?? true,
-                    ]);
-
-                    $receivedIds[] = $variant->id;
-                } else {
-
-                    /*
-                |---------------------------------------------------------
-                | 4️⃣ CREATE nueva variante
-                |---------------------------------------------------------
-                */
-
-                    $variant = $service->variants()->create([
-                        'name' => $variantData['name'],
-                        'duration_minutes' => $variantData['duration_minutes'],
-                        'price' => $variantData['price'] ?? null,
-                        'max_capacity' => $variantData['max_capacity'],
-                        'mode' => $variantData['mode'],
-                        'includes_material' => $variantData['includes_material'] ?? false,
-                        'active' => $variantData['active'] ?? true,
-                    ]);
-
-                    $receivedIds[] = $variant->id;
-                }
-
-                /*
-            |---------------------------------------------------------
-            | 5️⃣ sincronizar staff
-            |---------------------------------------------------------
-            */
-
-                if (isset($variantData['staff_ids'])) {
-
-                    $validStaffIds = $organization->staffMembers()
-                        ->whereIn('id', $variantData['staff_ids'])
-                        ->pluck('id')
-                        ->toArray();
-
-                    $variant->staff()->sync($validStaffIds);
-                }
-            }
-
-            /*
-        |---------------------------------------------------------
-        | 6️⃣ DESACTIVAR variantes eliminadas (no borrar)
-        |---------------------------------------------------------
-        */
-
-            $service->variants()
-                ->whereNotIn('id', $receivedIds)
-                ->update([
-                    'active' => false
-                ]);
+            return $variant;
         });
 
-        return response()->json(
-            $service->load(['variants.staff'])
-        );
+        return response()->json($service);
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | Destroy
+    | Cambiar Status del servicio
     |--------------------------------------------------------------------------
     */
-
-    public function destroy(Request $request, Service $service)
+    public function updateStatus(Request $request, int $serviceId)
     {
-        $this->authorizeService($request, $service);
+        $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
 
-        $service->delete();
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos de acceso
+        |----------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $request->user()->id, 'citas.services')) {
+            abort(403, 'No tienes acceso a sucursales');
+        }
+
+        $request->validate([
+            'active' => ['required', 'boolean']
+        ]);
+
+        $service = BranchService::query()
+            ->where('id', $serviceId)
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->firstOrFail();
+
+        DB::transaction(function () use ($request, $service) {
+
+            $service->update([
+                'active' => $request->boolean('active')
+            ]);
+
+            if (!$request->boolean('active')) {
+                $service->variants()->update([
+                    'active' => false
+                ]);
+            }
+        });
 
         return response()->json([
-            'message' => 'Service deleted successfully.'
+            'message' => 'Estado actualizado',
+            'data' => [
+                'id' => $service->id,
+                'active' => $service->fresh()->active
+            ]
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cambiar Status de la variante del servicio
+    |--------------------------------------------------------------------------
+    */
+    public function updateVariantStatus(Request $request, int $variantId)
+    {
+        $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos
+        |----------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $request->user()->id, 'citas.services')) {
+            abort(403, 'No tienes acceso a servicios');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Validación
+        |----------------------------------------------------------
+        */
+        $request->validate([
+            'active' => ['required', 'boolean']
+        ]);
+
+        /*
+        |----------------------------------------------------------
+        | Buscar variante con scope correcto
+        |----------------------------------------------------------
+        */
+        $variant = BranchServiceVariant::query()
+            ->where('id', $variantId)
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->with('service')
+            ->firstOrFail();
+
+        /*
+        |----------------------------------------------------------
+        | REGLA CLAVE
+        |----------------------------------------------------------
+        | No puedes activar una variante si el servicio está inactivo
+        */
+        if ($request->boolean('active') && !$variant->service->active) {
+            return response()->json([
+                'message' => 'No puedes activar una modalidad de un servicio inactivo'
+            ], 422);
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Actualización
+        |----------------------------------------------------------
+        */
+        DB::transaction(function () use ($request, $variant) {
+
+            $variant->update([
+                'active' => $request->boolean('active')
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Estado de modalidad actualizado',
+            'data' => [
+                'id' => $variant->id,
+                'active' => $variant->fresh()->active
+            ]
         ]);
     }
 }

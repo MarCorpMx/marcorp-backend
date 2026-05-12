@@ -21,6 +21,12 @@ class Organization extends Model
         'type',              // root | client
         'is_internal',       // true para MarCorp
 
+        'slogan',
+
+        // Nicho
+        'business_niche',
+        'business_subniche',
+
         // Dueño
         'owner_user_id',
 
@@ -170,7 +176,7 @@ class Organization extends Model
 
     public function services()
     {
-        return $this->hasMany(Service::class);
+        return $this->hasMany(BranchService::class);
     }
 
     public function appointments()

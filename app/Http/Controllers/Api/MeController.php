@@ -10,6 +10,8 @@ use App\Models\Plan;
 use App\Models\PlanSubsystemFeature;
 use App\Models\Subsystem;
 
+use Illuminate\Validation\Rule;
+
 use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Services\AuthContextService;
 
@@ -245,6 +247,23 @@ class MeController extends Controller
 
             $data = $request->validate([
                 'name' => ['required', 'string', 'min:3', 'max:120'],
+                'business_niche' => ['required', 'string', Rule::in([
+                    'beauty',
+                    'barbershop',
+                    'hair_salon',
+                    'nails',
+                    'medical',
+                    'psychology',
+                    'therapy',
+                    'spa',
+                    'fitness',
+                    'education',
+                    'consulting',
+                    'coaching',
+                    'pet_grooming',
+                    'tattoo',
+                    'other'
+                ])],
                 'phone' => ['required', 'array'],
                 'country' => ['required', 'string', 'size:2'],
                 'state' => ['nullable', 'string', 'max:100'],
@@ -255,6 +274,24 @@ class MeController extends Controller
             $data = $request->validate(
                 [
                     'name' => ['required', 'string', 'min:3', 'max:120'],
+                    'slogan' => ['nullable', 'string', 'max:200'],
+                    'business_niche' => ['required', 'string', Rule::in([
+                        'beauty',
+                        'barbershop',
+                        'hair_salon',
+                        'nails',
+                        'medical',
+                        'psychology',
+                        'therapy',
+                        'spa',
+                        'fitness',
+                        'education',
+                        'consulting',
+                        'coaching',
+                        'pet_grooming',
+                        'tattoo',
+                        'other'
+                    ])],
                     'slug' => [
                         'required',
                         'string',
@@ -393,6 +430,7 @@ class MeController extends Controller
                 'organization' => [
                     'id' => $organization->id,
                     'name' => $organization->name,
+                    'business_niche' => $organization->business_niche,
                     'onboarding_step' => $organization->onboarding_step,
                     'onboarding_completed_at' => $organization->onboarding_completed_at,
                 ]

@@ -49,7 +49,6 @@ class Branch extends Model
         'phone'    => 'array',
         'domains'  => 'array',
         'metadata' => 'array',
-        'phone'    => 'array',
 
         'is_active'   => 'boolean',
         'is_primary'  => 'boolean',
@@ -79,12 +78,20 @@ class Branch extends Model
         )->withTimestamps();
     }
 
+    public function services()
+    {
+        return $this->hasMany(
+            BranchService::class,
+            'branch_id'
+        );
+    }
+
     public function serviceVariants()
     {
-        return $this->belongsToMany(
-            ServiceVariant::class,
-            'branch_service_variant'
-        )->withTimestamps();
+        return $this->hasMany(
+            BranchServiceVariant::class,
+            'branch_id'
+        );
     }
 
     /*

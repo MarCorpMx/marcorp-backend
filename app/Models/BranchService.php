@@ -12,7 +12,6 @@ class BranchService extends Model
     protected $fillable = [
         'organization_id',
         'branch_id',
-        'service_id',
         'name',
         'description',
         'color',
@@ -22,6 +21,7 @@ class BranchService extends Model
 
     protected $casts = [
         'active' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     /*
@@ -40,9 +40,12 @@ class BranchService extends Model
         return $this->belongsTo(Branch::class);
     }
 
-    public function service()
+    public function variants()
     {
-        return $this->belongsTo(Service::class);
+        return $this->hasMany(
+            BranchServiceVariant::class,
+            'branch_service_id'
+        );
     }
 
     /*
@@ -61,29 +64,10 @@ class BranchService extends Model
         return $query->where('branch_id', $branchId);
     }
 
-    public function scopeForOrganization(Builder $query, int $organizationId): Builder
-    {
+    public function scopeForOrganization(
+        Builder $query,
+        int $organizationId
+    ): Builder {
         return $query->where('organization_id', $organizationId);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Accessors útiles
-    |--------------------------------------------------------------------------
-    */
-
-    public function getDisplayNameAttribute(): string
-    {
-        return $this->name ?: ($this->service->name ?? '');
-    }
-
-    public function getDisplayDescriptionAttribute(): ?string
-    {
-        return $this->description ?: ($this->service->description ?? null);
-    }
-
-    public function getDisplayColorAttribute(): ?string
-    {
-        return $this->color ?: ($this->service->color ?? null);
     }
 }

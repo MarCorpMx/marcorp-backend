@@ -472,6 +472,7 @@ class StaffMemberAgendaController extends Controller
                 'organization' => [
                     'id' => $organization->id,
                     'name' => $organization->name,
+                    'business_niche' => $organization->business_niche,
                     'onboarding_step' => $organization->onboarding_step,
                     'onboarding_completed_at' => $organization->onboarding_completed_at,
                 ]

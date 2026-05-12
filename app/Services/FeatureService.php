@@ -321,6 +321,36 @@ class FeatureService
         return in_array('*', $allowed) || in_array($featureKey, $allowed);
     }
 
+    public function finalLimit(
+        Organization $org,
+        ?int $userId,
+        string $key,
+        ?string $addonKey = null
+    ): ?int {
+
+        $baseLimit = $this->limit($org, $userId, $key);
+
+        // null = ilimitado
+        if ($baseLimit === null) {
+            return null;
+        }
+
+        if (!$addonKey) {
+            return $baseLimit;
+        }
+
+        $extra = $org->addons()
+            ->where('key', $addonKey)
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
+            ->sum('quantity');
+
+        return $baseLimit + $extra;
+    }
+
     /*
     |----------------------------------------------------------------------
     | 🔥 Limpiar cache

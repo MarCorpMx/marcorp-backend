@@ -16,6 +16,13 @@ return new class extends Migration {
             $table->string('type', 30)->default('client'); // root | client
             $table->boolean('is_internal')->default(false);
 
+
+            $table->string('slogan')->nullable(); 
+
+            $table->string('business_niche', 50)->nullable();
+            $table->string('business_subniche', 50)->nullable();
+            
+
             // Dueño
             $table->foreignId('owner_user_id')
                 ->constrained('users')

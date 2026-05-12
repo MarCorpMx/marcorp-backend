@@ -71,6 +71,8 @@ class AuthContextService
                             'branch_primary' => $access->branch->is_primary,
                             'branch_is_active' => $access->branch->is_active,
                             'branch_locked_by_plan' => $access->branch->locked_by_plan,
+                            'country' => $access->branch->country,
+                            'timezone' => $access->branch->timezone,
                             'role' => $access->role?->key,
                             'role_name' => $access->role?->name,
                         ])
@@ -160,6 +162,10 @@ class AuthContextService
             'organization' => $organization ? [
                 'id' => $organization->id,
                 'name' => $organization->name,
+
+                'business_niche' => $organization->business_niche,
+                'business_subniche' => $organization->business_subniche,
+
                 'onboarding_step' => $organization->onboarding_step,
                 'onboarding_completed_at' => $organization->onboarding_completed_at,
             ] : null,

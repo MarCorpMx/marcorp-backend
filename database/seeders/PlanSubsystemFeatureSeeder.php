@@ -22,6 +22,14 @@ class PlanSubsystemFeatureSeeder extends Seeder
         */
         $rules = [
 
+            // ADDONS
+            /*
+                +5 servicios → $49/mes
+                +1 staff → $99/mes
+                +100 emails → $49
+                Quitar "Enviado con Rombi"
+            */
+
             /*
             |--------------------------------------------------------------------------
             | SISTEMA: CITAS
@@ -29,6 +37,15 @@ class PlanSubsystemFeatureSeeder extends Seeder
             */
 
             // FREE – CITAS -> link público
+
+            /*
+            ✔ 60 citas / mes
+            ✔ clientes ilimitados  
+            ✔ servicios: 5 (3 variantes)
+            ✔ 1 sucursal
+            ✔ 1 usuario
+            15 recordatorios email
+            */
             [
                 'plan' => 'free',
                 'subsystem' => 'citas',
@@ -38,7 +55,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'clients'   => ['enabled' => true,  'limit' => 30],     // 30 clientes
                     'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios - 3 variantes por servicio
                     'schedule'  => ['enabled' => false, 'visible' => true], // BLOQUEADO
-                    'reminders' => ['enabled' => false, 'visible' => true], // BLOQUEADO
+                    'reminders' => ['enabled' => false, 'visible' => true], // BLOQUEADO  / 10–20 recordatorios / mes
                     'reports'   => ['enabled' => false, 'visible' => true], // Sin reportes
                     'team'      => ['enabled' => false, 'visible' => true], // Sin equipo
 
@@ -52,6 +69,12 @@ class PlanSubsystemFeatureSeeder extends Seeder
             ],
 
             // BASIC – CITAS
+            /*
+                ✔ 150 citas
+                ✔ servicios: 10
+                ✔ 100 recordatorios
+                ✔ 2 staff
+             */
             [
                 'plan' => 'basic',
                 'subsystem' => 'citas',
@@ -82,6 +105,13 @@ class PlanSubsystemFeatureSeeder extends Seeder
             ],
 
             // PRO – CITAS
+            /*
+                ✔ citas ilimitadas
+                ✔ recordatorios 1000
+                ✔ reportes
+                ✔ 5 staff
+                ✔ 3 sucursales
+            */
             [
                 'plan' => 'pro',
                 'subsystem' => 'citas',
@@ -113,6 +143,13 @@ class PlanSubsystemFeatureSeeder extends Seeder
             ],
 
             // PREMIUM - CITAS
+            /*
+                ✔ TODO + escalable
+                ej:
+                - 5 sucursales incluidas
+                - +$ por sucursal extra
+            */
+
             [
                 'plan' => 'premium',
                 'subsystem' => 'citas',

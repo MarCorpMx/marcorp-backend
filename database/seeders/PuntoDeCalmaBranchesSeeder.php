@@ -39,7 +39,7 @@ class PuntoDeCalmaBranchesSeeder extends Seeder
                 'is_active' => true,
                 'is_primary' => false,
 
-                'country' => 'MX',
+                'country' => 'mx',
                 'state' => 'Morelos',
                 'city' => 'Cuernavaca',
                 'zip_code' => '62564',
@@ -64,7 +64,7 @@ class PuntoDeCalmaBranchesSeeder extends Seeder
                 'is_active' => true,
                 'is_primary' => false,
 
-                'country' => 'MX',
+                'country' => 'mx',
                 'state' => 'CDMX',
                 'city' => 'Ciudad de México',
                 'zip_code' => '03100',

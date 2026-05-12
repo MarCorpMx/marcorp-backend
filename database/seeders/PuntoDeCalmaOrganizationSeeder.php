@@ -72,6 +72,9 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                     'is_internal'    => false,
                     'owner_user_id'  => $michel->id,
                     'status'         => 'active',
+
+                    'slogan' => 'La pausa que tu alma necesita',
+                    'business_niche' => 'psychology',
                     
                     'onboarding_step' => 'completed',
                     'onboarding_completed_at' => now(),

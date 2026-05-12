@@ -16,6 +16,7 @@ return [
     'allowed_origins_patterns' => [
         '/^http:\/\/localhost:\d+$/',
         '/^https:\/\/localhost:\d+$/',
+        '/^http:\/\/192\.168\.\d+\.\d+:\d+$/', // Eliminar para TEST y PRODUCCIÓN
         '/^https:\/\/([a-z0-9-]+\.)?punto-de-calma\.com$/',
         '/^https:\/\/([a-z0-9-]+\.)?marcorp\.mx$/',
     ],

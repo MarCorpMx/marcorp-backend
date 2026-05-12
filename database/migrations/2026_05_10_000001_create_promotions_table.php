@@ -14,20 +14,36 @@ return new class extends Migration
         Schema::create('promotions', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('organization_id')
+                ->constrained()
+                ->cascadeOnDelete();
 
-            // Puede aplicar a un servicio o variante específica
-            $table->foreignId('service_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('service_variant_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('branch_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
+            // opcional: promo a servicio en sucursal
+            $table->foreignId('branch_service_id')
+                ->nullable()
+                ->constrained('branch_services')
+                ->nullOnDelete();
+
+            // opcional: promo a variante específica
+            $table->foreignId('branch_service_variant_id')
+                ->nullable()
+                ->constrained('branch_service_variant')
+                ->nullOnDelete();
 
             $table->string('name');
 
-            // Tipo de descuento
-            $table->enum('discount_type', ['fixed', 'percentage']);
+            $table->enum('discount_type', [
+                'fixed',
+                'percentage'
+            ]);
 
             $table->decimal('discount_value', 10, 2);
 
-            // Control de fechas
             $table->dateTime('starts_at')->nullable();
             $table->dateTime('ends_at')->nullable();
 

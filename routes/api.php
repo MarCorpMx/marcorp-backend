@@ -210,17 +210,23 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     |--------------------------------------------------------------------------
     */
     Route::get('/services', [ServiceController::class, 'index']); // Administración
-    Route::get('/services/list', [ServiceController::class, 'list']); // select interno
+    //Route::get('/services/list', [ServiceController::class, 'list']); // select interno
     Route::get('/service-variants/list', [ServiceController::class, 'listVariants']); // select interno
 
-    Route::get('/my-services', [ServiceController::class, 'my-services']); // servicios del staff autenticado
-    Route::get('/service-variants/{id}/staff', [ServiceController::class, 'staff']); // Staff por variante de servicio
+    //Route::get('/my-services', [ServiceController::class, 'my-services']); // servicios del staff autenticado
+    //Route::get('/service-variants/{id}/staff', [ServiceController::class, 'staff']); // Staff por variante de servicio
     // /public/services → web pública
 
     Route::post('/services', [ServiceController::class, 'store']);
-    Route::get('/services/{service}', [ServiceController::class, 'show']);
+    Route::patch('/services/{service}/status',[ServiceController::class, 'updateStatus']);
+    //Route::get('/services/{service}', [ServiceController::class, 'show']);
+    
+    // Actualizar servicio con variantes
     Route::put('/services/{service}', [ServiceController::class, 'update']);
-    Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
+    //Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
+
+    // Cambiar estatus de una variante de servicio
+    Route::patch('/service-variants/{variant}/status',[ServiceController::class, 'updateVariantStatus']);
 
     // v1 para Configuración - Agenda
     Route::get('/schedule-settings', [ScheduleSettingController::class, 'getSchedule']);

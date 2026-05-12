@@ -6,51 +6,31 @@ use Illuminate\Database\Eloquent\Model;
 
 class Promotion extends Model
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Constantes
-    |--------------------------------------------------------------------------
-    */
     const TYPE_FIXED = 'fixed';
     const TYPE_PERCENTAGE = 'percentage';
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Fillable
-    |--------------------------------------------------------------------------
-    */
     protected $fillable = [
         'organization_id',
-        'service_id',
-        'service_variant_id',
+        'branch_service_id',
+        'branch_service_variant_id',
+
         'name',
         'discount_type',
         'discount_value',
+
         'starts_at',
         'ends_at',
+
         'is_active',
     ];
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Casts
-    |--------------------------------------------------------------------------
-    */
     protected $casts = [
         'discount_value' => 'decimal:2',
-        'starts_at' => 'datetime',
-        'ends_at' => 'datetime',
-        'is_active' => 'boolean',
+        'starts_at'      => 'datetime',
+        'ends_at'        => 'datetime',
+        'is_active'      => 'boolean',
     ];
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Relaciones
-    |--------------------------------------------------------------------------
-    */
     public function organization()
     {
         return $this->belongsTo(Organization::class);
@@ -58,22 +38,20 @@ class Promotion extends Model
 
     public function service()
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsTo(
+            BranchService::class,
+            'branch_service_id'
+        );
     }
 
     public function serviceVariant()
     {
-        return $this->belongsTo(ServiceVariant::class);
+        return $this->belongsTo(
+            BranchServiceVariant::class,
+            'branch_service_variant_id'
+        );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Lógica útil (PRO)
-    |--------------------------------------------------------------------------
-    */
-
-    // Saber si está activa en este momento
     public function isCurrentlyActive(): bool
     {
         if (!$this->is_active) {
@@ -93,8 +71,6 @@ class Promotion extends Model
         return true;
     }
 
-
-    // Calcular descuento
     public function calculateDiscount(float $basePrice): float
     {
         if ($this->discount_type === self::TYPE_FIXED) {

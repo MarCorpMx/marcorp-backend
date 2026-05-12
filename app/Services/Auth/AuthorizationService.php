@@ -11,6 +11,8 @@ class AuthorizationService
     {
         $branchId = $request->header('X-Branch-Id');
 
+        abort(403, 'Vericar funcion ');
+
         if (!$branchId) {
             return null; // o lanzar excepción si quieres ser estricto
         }

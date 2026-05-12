@@ -27,57 +27,67 @@ return new class extends Migration
                 ->constrained('branches')
                 ->cascadeOnDelete();
 
-            $table->foreignId('service_variant_id')
-                ->constrained('service_variants')
+            $table->foreignId('branch_service_id')
+                ->constrained('branch_services')
                 ->cascadeOnDelete();
 
             /*
             |--------------------------------------------------------------------------
-            | DISPONIBILIDAD EN SUCURSAL
+            | VARIANTE REAL
             |--------------------------------------------------------------------------
             */
+            $table->string('name');
 
-            // visible / habilitado en esta sucursal
-            $table->boolean('active')->default(true);
-
-            // orden visual catálogo / booking
-            $table->unsignedInteger('sort_order')->default(0);
-
-            /*
-            |--------------------------------------------------------------------------
-            | OVERRIDES (MISMO NOMBRE Y MISMO TIPO QUE service_variants)
-            |--------------------------------------------------------------------------
-            | null = usar valor global de service_variants
-            */
-
-            $table->string('name')->nullable();
             $table->text('description')->nullable();
 
-            $table->unsignedInteger('duration_minutes')->nullable();
+            $table->unsignedInteger('duration_minutes');
 
             $table->decimal('price', 10, 2)->nullable();
 
-            $table->unsignedInteger('max_capacity')->nullable();
+            $table->unsignedInteger('max_capacity')->default(1);
 
-            $table->enum('mode', [
-                'online',
-                'presential',
-                'hybrid'
-            ])->nullable();
+            $table->string('mode', 50)->default('presential');
+            /*presential
+            online
+            hybrid
+            home_service
+            provider_home
+            phone_call
+            onsite_business
+            custom*/
 
-            $table->boolean('includes_material')->nullable();
+            $table->boolean('includes_material')->default(false);
+
+            $table->boolean('requires_meeting_link')->default(false);
+            $table->string('meeting_provider')->nullable();
+
+            /*
+            |--------------------------------------------------------------------------
+            | OPERACIÓN
+            |--------------------------------------------------------------------------
+            */
+            $table->boolean('active')->default(true);
+
+            $table->unsignedInteger('sort_order')->default(0);
 
             $table->timestamps();
 
             /*
             |--------------------------------------------------------------------------
-            | ÚNICO
+            | SOFT DELETE
             |--------------------------------------------------------------------------
             */
-            $table->unique(
-                ['branch_id', 'service_variant_id'],
+            $table->softDeletes();
+
+            /*
+            |--------------------------------------------------------------------------
+            | REGLAS
+            |--------------------------------------------------------------------------
+            */
+            /*$table->unique(
+                ['branch_service_id', 'name', 'deleted_at'],
                 'branch_service_variant_unique'
-            );
+            );*/
 
             /*
             |--------------------------------------------------------------------------
@@ -86,7 +96,7 @@ return new class extends Migration
             */
             $table->index(['organization_id', 'branch_id']);
             $table->index(['branch_id', 'active']);
-            $table->index(['branch_id', 'sort_order']);
+            $table->index(['branch_service_id', 'active']);
         });
     }
 

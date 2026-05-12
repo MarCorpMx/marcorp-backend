@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\UppercaseString;
 
 
 
@@ -43,75 +44,6 @@ class AuthController extends Controller
         protected NotificationService $notificationService
     ) {}
 
-    /**
-     * REGISTRO DE USUARIO
-     */
-    /*public function register(RegisterRequest $request)
-    {
-        return DB::transaction(function () use ($request) {
-
-            // 1 Crear usuario
-            $user = User::firstOrCreate(
-                ['email' => $request->email],
-                [
-                    'username' => $request->email,
-                    'first_name' => $request->first_name,
-                    'last_name' => $request->last_name,
-                    'name' => "{$request->first_name} {$request->last_name}",
-                    'phone' => $request->phone,
-                    'password' => Hash::make($request->password),
-                    'status' => 'active',
-                    'email_verified' => false,
-                ]
-            );
-
-            // 2 Crear organización inicial
-            $organization = Organization::create([
-                'name' => "Consultorio {$user->first_name}",
-                'slug' => Str::slug("empresa-{$user->id}-{$user->first_name}"),
-                'owner_user_id' => $user->id,
-                'status' => 'active',
-            ]);
-
-            // 3 Relacionar usuario como OWNER
-            OrganizationUser::create([
-                'organization_id' => $organization->id,
-                'user_id' => $user->id,
-                //'role' => 'owner',
-                'status' => 'active',
-                'joined_at' => now(),
-            ]);
-
-            // 4 Obtener plan FREE
-            $freePlan = Plan::where('key', 'free')->firstOrFail();
-
-            // 5 Asignar subsistema a la organización
-            OrganizationSubsystem::create([
-                'organization_id' => $organization->id,
-                'subsystem_id' => $request->subsystem_id,
-                'plan_id' => $freePlan->id,
-                'status' => 'active',
-                'started_at' => now(),
-                'is_paid' => false,
-            ]);
-
-            // 6 Generar token Sanctum
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            // 7 Respuesta con contexto
-            return response()->json([
-                'message' => 'Registro exitoso',
-                'token' => $token,
-                'context' => [
-                    'user' => $user,
-                    'organization' => $organization,
-                    'role' => 'owner',
-                    'subsystem_id' => $request->subsystem_id,
-                    'plan' => $freePlan->key,
-                ]
-            ], 201);
-        });
-    }*/
 
     public function register(RegisterRequest $request)
     {
@@ -156,7 +88,7 @@ class AuthController extends Controller
             | Crear organización inicial (al crear la organización se crea la sucursal principal)
             |--------------------------------------------------------------------------
             */
-            $basePrefix = Str::upper(Str::substr($user->first_name, 0, 3) ?: 'ORG');
+            $basePrefix = (string) Str::upper(Str::substr($user->first_name, 0, 3) ?: 'ORG');
             $referencePrefix = $basePrefix . $user->id;
 
             // Normalizar los datos

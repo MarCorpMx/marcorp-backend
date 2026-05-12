@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Log;
 use App\Services\SubsystemResolver;
 
 
-
 class StaffMemberController extends Controller
 {
     use ResolvesOrganization;
@@ -23,7 +22,8 @@ class StaffMemberController extends Controller
     ) {}
 
     /**
-     * Listar staff members de la organización autenticada
+     * Listar staff members del brach, lo usamos en: 
+     * Configuración > Horario de atención 
      */
     public function index(Request $request): JsonResponse
     {
@@ -36,6 +36,13 @@ class StaffMemberController extends Controller
         $subsystemId = $subsystem->id;
         $branchId = $branch->id;
 
+
+
+        /*
+        |------------------------------------------------------------------
+        | Resolver rol actual del usuario en branch/subsystem
+        |------------------------------------------------------------------
+        */
         $role = DB::table('branch_user_access as bua')
             ->join('roles as r', 'r.id', '=', 'bua.role_id')
             ->where('bua.organization_id', $organization->id)
@@ -45,6 +52,7 @@ class StaffMemberController extends Controller
             ->where('bua.is_active', true)
             ->value('r.key');
 
+
         if (!$role) {
             return response()->json([
                 'data' => []
@@ -53,12 +61,11 @@ class StaffMemberController extends Controller
 
         /*
         |------------------------------------------------------------------
-        | QUERY REAL (LO QUE NECESITAS)
+        | Base query:
+        | staff de la organización asignados a la branch actual
         |------------------------------------------------------------------
         */
-
         $query = $organization->staffMembers()
-            ->where('is_active', true)
             ->whereExists(function ($q) use ($branchId) {
                 $q->select(DB::raw(1))
                     ->from('branch_staff as bs')
@@ -68,30 +75,39 @@ class StaffMemberController extends Controller
 
         /*
         |------------------------------------------------------------------
-        | SOLO STAFF VE SOLO SU REGISTRO
+        | STAFF solo puede verse a sí mismo
         |------------------------------------------------------------------
         */
-
         if ($role === 'staff') {
             $query->where('user_id', $user->id);
         }
 
         /*
         |------------------------------------------------------------------
-        | FILTROS OPCIONALES
+        | Filtro active (dinámico)
+        | default = solo activos
         |------------------------------------------------------------------
         */
+        if ($request->has('active')) {
+            $query->where('is_active', (bool) $request->active);
+        } else {
+            $query->where('is_active', true);
+        }
 
+        /*
+        |------------------------------------------------------------------
+        | Filtro public
+        |------------------------------------------------------------------
+        */
         if ($request->has('public')) {
             $query->where('is_public', (bool) $request->public);
         }
 
         /*
         |------------------------------------------------------------------
-        | RESULT
+        | Resultado
         |------------------------------------------------------------------
         */
-
         $staffMembers = $query
             ->orderBy('created_at', 'desc')
             ->get();
@@ -110,27 +126,28 @@ class StaffMemberController extends Controller
         $branch = $request->attributes->get('branch');
 
         /*
-    |--------------------------------------------------------------------------
-    | Seguridad
-    |--------------------------------------------------------------------------
-    */
-
+        |--------------------------------------------------------------------------
+        | Seguridad
+        |--------------------------------------------------------------------------
+        */
         if ($staffMember->organization_id !== $organization->id) {
             abort(403);
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | Solo servicios asignados en ESTA sucursal
-    |--------------------------------------------------------------------------
-    */
-
+        |--------------------------------------------------------------------------
+        | Solo variantes asignadas en ESTA sucursal
+        | Tabla nueva: branch_service_variant_staff
+        |--------------------------------------------------------------------------
+        */
         $ids = $staffMember->serviceVariants()
-            ->wherePivot('branch_id', $branch->id)
-            ->pluck('service_variants.id');
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->where('active', true)
+            ->pluck('branch_service_variant_id');
 
         return response()->json([
-            'data' => $ids
+            'data' => $ids->values()
         ]);
     }
 
@@ -142,57 +159,63 @@ class StaffMemberController extends Controller
         $organization = $this->getOrganization($request);
         $branch = $request->attributes->get('branch');
 
+        /*
+        |--------------------------------------------------------------------------
+        | Seguridad
+        |--------------------------------------------------------------------------
+        */
         if ($staffMember->organization_id !== $organization->id) {
             abort(403);
         }
 
         $validated = $request->validate([
             'service_variant_ids' => ['required', 'array'],
-            'service_variant_ids.*' => ['exists:service_variants,id']
+            'service_variant_ids.*' => ['exists:branch_service_variant,id'],
         ]);
 
         /*
         |--------------------------------------------------------------------------
-        | Validar que los servicios pertenezcan a la organización
+        | Validar que las variantes pertenezcan a la organización y sucursal actual
         |--------------------------------------------------------------------------
         */
-
-        $validIds = ServiceVariant::whereIn('id', $validated['service_variant_ids'])
-            ->whereHas('service', function ($q) use ($organization) {
-                $q->where('organization_id', $organization->id);
-            })
+        $validIds = \App\Models\BranchServiceVariant::query()
+            ->whereIn('id', $validated['service_variant_ids'])
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
             ->pluck('id')
             ->toArray();
 
         /*
         |--------------------------------------------------------------------------
-        | Borrar SOLO de esta sucursal
+        | Borrar SOLO asignaciones de esta sucursal
         |--------------------------------------------------------------------------
         */
-
-        DB::table('service_variant_staff')
-            ->where('staff_member_id', $staffMember->id)
+        \App\Models\BranchServiceVariantStaff::query()
+            ->where('organization_id', $organization->id)
             ->where('branch_id', $branch->id)
+            ->where('staff_member_id', $staffMember->id)
             ->delete();
 
         /*
         |--------------------------------------------------------------------------
-        | Insertar nuevos
+        | Insertar nuevas asignaciones
         |--------------------------------------------------------------------------
         */
-
-        $rows = collect($validIds)->map(function ($id) use ($staffMember, $branch) {
+        $rows = collect($validIds)->map(function ($id) use ($organization, $branch, $staffMember) {
             return [
-                'staff_member_id' => $staffMember->id,
-                'service_variant_id' => $id,
+                'organization_id' => $organization->id,
                 'branch_id' => $branch->id,
+                'branch_service_variant_id' => $id,
+                'staff_member_id' => $staffMember->id,
+                'active' => true,
+                'sort_order' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         })->toArray();
 
         if (!empty($rows)) {
-            DB::table('service_variant_staff')->insert($rows);
+            \App\Models\BranchServiceVariantStaff::insert($rows);
         }
 
         return response()->json([
