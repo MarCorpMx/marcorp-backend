@@ -6,6 +6,8 @@ use App\Models\OrganizationUser;
 use App\Models\BranchUserAccess;
 use App\Models\User;
 
+use Illuminate\Support\Facades\Storage;
+
 class AuthContextService
 {
     public function build(User $user)
@@ -165,6 +167,10 @@ class AuthContextService
 
                 'business_niche' => $organization->business_niche,
                 'business_subniche' => $organization->business_subniche,
+
+                'logo_url' => $organization->logo_url
+                ? url(Storage::url($organization->logo_url))
+                : null,
 
                 'onboarding_step' => $organization->onboarding_step,
                 'onboarding_completed_at' => $organization->onboarding_completed_at,

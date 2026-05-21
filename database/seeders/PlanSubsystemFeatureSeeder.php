@@ -54,7 +54,8 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'agenda'    => ['enabled' => true,  'limit' => 30],     // 30 citas al mes
                     'clients'   => ['enabled' => true,  'limit' => 30],     // 30 clientes
                     'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios - 3 variantes por servicio
-                    'schedule'  => ['enabled' => false, 'visible' => true], // BLOQUEADO
+                    'booking'   => ['enabled' => true],
+                    'schedule'  => ['enabled' => true, 'visible' => true], // no BLOQUEADO
                     'reminders' => ['enabled' => false, 'visible' => true], // BLOQUEADO  / 10–20 recordatorios / mes
                     'reports'   => ['enabled' => false, 'visible' => true], // Sin reportes
                     'team'      => ['enabled' => false, 'visible' => true], // Sin equipo
@@ -83,6 +84,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'agenda'   => ['enabled' => true, 'limit' => 150],
                     'clients'  => ['enabled' => true, 'limit' => 200],
                     'services' => ['enabled' => true, 'limit' => 10], // 10 servicios - 10 variantes por servicio
+                    'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true, 'limit' => 100],     // 100 envios por mes
                     'reports'   => ['enabled' => false, 'visible' => true], // BLOQUEADO
@@ -120,6 +122,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'agenda'    => ['enabled' => true],                 // Ilimitadas
                     'clients'   => ['enabled' => true],                 // Ilimitados
                     'services'  => ['enabled' => true],                 // Ilimitados
+                    'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true, 'limit' => 1000],
                     'reports'   => ['enabled' => true],                 // Con reportes
@@ -158,6 +161,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'agenda'    => ['enabled' => true],
                     'clients'   => ['enabled' => true],
                     'services'  => ['enabled' => true],
+                    'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true],
                     'reports'   => ['enabled' => true],
@@ -186,6 +190,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                     'agenda'    => ['enabled' => true],
                     'clients'   => ['enabled' => true],
                     'services'  => ['enabled' => true],
+                    'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true],
                     'reports'   => ['enabled' => true],

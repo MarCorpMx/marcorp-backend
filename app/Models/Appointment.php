@@ -23,6 +23,7 @@ class Appointment extends Model
         'branch_service_variant_id',
         'staff_member_id',
         'client_id',
+        'pet_id',
 
         'start_datetime',
         'end_datetime',
@@ -95,9 +96,20 @@ class Appointment extends Model
         );
     }
 
-    public function client(): BelongsTo
+    public function client()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(
+            Client::class,
+            'client_id'
+        );
+    }
+
+    public function pet()
+    {
+        return $this->belongsTo(
+            ClientPet::class,
+            'pet_id'
+        );
     }
 
     public function appointmentNotes()

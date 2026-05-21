@@ -189,11 +189,53 @@ class Client extends Model
 
     public function appointments()
     {
-        return $this->hasMany(Appointment::class);
+        return $this->hasMany(
+            Appointment::class,
+            'client_id'
+        );
     }
 
     public function notes()
     {
         return $this->hasMany(ClientNote::class);
+    }
+
+    public function clientBranches()
+    {
+        return $this->hasMany(ClientBranch::class);
+    }
+
+    public function branches()
+    {
+        return $this->belongsToMany(
+            Branch::class,
+            'client_branches'
+        )
+            ->withPivot([
+                'first_visit_at',
+                'last_visit_at',
+                'appointments_count',
+                'is_primary',
+                'metadata',
+            ])
+            ->withTimestamps();
+    }
+
+    public function profile()
+    {
+        return $this->hasOne(ClientProfile::class);
+    }
+
+    public function files()
+    {
+        return $this->hasMany(ClientFile::class);
+    }
+
+    public function pets()
+    {
+        return $this->hasMany(
+            ClientPet::class,
+            'client_id'
+        );
     }
 }

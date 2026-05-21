@@ -341,11 +341,24 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     |--------------------------------------------------------------------------
     */
     Route::get('/clients', [ClientController::class, 'index']);
-    Route::get('/clients/list', [ClientController::class, 'list']); // select interno
+    // Select interno (consultar la lista de clientes activos y no bloqueados)
+    Route::get('/clients/list', [ClientController::class, 'list']); 
+    // Crear cliente (con sus mascotas de ser el caso)
     Route::post('/clients', [ClientController::class, 'store']);
+    // Crear cliente rápido (para módulo de citas)
+    Route::post('/clients/quick-create', [ClientController::class,'quickCreate']);
+    // Mostrar detalle de cliente
     Route::get('/clients/{client}', [ClientController::class, 'show']);
+    // Actualizar cliente
     Route::put('/clients/{client}', [ClientController::class, 'update']);
+    // Elimnar cliente (soft delete o force delete dependiendo el caso)
     Route::delete('/clients/{client}', [ClientController::class, 'destroy']);
+    // Actualizar estatus
+    Route::patch('/clients/{clientId}/status', [ClientController::class, 'updateStatus']);
+    // Bloquear / Desbloquear
+    Route::patch('/clients/{clientId}/block', [ClientController::class, 'updateBlock']);
+    // Buscar las mascotas de un cliente
+    Route::get('/clients/{client}/pets', [ClientController::class, 'pets']);
 
     /*
     |--------------------------------------------------------------------------

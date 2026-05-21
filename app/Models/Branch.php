@@ -94,6 +94,28 @@ class Branch extends Model
         );
     }
 
+    public function clientBranches()
+    {
+        return $this->hasMany(ClientBranch::class);
+    }
+
+    public function clients()
+    {
+        return $this->belongsToMany(
+            Client::class,
+            'client_branches'
+        )
+            ->withPivot([
+                'first_visit_at',
+                'last_visit_at',
+                'appointments_count',
+                'is_primary',
+                'metadata',
+            ])
+            ->withTimestamps();
+    }
+
+
     /*
     |--------------------------------------------------------------------------
     | FALLBACKS AUTOMÁTICOS

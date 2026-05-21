@@ -7,7 +7,8 @@ use App\Models\BlockedSlot;
 use App\Models\StaffMember;
 use App\Models\StaffMemberNonWorkingDay;
 use App\Models\StaffMemberSchedule;
-use App\Models\ServiceVariant;
+use App\Models\BranchServiceVariant;
+use App\Models\BranchServiceVariantStaff;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -19,7 +20,7 @@ class AppointmentAvailabilityService
     | CHECK SIMPLE (USO PÚBLICO)
     |--------------------------------------------------------------------------
     */
-    public function isStaffAvailable($staffId, $branchId, Carbon $start, Carbon $end): bool
+    public function isStaffAvailable(int $staffId, int $branchId, Carbon $start, Carbon $end): bool
     {
         // 0. Validar que el staff pertenece a la sucursal
         $staff = StaffMember::find($staffId);
@@ -140,21 +141,32 @@ class AppointmentAvailabilityService
     | GET AVAILABLE STAFF (POR VARIANTE + SUCURSAL)
     |--------------------------------------------------------------------------
     */
-    public function getAvailableStaff($serviceVariantId, $branchId, Carbon $start, Carbon $end)
-    {
-        $variant = ServiceVariant::find($serviceVariantId);
+    public function getAvailableStaff(
+        int $branchServiceVariantId,
+        int $branchId,
+        Carbon $start,
+        Carbon $end
+    ) {
 
-        if (!$variant) {
-            return collect();
-        }
+        $assignments = BranchServiceVariantStaff::query()
+            ->where('branch_service_variant_id', $branchServiceVariantId)
+            ->where('branch_id', $branchId)
+            ->with('staffMember')
+            ->get();
 
-        return $variant->staff()
-            ->wherePivot('branch_id', $branchId)
-            ->get()
+        return $assignments
+            ->pluck('staffMember')
+            ->filter()
             ->filter(
                 fn($staff) =>
-                $this->isStaffAvailable($staff->id, $branchId, $start, $end)
-            );
+                $this->isStaffAvailable(
+                    $staff->id,
+                    $branchId,
+                    $start,
+                    $end
+                )
+            )
+            ->values();
     }
 
     /*
@@ -162,7 +174,7 @@ class AppointmentAvailabilityService
     | VALIDACIÓN COMPLETA (LANZA ERRORES)
     |--------------------------------------------------------------------------
     */
-    public function validateOrFail($staffId, $branchId, Carbon $start, Carbon $end, $ignoreBlockId = null): void
+    public function validateOrFail(int $staffId, int $branchId, Carbon $start, Carbon $end, $ignoreBlockId = null): void
     {
         if (!$start->isSameDay($end)) {
             throw new Exception('multi_day_not_allowed');

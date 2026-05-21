@@ -10,6 +10,7 @@ class FeatureSeeder extends Seeder
 {
     public function run(): void
     {
+    
         /*
         |--------------------------------------------------------------------------
         | SISTEMA: CITAS
@@ -62,13 +63,22 @@ class FeatureSeeder extends Seeder
                 'sort_order' => 4,
             ],
             [
+                'key' => 'booking',
+                'name' => 'Reservas online',
+                'description' => 'Página pública para reservas y disponibilidad.',
+                'menu_label' => 'Reservas online',
+                'menu_route' => '/sistemas/citas/reservas-online',
+                'menu_icon' => 'Globe',
+                'sort_order' => 5,
+            ],
+            [
                 'key' => 'schedule',
                 'name' => 'Disponibilidad',
                 'description' => 'Configuración de disponibilidad de horarios',
                 'menu_label' => 'Disponibilidad',
                 'menu_route' => '/sistemas/citas/disponibilidad',
                 'menu_icon' => 'Clock',
-                'sort_order' => 5,
+                'sort_order' => 6,
             ],
             [
                 'key' => 'reminders',
@@ -77,7 +87,7 @@ class FeatureSeeder extends Seeder
                 'menu_label' => 'Recordatorios',
                 'menu_route' => '/sistemas/citas/recordatorios',
                 'menu_icon' => 'Bell',
-                'sort_order' => 6,
+                'sort_order' => 7,
             ],
             [
                 'key' => 'reports',
@@ -86,7 +96,7 @@ class FeatureSeeder extends Seeder
                 'menu_label' => 'Reportes',
                 'menu_route' => '/sistemas/citas/reportes',
                 'menu_icon' => 'BarChart',
-                'sort_order' => 7,
+                'sort_order' => 8,
             ],
             [
                 'key' => 'team',
@@ -95,7 +105,7 @@ class FeatureSeeder extends Seeder
                 'menu_label' => 'Equipo',
                 'menu_route' => '/sistemas/citas/equipo',
                 'menu_icon' => 'UsersRound',
-                'sort_order' => 8,
+                'sort_order' => 9,
             ],
             [
                 'key' => 'settings',
@@ -106,7 +116,7 @@ class FeatureSeeder extends Seeder
                 'menu_icon' => 'Settings',
                 'is_billable' => false,
                 'is_core' => true,
-                'sort_order' => 9,
+                'sort_order' => 10,
             ],
             [
                 'key' => 'profile',

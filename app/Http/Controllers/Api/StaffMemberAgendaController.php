@@ -23,9 +23,8 @@ use Carbon\Carbon;
 class StaffMemberAgendaController extends Controller
 {
     use ResolvesOrganization;
-    protected $availabilityService;
 
-    public function __construct(AppointmentAvailabilityService $availabilityService)
+    public function __construct(protected AppointmentAvailabilityService $availabilityService)
     {
         $this->availabilityService = $availabilityService;
     }
@@ -510,33 +509,77 @@ class StaffMemberAgendaController extends Controller
     {
         $this->authorizeAccess($request, $staffMember);
 
+        $branch = $request->attributes->get('branch');
+
         $validated = $request->validate([
             'start_datetime' => ['required', 'date'],
-            'end_datetime' => ['required', 'date', 'after:start'],
+            'end_datetime' => ['required', 'date', 'after:start_datetime'],
             'reason' => ['required', 'string', 'max:60'],
         ]);
 
-        $start = Carbon::parse($validated['start_datetime']);
-        $end   = Carbon::parse($validated['end_datetime']);
+        /*
+        |--------------------------------------------------------------
+        | Timezone de sucursal
+        |--------------------------------------------------------------
+        */
+        $timezone = $branch->timezone ?? config('app.timezone');
 
-        // Validaciones de Horarios
+        /*
+        |--------------------------------------------------------------
+        | Parsear como horario LOCAL de sucursal
+        |--------------------------------------------------------------
+        */
+        $start = Carbon::parse(
+            $validated['start_datetime'],
+            $timezone
+        );
+
+        $end = Carbon::parse(
+            $validated['end_datetime'],
+            $timezone
+        );
+
+        /*
+        |--------------------------------------------------------------
+        | Convertir a UTC
+        |--------------------------------------------------------------
+        */
+        $startUtc = $start->clone()->utc();
+        $endUtc = $end->clone()->utc();
+
+        /*
+        |--------------------------------------------------------------
+        | Validaciones
+        |--------------------------------------------------------------
+        */
         try {
+
             $this->availabilityService->validateOrFail(
                 $staffMember->id,
+                $branch->id,
                 $start,
                 $end
             );
         } catch (\Exception $e) {
+
             return response()->json([
                 'message' => AvailabilityErrorHelper::map($e->getMessage()),
                 'reason' => $e->getMessage()
             ], 422);
         }
 
+        /*
+        |--------------------------------------------------------------
+        | Crear bloqueo
+        |--------------------------------------------------------------
+        */
         $block = $staffMember->blockedSlots()->create([
             'organization_id' => $staffMember->organization_id,
-            'start_datetime' => $validated['start_datetime'],
-            'end_datetime' => $validated['end_datetime'],
+            'branch_id' => $branch->id,
+
+            'start_datetime' => $startUtc,
+            'end_datetime' => $endUtc,
+
             'reason' => $validated['reason'],
         ]);
 
@@ -546,29 +589,68 @@ class StaffMemberAgendaController extends Controller
         ]);
     }
 
-    public function updateBlock(Request $request, StaffMember $staffMember, BlockedSlot $block)
-    {
+    public function updateBlock(
+        Request $request,
+        StaffMember $staffMember,
+        BlockedSlot $block
+    ) {
         $this->authorizeAccess($request, $staffMember);
 
         if ($block->staff_member_id !== $staffMember->id) {
             abort(403);
         }
 
+        $branch = $request->attributes->get('branch');
+
         $validated = $request->validate([
             'start_datetime' => ['required', 'date'],
-            'end_datetime' => ['required', 'date', 'after:start'],
+            'end_datetime' => ['required', 'date', 'after:start_datetime'],
             'reason' => ['required', 'string', 'max:60'],
         ]);
 
-        $start = Carbon::parse($validated['start_datetime']);
-        $end   = Carbon::parse($validated['end_datetime']);
+        /*
+        |--------------------------------------------------------------
+        | Timezone de sucursal
+        |--------------------------------------------------------------
+        */
+        $timezone = $branch->timezone ?? config('app.timezone');
 
+        /*
+        |--------------------------------------------------------------
+        | Parsear como horario LOCAL de sucursal
+        |--------------------------------------------------------------
+        */
+        $start = Carbon::parse(
+            $validated['start_datetime'],
+            $timezone
+        );
+
+        $end = Carbon::parse(
+            $validated['end_datetime'],
+            $timezone
+        );
+
+        /*
+        |--------------------------------------------------------------
+        | Convertir a UTC
+        |--------------------------------------------------------------
+        */
+        $startUtc = $start->clone()->utc();
+        $endUtc = $end->clone()->utc();
+
+        /*
+        |--------------------------------------------------------------
+        | Validaciones
+        |--------------------------------------------------------------
+        */
         try {
+
             $this->availabilityService->validateOrFail(
                 $staffMember->id,
+                $branch->id,
                 $start,
                 $end,
-                $block->id // IGNORAR ESTE BLOQUE
+                $block->id // ignorar bloque actual
             );
         } catch (\Exception $e) {
 
@@ -578,16 +660,20 @@ class StaffMemberAgendaController extends Controller
             ], 422);
         }
 
-
+        /*
+        |--------------------------------------------------------------
+        | Actualizar bloqueo
+        |--------------------------------------------------------------
+        */
         $block->update([
-            'start_datetime' => $validated['start_datetime'],
-            'end_datetime' => $validated['end_datetime'],
+            'start_datetime' => $startUtc,
+            'end_datetime' => $endUtc,
             'reason' => $validated['reason'],
         ]);
 
         return response()->json([
             'message' => 'Bloque actualizado',
-            'data' => $block
+            'data' => $block->fresh()
         ]);
     }
 
