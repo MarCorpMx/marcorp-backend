@@ -35,6 +35,7 @@ class PuntoDeCalmaBranchesSeeder extends Seeder
                 'slug' => $organization->slug . '-cv-jiute',
             ],
             [
+                'created_by' => $organization->owner_user_id,
                 'name' => 'Sucursal Cuernavaca Jiutepec',
                 'is_active' => true,
                 'is_primary' => false,
@@ -60,6 +61,7 @@ class PuntoDeCalmaBranchesSeeder extends Seeder
                 'slug' => $organization->slug . '-cdmx',
             ],
             [
+                'created_by' => $organization->owner_user_id,
                 'name' => 'Sucursal CDMX',
                 'is_active' => true,
                 'is_primary' => false,

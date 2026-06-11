@@ -17,7 +17,7 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
 
     // 1. Validar firma
     if (! URL::hasValidSignature($request)) {
-        return redirect(config('services.citara.front_url') . '/onboarding/email-expired');
+        return redirect(config('services.rombi.front_url') . '/onboarding/email-expired');
     }
     
     // 2. Buscar usuario
@@ -25,7 +25,7 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
 
     // 3. Validar hash
     if (! hash_equals((string) $hash, sha1($user->email))) {
-        return redirect(config('services.citara.front_url') . '/onboarding/email-expired');
+        return redirect(config('services.rombi.front_url') . '/onboarding/email-expired');
     }
 
     // 4. Verificar email
@@ -49,9 +49,10 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
             type: 'auth_email_verified',
             data: [
                 'name' => $user->first_name,
-                'onboarding_url' => config('services.citara.front_url') . '/onboarding'
+                'onboarding_url' => config('services.rombi.front_url') . '/onboarding'
             ],
             organization: $organization,
+            branch: null,
             recipient: $user->email,
             recipientName: $user->first_name,
             notifiable: $user,
@@ -59,7 +60,7 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
     }
 
     // 7. Redirigir a Angular
-    return redirect(config('services.citara.front_url') . '/onboarding');
+    return redirect(config('services.rombi.front_url') . '/onboarding');
 
 })->name('verification.verify');
 

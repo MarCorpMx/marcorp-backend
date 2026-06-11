@@ -49,7 +49,12 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                     //'password'       => Hash::make(env('CLIENT_DEFAULT_PASSWORD', 'Admin@123456')),
                     'password'       => Hash::make('Admin@calma2788'),
                     'phone'          => [
-                        'personal'  => '777 351 9640',
+                        "number" => "7773519640",
+                        "internationalNumber" => "+52 777 351 9640",
+                        "nationalNumber" => "777 351 9640",
+                        "e164Number" => "+527773519640",
+                        "countryCode" => "MX",
+                        "dialCode" => "+52"
                     ],
                     'status'         => 'active',
                     'email_verified_at' => now(),
@@ -75,10 +80,10 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
 
                     'slogan' => 'La pausa que tu alma necesita',
                     'business_niche' => 'psychology',
-                    
+
                     'onboarding_step' => 'completed',
                     'onboarding_completed_at' => now(),
-                    
+
                     'email'          => 'contacto@punto-de-calma.com',
                     'phone'          => [
                         "number" => "7773519640",
@@ -90,7 +95,7 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                     ],
                     'website' => 'https://www.punto-de-calma.com',
 
-                    'country' => 'MX',
+                    'country' => 'mx',
                     'state' => 'Morelos',
                     'city' => 'Cuernavaca',
                     'zip_code' => '62253',

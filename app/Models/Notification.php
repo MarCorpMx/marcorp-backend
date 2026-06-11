@@ -8,6 +8,7 @@ class Notification extends Model
 {
     protected $fillable = [
         'organization_id',
+        'branch_id',
         'subsystem_id',
 
         // POLIMÓRFICO (no va en fillable directo)
@@ -64,6 +65,11 @@ class Notification extends Model
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function subsystem()

@@ -39,7 +39,9 @@ class DatabaseSeeder extends Seeder
             OrganizationMailSettingsSeeder::class, // Configuracion de proveedores de envio - depende de tener creadas las organizaciones 
             
             // Templates
-            CitaraMailTemplatesSeeder::class,
+            RombiMailTemplatesSeeder::class,
+            BusinessMailTemplatesSeeder::class, // Templates generales 
+            
             //GeneralMailTemplatesSeeder::class, // este es bueno (crea los templates generales)
             //PuntoDeCalmaMailTemplatesSeeder::class, // Necesita a la organizacion de Punto de Calma
 

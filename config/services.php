@@ -43,8 +43,9 @@ return [
         'front_url' => env('BOOKING_FRONT_URL'),
     ],
 
-    'citara' => [
-        'front_url' => env('CITARA_FRONT_URL'),
+    'rombi' => [
+        'front_url' => env('ROMBI_FRONT_URL'),
+        'front_principal_url' => env('ROMBI_FRONT_PRINCIPALPAGE_URL'),
     ],
 
 ];

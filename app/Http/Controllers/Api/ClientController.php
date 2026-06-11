@@ -558,16 +558,70 @@ class ClientController extends Controller
         // Evitar email´s duplicados dentro de la organización
         if (!empty($validated['email'])) {
 
-            $exists = Client::where(
+            /*$existingClient = Client::where(
                 'organization_id',
                 $organization->id
             )
                 ->where('email', $validated['email'])
-                ->exists();
+                ->exists();*/
 
-            if ($exists) {
+            $existingClientMail = Client::query()
+                ->where(
+                    'organization_id',
+                    $organization->id
+                )
+                ->where(
+                    'email',
+                    $validated['email']
+                )
+                // ->whereNull('deleted_at') // comprobar en soft deletes
+                ->first();
+
+
+            if ($existingClientMail) {
                 return response()->json([
-                    'message' => 'Ya existe un cliente con ese correo.'
+                    'message' => 'Ya existe un cliente con ese correo.',
+                    'data_existing' => 'email',
+                    'existing_client' => [
+                        'id' => $existingClientMail->id,
+                        'full_name' => $existingClientMail->full_name,
+                        'preferred_name' => $existingClientMail->preferred_name,
+                        'email' => $existingClientMail->email,
+                    ]
+
+                ], 422);
+            }
+        }
+
+        // Evitar teléfonos duplicados
+        $phone = data_get($request->phone, 'e164Number');
+
+        if ($phone) {
+            $existingClientPhone = Client::query()
+                ->where(
+                    'organization_id',
+                    $organization->id
+                )
+                ->where(
+                    'phone->e164Number',
+                    $phone
+                )
+                // ->whereNull('deleted_at') // comprobar en soft deletes
+                ->first();
+
+            if ($existingClientPhone) {
+                return response()->json([
+                    'message' =>
+                    'El teléfono ya existe y pertenece a "' .
+                        $existingClientPhone->display_name .
+                        '".',
+                    'data_existing' => 'phone',
+                    'existing_client' => [
+                        'id' => $existingClientPhone->id,
+                        'full_name' => $existingClientPhone->full_name,
+                        'preferred_name' => $existingClientPhone->preferred_name,
+                        'email' => $existingClientPhone->email,
+                    ]
                 ], 422);
             }
         }
@@ -767,13 +821,10 @@ class ClientController extends Controller
             ->where('organization_id', $organization->id)
             ->firstOrFail();
 
-        /*DB::transaction(function () use ($request, $client) {
-            $client->update([
-                'is_active' => $request->boolean('active')
-            ]);
-        });*/
+
         $client->update([
-            'is_active' => $request->boolean('active')
+            'is_active' => $request->boolean('active'),
+            'updated_by' => $request->user()?->id
         ]);
 
         return response()->json([
@@ -829,10 +880,19 @@ class ClientController extends Controller
                     ? $request->reason
                     : null,
 
+                'blocked_by' => $blocked
+                    ? $request->user()?->id
+                    : null,
+                'blocked_at' => $blocked
+                    ? now()
+                    : null,
+
                 // si se bloquea también desactivar
                 'is_active' => $blocked
                     ? false
-                    : $client->is_active
+                    : $client->is_active,
+
+                'updated_by' => $request->user()?->id
 
             ]);
         });
@@ -1230,7 +1290,8 @@ class ClientController extends Controller
         DB::transaction(function () use (
             $client,
             $validated,
-            $organization
+            $organization,
+            $request
         ) {
 
             /*
@@ -1243,6 +1304,9 @@ class ClientController extends Controller
                 $validated
             )
                 ->except('pets')
+                ->merge([
+                    'updated_by' => $request->user()?->id
+                ])
                 ->toArray();
 
             $client->update(
@@ -1364,7 +1428,8 @@ class ClientController extends Controller
 
         DB::transaction(function () use (
             $client,
-            $organization
+            $organization,
+            $request
         ) {
 
             /*
@@ -1392,6 +1457,10 @@ class ClientController extends Controller
                 $client
                     ->pets()
                     ->delete();
+
+                $client->update([
+                    'deleted_by' => $request->user()?->id
+                ]);
 
                 $client->delete();
 

@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use Illuminate\Support\Facades\Storage;
+
 class Organization extends Model
 {
     // use SoftDeletes;
@@ -91,12 +93,22 @@ class Organization extends Model
 
 
     // Constantes de variables para Onboarding
-    // if ($org->onboarding_step === Organization::ONBOARDING_SERVICE_CREATED)
     public const ONBOARDING_EMAIL_PENDING = 'email_pending';
     public const ONBOARDING_BUSINESS_SETUP = 'business_setup';
     public const ONBOARDING_SERVICE_CREATED = 'service_created';
     public const ONBOARDING_AVAILABILITY_SET = 'availability_set';
     public const ONBOARDING_COMPLETED = 'completed';
+
+    public function getLogoUrlAttribute($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        return url(
+            Storage::url($value)
+        );
+    }
 
 
     /* =====================

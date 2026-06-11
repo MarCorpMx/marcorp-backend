@@ -20,6 +20,8 @@ class Client extends Model
         'organization_id',
         'created_by',
         'updated_by',
+        'blocked_by',
+        'deleted_by',
 
         'first_name',
         'last_name',
@@ -44,6 +46,7 @@ class Client extends Model
         'is_active',
         'is_blocked',
         'blocked_reason',
+        'blocked_at',
     ];
 
     /*
@@ -64,6 +67,8 @@ class Client extends Model
 
         'is_active' => 'boolean',
         'is_blocked' => 'boolean',
+
+        'blocked_at' => 'date'
     ];
 
     /*

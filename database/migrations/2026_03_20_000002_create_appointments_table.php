@@ -40,9 +40,26 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('updated_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+
             $table->foreignId('pet_id')
                 ->nullable()
                 ->constrained('client_pets')
+                ->nullOnDelete();
+
+            // La cita pertenece a una serie recurrente.
+            $table->foreignId('appointment_series_id')
+                ->nullable()
+                ->constrained()
                 ->nullOnDelete();
 
             /*
@@ -54,6 +71,22 @@ return new class extends Migration
             $table->dateTime('end_datetime');
 
             $table->unsignedInteger('capacity_reserved')->default(1);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Citas recurrentes
+            |--------------------------------------------------------------------------
+            */
+            $table->boolean('is_exception')
+                ->default(false);
+            // Sirve cuando UNA cita fue modificada.
+            //Ejemplo:
+            //todas las sesiones son lunes 6pm
+            //pero una se movió a martes 8pm (is_exception = true)
+
+            $table->dateTime('original_start_datetime')
+                ->nullable(); // Sirve para saber cuál era la fecha original generada por la regla.
+
 
             /*
             |--------------------------------------------------------------------------
@@ -77,6 +110,18 @@ return new class extends Migration
             ])->default('pending');
 
             $table->string('rescheduled_by', 30)->nullable();
+            $table->string('rescheduled_source', 30)->nullable();
+            $table->timestamp('rescheduled_at')->nullable();
+
+
+            $table->foreignId('cancelled_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+            $table->timestamp('cancelled_at')->nullable();
+            $table->string('cancellation_source', 30)->nullable();
+            $table->text('cancellation_reason')->nullable();
+
 
             $table->enum('source', [
                 'public_web',
@@ -136,7 +181,15 @@ return new class extends Migration
             $table->string('meeting_provider')->nullable();
             $table->string('meeting_id')->nullable();
 
+            // Snapshot del branch
+            $table->json('branch_snapshot')->nullable();
+
+            // Timezone
+            $table->string('timezone')->nullable();
+
+            // TimeStamps
             $table->timestamps();
+            $table->softDeletes();
 
             /*
             |--------------------------------------------------------------------------
@@ -146,6 +199,7 @@ return new class extends Migration
             $table->index(['organization_id', 'start_datetime']);
             $table->index(['organization_id', 'branch_id']);
             $table->index(['staff_member_id', 'start_datetime', 'end_datetime']);
+            $table->index(['branch_id', 'start_datetime']);
         });
     }
 

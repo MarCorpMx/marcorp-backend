@@ -89,7 +89,8 @@ class AuthController extends Controller
             |--------------------------------------------------------------------------
             */
             $basePrefix = (string) Str::upper(Str::substr($user->first_name, 0, 3) ?: 'ORG');
-            $referencePrefix = $basePrefix . $user->id;
+            //$referencePrefix = $basePrefix . $user->id;
+            $referencePrefix = $basePrefix;
 
             // Normalizar los datos
             $firstName = trim(explode(' ', $user->first_name)[0]);
@@ -113,6 +114,7 @@ class AuthController extends Controller
             $organization = Organization::create([
                 'name' => $organizationName,
                 'slug' => $organizationSlug,
+                'email' => trim($user->email),
                 'reference_prefix' => $referencePrefix,
                 'owner_user_id' => $user->id,
                 'status' => 'active',
@@ -246,7 +248,7 @@ class AuthController extends Controller
             DB::afterCommit(function () use ($user, $organization, $subsystemCode, $verificationUrl) {
 
                 // Correo para cliente
-                $CITARA_url = config('services.citara.front_url');
+                $ROMBI_url = config('services.rombi.front_url');
 
                 $this->notificationService->trigger(
                     type: 'auth_welcome_user',
@@ -256,6 +258,7 @@ class AuthController extends Controller
                         'verification_url' => $verificationUrl
                     ],
                     organization: $organization,
+                    branch: null,
                     recipient: $user->email,
                     recipientName: $user->first_name,
                     notifiable: $user,
@@ -263,16 +266,19 @@ class AuthController extends Controller
                 );
 
                 // Correo(s) Interno(s)
+                $now = now()->timezone('America/Mexico_City');
+
                 foreach (config('mail.admin_addresses') as $adminEmail) {
                     $this->notificationService->trigger(
                         type: 'auth_user_registered_internal',
                         data: [
                             'name' => $user->first_name,
                             'email' => $user->email,
-                            'date' => now()->format('d/m/Y'),
-                            'time' => now()->format('H:i'),
+                            'date' => $now->format('d/m/Y'),
+                            'time' => $now->format('H:i'),
                         ],
                         organization: null,
+                        branch: null,
                         recipient: trim($adminEmail),
                         recipientName: 'Admin',
                     );

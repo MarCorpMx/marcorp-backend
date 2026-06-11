@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use Illuminate\Support\Facades\Storage;
+
 class BranchServiceVariant extends Model
 {
 
@@ -26,6 +28,8 @@ class BranchServiceVariant extends Model
         'mode',
         'includes_material',
 
+        'image_url',
+
         'requires_meeting_link',
         'meeting_provider',
 
@@ -43,6 +47,32 @@ class BranchServiceVariant extends Model
         'sort_order' => 'integer',
         'deleted_at' => 'datetime',
     ];
+
+    /*protected $appends = [
+        'image_full_url'
+    ];
+
+    public function getImageFullUrlAttribute(): ?string
+    {
+        if (!$this->image_url) {
+            return null;
+        }
+
+        return url(
+            Storage::url($this->image_url)
+        );
+    }*/
+
+    public function getImageUrlAttribute($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        return url(
+            Storage::url($value)
+        );
+    }
 
     public function organization()
     {

@@ -18,6 +18,12 @@ use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Services\FeatureService;
 use Illuminate\Validation\ValidationException;
 
+// Para imágenes
+use Intervention\Image\ImageManager;
+use Intervention\Image\Encoders\WebpEncoder;
+use Intervention\Image\Drivers\Gd\Driver;
+use Illuminate\Support\Facades\Storage;
+
 class ServiceController extends Controller
 {
 
@@ -32,7 +38,7 @@ class ServiceController extends Controller
         $organization = $this->getOrganization($request);
 
         if ($service->organization_id !== $organization->id) {
-            abort(403, 'Unauthorized.');
+            abort(403, 'Acceso denegado');
         }
 
         return $organization;
@@ -123,6 +129,12 @@ class ServiceController extends Controller
                     'label' => $variant->service->name . ' - ' . $variant->name,
                     'duration' => $variant->duration_minutes,
                     'price' => $variant->price,
+                    'max_capacity' => $variant->max_capacity,
+                    'mode' => $variant->mode,
+                    'includes_material' => $variant->includes_material,
+                    'requires_meeting_link' => $variant->requires_meeting_link,
+                    'meeting_provider' => $variant->meeting_provider,
+
                 ];
             })
             ->values();
@@ -135,17 +147,18 @@ class ServiceController extends Controller
     | Staff
     |--------------------------------------------------------------------------
     */
-    public function staff(Request $request, $variantId)
+    public function staff(Request $request, int $variantId)
     {
         $organization = $this->getOrganization($request);
         $branch = $request->attributes->get('branch');
 
+
         /*
-    |--------------------------------------------------------------------------
-    | Buscar variante de la sucursal actual
-    |--------------------------------------------------------------------------
-    */
-        $variant = \App\Models\BranchServiceVariant::query()
+        |--------------------------------------------------------------------------
+        | Buscar variante de la sucursal actual
+        |--------------------------------------------------------------------------
+        */
+        $variant = BranchServiceVariant::query()
             ->where('id', $variantId)
             ->where('organization_id', $organization->id)
             ->where('branch_id', $branch->id)
@@ -153,11 +166,11 @@ class ServiceController extends Controller
             ->firstOrFail();
 
         /*
-    |--------------------------------------------------------------------------
-    | Obtener staff asignado a esta variante
-    |--------------------------------------------------------------------------
-    */
-        $staff = \App\Models\BranchServiceVariantStaff::query()
+        |--------------------------------------------------------------------------
+        | Obtener staff asignado a esta variante
+        |--------------------------------------------------------------------------
+        */
+        $staff = BranchServiceVariantStaff::query()
             ->where('organization_id', $organization->id)
             ->where('branch_id', $branch->id)
             ->where('branch_service_variant_id', $variant->id)
@@ -772,8 +785,7 @@ class ServiceController extends Controller
                 |--------------------------------------------------------------------------
                 | Crear nueva variante
                 |--------------------------------------------------------------------------
-                */ 
-                else {
+                */ else {
 
                     $service->variants()->create([
 
@@ -1023,6 +1035,187 @@ class ServiceController extends Controller
                 'id' => $variant->id,
                 'active' => $variant->fresh()->active
             ]
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Subir imagen
+    |--------------------------------------------------------------------------
+    */
+    public function uploadImage(Request $request, int $variantId)
+    {
+
+        $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos
+        |----------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $request->user()->id, 'citas.services')) {
+            abort(403, 'No tienes acceso a esta acción');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Buscar variante con scope correcto
+        |----------------------------------------------------------
+        */
+        $variant = BranchServiceVariant::query()
+            ->where('id', $variantId)
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->with('service')
+            ->firstOrFail();
+
+        /*
+        |----------------------------------------------------------
+        | REGLA CLAVE
+        |----------------------------------------------------------
+        */
+        if (!$variant->service->active) {
+            return response()->json([
+                'message' => 'No puedes subir imagenes de una modalidad inactiva'
+            ], 422);
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Validación
+        |----------------------------------------------------------
+        */
+        $request->validate(
+            [
+                'image' => [
+                    'required',
+                    'image',
+                    'mimes:jpg,jpeg,png,webp',
+                    'max:5120', // 5 MB
+                ]
+            ],
+            [
+                'image.required' => 'Debes seleccionar una imagen.',
+                'image.image' => 'El archivo seleccionado no es una imagen válida.',
+                'image.mimes' => 'La imagen debe estar en formato JPG, JPEG, PNG o WEBP.',
+                'image.max' => 'La imagen no puede superar los 5 MB.',
+            ]
+        );
+
+        //organizations/{organization_id}/{branch_id}/services/variants/{variant_id}/image.webp
+
+        // Borrar imagen anterior
+        if ($variant->image_url) {
+
+            Storage::disk('public')
+                ->delete($variant->image_url);
+        }
+
+        // Crear manager
+        $manager = new ImageManager(
+            new Driver()
+        );
+
+        // Leer imagen
+        $image = $manager->decode(
+            $request->file('image')
+        );
+
+        // Reducir tamaño máximo
+        $image->scaleDown(
+            width: 1200,
+            height: 1200
+        );
+
+        // Convertir a webp
+        $encoded = $image->encode(
+            new WebpEncoder(
+                quality: 80
+            )
+        );
+
+        // Ruta
+        $path =
+            'organizations/' .
+            $organization->id . '/' .
+            $branch->id .
+            '/services/variants/' .
+            $variant->id .
+            '/image.webp';
+
+        // Guardar
+        Storage::disk('public')->put(
+            $path,
+            (string) $encoded
+        );
+
+        // Actualizar BD
+        $variant->update([
+            'image_url' => $path
+        ]);
+
+        return response()->json([
+            'message' => 'Imagen actualizada',
+            'image_url' => $variant->image_url
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Eliminar imagen
+    |--------------------------------------------------------------------------
+    */
+    public function deleteImage(Request $request, int $variantId)
+    {
+        $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos
+        |----------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $request->user()->id, 'citas.services')) {
+            abort(403, 'No tienes acceso a esta acción');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Buscar variante con scope correcto
+        |----------------------------------------------------------
+        */
+        $variant = BranchServiceVariant::query()
+            ->where('id', $variantId)
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->with('service')
+            ->firstOrFail();
+
+        /*
+        |----------------------------------------------------------
+        | REGLA CLAVE
+        |----------------------------------------------------------
+        */
+        if (!$variant->service->active) {
+            return response()->json([
+                'message' => 'No puedes eliminar imagenes de una modalidad inactiva'
+            ], 422);
+        }
+
+        $path = $variant->getRawOriginal('image_url');
+
+        if ($path) {
+
+            Storage::disk('public')->delete($path);
+
+            $variant->update([
+                'image_url' => null
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Imagen eliminada'
         ]);
     }
 }

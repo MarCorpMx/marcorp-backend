@@ -51,14 +51,14 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'subsystem' => 'citas',
                 'features' => [
                     'dashboard' => ['enabled' => true],
-                    'agenda'    => ['enabled' => true,  'limit' => 30],     // 30 citas al mes
-                    'clients'   => ['enabled' => true,  'limit' => 30],     // 30 clientes
+                    'agenda'    => ['enabled' => true,  'limit' => 5],     // 30 citas al mes
+                    'clients'   => ['enabled' => true,  'limit' => 100],     // 30 clientes
                     'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios - 3 variantes por servicio
                     'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true, 'visible' => true], // no BLOQUEADO
-                    'reminders' => ['enabled' => false, 'visible' => true], // BLOQUEADO  / 10–20 recordatorios / mes
+                    'reminders' => ['enabled' => false, 'visible' => true, 'limit' => 3], // BLOQUEADO  / 10–20 recordatorios / mes
                     'reports'   => ['enabled' => false, 'visible' => true], // Sin reportes
-                    'team'      => ['enabled' => false, 'visible' => true], // Sin equipo
+                    'team'      => ['enabled' => false, 'visible' => true, 'limit' => 1], // Sin equipo
 
                     'settings' => ['enabled' => true],
                     'profile'           => ['enabled' => true],

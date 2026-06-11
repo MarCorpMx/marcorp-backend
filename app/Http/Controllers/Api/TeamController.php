@@ -38,7 +38,7 @@ class TeamController extends Controller
 
         $user = $request->user();
 
-        // 🔥 FEATURE CHECK (plan + rol)
+        // FEATURE CHECK (plan + rol)
         if (!$this->featureService->can($organization, $user->id, 'citas.team')) {
             return response()->json([
                 'message' => 'No tienes acceso a esta funcionalidad'
@@ -516,7 +516,7 @@ class TeamController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id)
     {
         $organization = $this->getOrganization($request);
         $branch = $request->attributes->get('branch');
@@ -691,9 +691,13 @@ class TeamController extends Controller
         }
     }
 
-    public function toggleAccess(Request $request, $id)
+    public function toggleAccess(Request $request, string $id)
     {
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+        $subsystem = $request->attributes->get('subsystem');
+
+        $user = $request->user();
 
         $data = $request->validate([
             'is_active' => 'required|boolean'
@@ -711,8 +715,17 @@ class TeamController extends Controller
         }*/
 
         /*
+        |--------------------------------------------------------------------------
+        | Validamos permisos de acceso
+        |--------------------------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $user->id, 'citas.services')) {
+            abort(403, 'No tienes acceso a esta funcionalidad');
+        }
+
+        /*
         |-------------------------------------------------------
-        | 🔥 NO DESACTIVAR OWNER
+        | NO DESACTIVAR OWNER
         |-------------------------------------------------------
         */
         if (!$data['is_active']) {
@@ -731,11 +744,11 @@ class TeamController extends Controller
 
         /*
         |-------------------------------------------------------
-        | 🔥 TOGGLE GLOBAL (SIMPLE Y EFECTIVO)
+        |  TOGGLE GLOBAL (SIMPLE Y EFECTIVO)
         |-------------------------------------------------------
         */
 
-        // 🔥 1. organization_users (LOGIN CONTROL)
+        //  1. organization_users (LOGIN CONTROL)
         DB::table('organization_users')
             ->where('organization_id', $organization->id)
             ->where('user_id', $staff->user_id)
@@ -744,7 +757,7 @@ class TeamController extends Controller
                 'updated_at' => now()
             ]);
 
-        // 🔥 2. branch_user_access (ACCESO REAL)
+        //  2. branch_user_access (ACCESO REAL)
         DB::table('branch_user_access')
             ->where('organization_id', $organization->id)
             ->where('user_id', $staff->user_id)
@@ -753,15 +766,18 @@ class TeamController extends Controller
                 'updated_at' => now()
             ]);
 
-        // 🔥 3. staff_members (UI)
+        // 3. staff_members (UI)
         $staff->update([
             'is_active' => $data['is_active']
         ]);
 
         return response()->json([
-            'message' => $data['is_active']
-                ? 'Usuario activado correctamente'
-                : 'Usuario desactivado correctamente'
+            'message' => 'Estado actualizado',
+            'data' => [
+                'id' => $staff->id,
+                'is_active' => $staff->fresh()->is_active
+            ]
+
         ]);
     }
 

@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Appointment extends Model
 {
+    use SoftDeletes;
+
     const DEPOSIT_NOT_REQUIRED = 'not_required';
     const DEPOSIT_PENDING = 'pending';
     const DEPOSIT_PAID = 'paid';
@@ -24,9 +27,13 @@ class Appointment extends Model
         'staff_member_id',
         'client_id',
         'pet_id',
+        'appointment_series_id',
 
         'start_datetime',
         'end_datetime',
+
+        'is_exception',
+        'original_start_datetime',
 
         'status',
         'source',
@@ -43,16 +50,45 @@ class Appointment extends Model
         'deposit_status',
 
         'payment_status',
+
+        'capacity_reserved',
+        'timezone',
+        'rescheduled_by',
+        'meeting_url',
+        'meeting_provider',
+        'meeting_id',
+        
+        'branch_snapshot',
+
+        'created_by',
+        'updated_by',
+
+        'rescheduled_source',
+        'rescheduled_at',
+
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_source',
+        'cancellation_reason',
     ];
 
     protected $casts = [
         'start_datetime' => 'datetime',
-        'end_datetime'   => 'datetime',
+        'end_datetime' => 'datetime',
 
-        'base_price'      => 'decimal:2',
+        'original_start_datetime' => 'datetime',
+
+        'rescheduled_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+
+        'is_exception' => 'boolean',
+
+        'base_price' => 'decimal:2',
         'discount_amount' => 'decimal:2',
-        'final_price'     => 'decimal:2',
-        'deposit_amount'  => 'decimal:2',
+        'final_price' => 'decimal:2',
+        'deposit_amount' => 'decimal:2',
+
+        'branch_snapshot' => 'array',
     ];
 
     /*
@@ -60,6 +96,30 @@ class Appointment extends Model
     | Relationships
     |--------------------------------------------------------------------------
     */
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'created_by'
+        );
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'updated_by'
+        );
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'cancelled_by'
+        );
+    }
 
     public function organization(): BelongsTo
     {
@@ -69,6 +129,11 @@ class Appointment extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function series()
+    {
+        return $this->belongsTo(AppointmentSeries::class, 'appointment_series_id');
     }
 
     /*public function branchServiceVariant(): BelongsTo
@@ -85,6 +150,11 @@ class Appointment extends Model
             BranchServiceVariant::class,
             'branch_service_variant_id'
         )->withTrashed();
+    }
+
+    public function serviceVariant(): BelongsTo
+    {
+        return $this->branchServiceVariant();
     }
 
 

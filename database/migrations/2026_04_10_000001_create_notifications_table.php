@@ -20,6 +20,11 @@ return new class extends Migration
                 ->constrained()
                 ->nullOnDelete();
 
+            $table->foreignId('branch_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
             // =========================
             // SUBSYSTEM 
             // =========================
@@ -140,6 +145,9 @@ return new class extends Migration
             $table->index('organization_id');
             $table->index(['organization_id', 'type']);
             $table->index(['organization_id', 'subsystem_id']);
+
+            $table->index('branch_id');
+            $table->index(['organization_id', 'branch_id']);
 
             $table->index('status');
             $table->index('channel');

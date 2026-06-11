@@ -5,13 +5,12 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\NotificationTemplate;
 
-class CitaraMailTemplatesSeeder extends Seeder
+class RombiMailTemplatesSeeder extends Seeder
 {
     public function run(): void
     {
-        // CITARA - Templates
-
-
+        // ROMBI - Templates
+        
         /*
         |--------------------------------------------------------------------------
         | Bienvenida / Cliente
@@ -24,14 +23,14 @@ class CitaraMailTemplatesSeeder extends Seeder
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
-                'name' => 'CITARA Welcome Email',
-                'subject' => 'Bienvenido a CITARA',
+                'layout_type' => 'rombi',
+                'name' => 'ROMBI Welcome Email',
+                'subject' => 'Bienvenid@ a ROMBI',
                 'body' => '
 <h2>Hola {{name}}</h2>
 
 <p>
-    Bienvenido a CITARA
+    Bienvenid@ a ROMBI
 </p>
 
 <p>
@@ -64,7 +63,7 @@ class CitaraMailTemplatesSeeder extends Seeder
                 'body_text' => '
 Hola {{name}}
 
-Bienvenido a CITARA.
+Bienvenido a ROMBI.
 Activa tu cuenta aquí: {{verification_url}}
         ',
                 'is_active' => true,
@@ -83,11 +82,11 @@ Activa tu cuenta aquí: {{verification_url}}
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
+                'layout_type' => 'rombi',
                 'name' => 'New User Internal',
                 'subject' => 'Nuevo usuario registrado',
                 'body' => '
-<h2>Nuevo usuario en CITARA</h2>
+<h2>Nuevo usuario en ROMBI</h2>
 
 <p><strong>Nombre:</strong> {{name}}</p>
 <p><strong>Email:</strong> {{email}}</p>
@@ -122,7 +121,7 @@ Hora: {{time}}
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
+                'layout_type' => 'rombi',
                 'name' => 'Email Verified',
                 'subject' => 'Tu cuenta ya está activa',
                 'body' => '
@@ -173,14 +172,14 @@ Continúa aquí:
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
+                'layout_type' => 'rombi',
                 'name' => 'Verify Email',
                 'subject' => 'Confirma tu correo',
                 'body' => '
 <h2>Hola {{name}}</h2>
 
 <p>
-    Para desbloquear todas las funciones de CITARA necesitas confirmar tu correo.
+    Para desbloquear todas las funciones de ROMBI necesitas confirmar tu correo.
 </p>
 
 <br>
@@ -224,7 +223,7 @@ Verifica tu correo aquí:
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
+                'layout_type' => 'rombi',
                 'name' => 'Password Reset',
                 'subject' => 'Restablece tu contraseña',
                 'body' => '
@@ -273,7 +272,7 @@ Restablece tu contraseña aquí:
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
+                'layout_type' => 'rombi',
                 'name' => 'Plan Upgraded',
                 'subject' => 'Tu plan PRO ya está activo',
                 'body' => '
@@ -328,7 +327,7 @@ Accede aquí:
                 'channel' => 'email',
             ],
             [
-                'layout_type' => 'citara',
+                'layout_type' => 'rombi',
                 'name' => 'Limit Reached',
                 'subject' => 'Has alcanzado el límite de tu plan',
                 'body' => '
@@ -371,128 +370,6 @@ Actualiza aquí:
             ]
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Cita creada  / Cliente rombi -> se tiene que mejorar
-        |--------------------------------------------------------------------------
-        */
-        NotificationTemplate::updateOrCreate(
-            [
-                'organization_id' => null,
-                'type' => 'booking_created_user',
-                'channel' => 'email',
-            ],
-            [
-                'layout_type' => 'citara',
-                'name' => 'Booking Created User',
-                'subject' => 'Tu cita ha sido confirmada',
-                'body' => '
-<h2>Hola {{name}}</h2>
-
-<p>
-    Tu cita ha sido confirmada correctamente ✅
-</p>
-
-<p>
-    <strong>Servicio:</strong> {{service_name}}<br>
-    <strong>Fecha:</strong> {{date}}<br>
-    <strong>Hora:</strong> {{time}}
-</p>
-
-<br>
-
-<table cellpadding="0" cellspacing="0">
-<tr>
-<td align="center" bgcolor="#10b981" style="border-radius:6px;">
-    <a href="{{manage_url}}" target="_blank"
-        style="display:inline-block;padding:12px 20px;font-size:14px;color:#ffffff;text-decoration:none;font-weight:bold;">
-        Gestionar mi cita
-    </a>
-</td>
-</tr>
-</table>
-
-<p>
-    Puedes reprogramar o cancelar desde el enlace anterior.
-</p>
-        ',
-                'body_text' => '
-Hola {{name}}
-
-Tu cita está confirmada.
-
-Servicio: {{service_name}}
-Fecha: {{date}}
-Hora: {{time}}
-
-Gestiona aquí:
-{{manage_url}}
-        ',
-                'is_active' => true,
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Cita creada negocio  / Cliente
-        |--------------------------------------------------------------------------
-        */
-        NotificationTemplate::updateOrCreate(
-            [
-                'organization_id' => null,
-                'type' => 'booking_created_owner',
-                'channel' => 'email',
-            ],
-            [
-                'layout_type' => 'citara',
-                'name' => 'Booking Created Owner',
-                'subject' => 'Nueva cita agendada',
-                'body' => '
-<h2>Nueva cita agendada</h2>
-
-<p>
-    Se ha registrado una nueva cita en tu agenda 📅
-</p>
-
-<p>
-    <strong>Cliente:</strong> {{client_name}}<br>
-    <strong>Email:</strong> {{client_email}}<br>
-    <strong>Servicio:</strong> {{service_name}}<br>
-    <strong>Fecha:</strong> {{date}}<br>
-    <strong>Hora:</strong> {{time}}
-</p>
-
-<br>
-
-<table cellpadding="0" cellspacing="0">
-<tr>
-<td align="center" bgcolor="#10b981" style="border-radius:6px;">
-    <a href="{{dashboard_url}}" target="_blank"
-        style="display:inline-block;padding:12px 20px;font-size:14px;color:#ffffff;text-decoration:none;font-weight:bold;">
-        Ver en mi panel
-    </a>
-</td>
-</tr>
-</table>
-
-<p>
-    Revisa los detalles desde tu panel.
-</p>
-        ',
-                'body_text' => '
-Nueva cita agendada
-
-Cliente: {{client_name}}
-Email: {{client_email}}
-Servicio: {{service_name}}
-Fecha: {{date}}
-Hora: {{time}}
-
-Ver en panel:
-{{dashboard_url}}
-        ',
-                'is_active' => true,
-            ]
-        );
+        
     }
 }

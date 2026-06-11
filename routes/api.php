@@ -2,10 +2,15 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OnboardingController;
+
+use App\Http\Controllers\Api\OrganizationController;
+
 use App\Http\Controllers\Api\MeController; // rombi falta verificar funciones
 use App\Http\Controllers\Api\BranchController;
 
+use App\Http\Controllers\Api\DashboardController;
 
+use App\Http\Controllers\Api\AppointmentController;
 
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ServiceController;
@@ -155,14 +160,22 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     Route::get('/plans', [MeController::class, 'plans']);
     // GET /api/me/plans
 
+    /*
+    |--------------------------------------------------------------------------
+    | BRANCHES (Sucursales de la organización)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/dashboard', [DashboardController::class, 'DataDashboard']);
+
 
     /*
     |--------------------------------------------------------------------------
     | Organización
     |--------------------------------------------------------------------------
     */
-    Route::get('/organization', [MeController::class, 'organization']);
-    Route::put('/organization', [MeController::class, 'updateOrganization']); // rombi - onboarding
+    Route::get('/organization', [OrganizationController::class, 'organization']);
+    Route::put('/organization', [OrganizationController::class, 'updateOrganization']); // rombi - onboarding
+    Route::post('/organization/logo', [OrganizationController::class, 'uploadLogo']);
 
     /*
     |--------------------------------------------------------------------------
@@ -173,7 +186,7 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     Route::post('/branches', [BranchController::class, 'store']);
     Route::get('/branches/{branch}', [BranchController::class, 'show']);
     Route::put('/branches/{branch}', [BranchController::class, 'update']);
-    //Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
+    Route::delete('/branches/{branchId}', [BranchController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------
@@ -183,6 +196,7 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     Route::get('/team', [TeamController::class, 'index']); // rombi
     Route::post('/team', [TeamController::class, 'store']); // rombi
     Route::put('/team/{id}', [TeamController::class, 'update']); // rombi - sin uso aun
+    // Activa / Desactiva a miembro del equipo
     Route::patch('/team/{id}/toggle-access', [TeamController::class, 'toggleAccess']);
     //Route::post('/team/{id}/suspend', [TeamController::class, 'suspend']);
     //Route::post('/team/{id}/activate', [TeamController::class, 'activate']);
@@ -194,7 +208,11 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     |--------------------------------------------------------------------------
     */
     Route::get('/appointments', [\App\Http\Controllers\Api\AppointmentController::class, 'index']);
-    Route::post('/appointments', [\App\Http\Controllers\Api\AppointmentController::class, 'store']);
+
+    // Crear la cita michelle
+    Route::post('/appointments', [AppointmentController::class, 'store']);
+
+
     Route::get('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'show']);
     Route::put('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'update']);
     Route::delete('/appointments/{appointment}', [\App\Http\Controllers\Api\AppointmentController::class, 'destroy']);
@@ -211,22 +229,30 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     */
     Route::get('/services', [ServiceController::class, 'index']); // Administración
     //Route::get('/services/list', [ServiceController::class, 'list']); // select interno
-    Route::get('/service-variants/list', [ServiceController::class, 'listVariants']); // select interno
+
+    // Selector interno (Citas, Configuración Horario de Atención)
+    Route::get('/service-variants/list', [ServiceController::class, 'listVariants']);
 
     //Route::get('/my-services', [ServiceController::class, 'my-services']); // servicios del staff autenticado
-    //Route::get('/service-variants/{id}/staff', [ServiceController::class, 'staff']); // Staff por variante de servicio
+
+    // Cargar staff dependiendo de la variante seleccionada (Citas)
+    Route::get('/service-variants/{variantId}/staff', [ServiceController::class, 'staff']);
     // /public/services → web pública
 
     Route::post('/services', [ServiceController::class, 'store']);
-    Route::patch('/services/{service}/status',[ServiceController::class, 'updateStatus']);
+    Route::patch('/services/{service}/status', [ServiceController::class, 'updateStatus']);
     //Route::get('/services/{service}', [ServiceController::class, 'show']);
-    
+
     // Actualizar servicio con variantes
     Route::put('/services/{service}', [ServiceController::class, 'update']);
     //Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
 
     // Cambiar estatus de una variante de servicio
-    Route::patch('/service-variants/{variant}/status',[ServiceController::class, 'updateVariantStatus']);
+    Route::patch('/service-variants/{variant}/status', [ServiceController::class, 'updateVariantStatus']);
+    // Subir imagen
+    Route::post('/service-variants/{variant}/image', [ServiceController::class, 'uploadImage']);
+    // Eliminar imagen
+    Route::delete('/service-variants/{variant}/image', [ServiceController::class, 'deleteImage']);
 
     // v1 para Configuración - Agenda
     Route::get('/schedule-settings', [ScheduleSettingController::class, 'getSchedule']);
@@ -342,11 +368,11 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     */
     Route::get('/clients', [ClientController::class, 'index']);
     // Select interno (consultar la lista de clientes activos y no bloqueados)
-    Route::get('/clients/list', [ClientController::class, 'list']); 
+    Route::get('/clients/list', [ClientController::class, 'list']);
     // Crear cliente (con sus mascotas de ser el caso)
     Route::post('/clients', [ClientController::class, 'store']);
     // Crear cliente rápido (para módulo de citas)
-    Route::post('/clients/quick-create', [ClientController::class,'quickCreate']);
+    Route::post('/clients/quick-create', [ClientController::class, 'quickCreate']);
     // Mostrar detalle de cliente
     Route::get('/clients/{client}', [ClientController::class, 'show']);
     // Actualizar cliente

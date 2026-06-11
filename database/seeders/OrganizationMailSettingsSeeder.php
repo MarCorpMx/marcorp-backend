@@ -90,7 +90,7 @@ class OrganizationMailSettingsSeeder extends Seeder
         if ($pdc) {
 
             // 🔹 SES 
-            OrganizationMailSetting::updateOrCreate(
+            /*OrganizationMailSetting::updateOrCreate(
                 [
                     'organization_id' => $pdc->id,
                     'provider' => 'ses',
@@ -107,10 +107,10 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'is_active'    => false,
                     'priority'     => 2,
                 ]
-            );
+            );*/
 
             // 🔹 SendGrid (ACTIVO)
-            OrganizationMailSetting::updateOrCreate(
+            /*OrganizationMailSetting::updateOrCreate(
                 [
                     'organization_id' => $pdc->id,
                     'provider' => 'sendgrid',
@@ -127,7 +127,7 @@ class OrganizationMailSettingsSeeder extends Seeder
                     'is_active'    => true,
                     'priority'     => 1,
                 ]
-            );
+            );*/
 
             // 🔹 Brevo (FALLBACK)
             OrganizationMailSetting::updateOrCreate(

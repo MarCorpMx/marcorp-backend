@@ -192,8 +192,6 @@ class OnboardingController extends Controller
     private function sendVerification(User $user): void
     {
 
-        Log::info('entro a funcion para enviar correo');
-
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes(60),
@@ -211,6 +209,7 @@ class OnboardingController extends Controller
                     'verification_url' => $verificationUrl,
                 ],
                 organization: $user->organizations()->first(),
+                branch: null,
                 recipient: $user->email,
                 recipientName: $user->first_name,
                 notifiable: $user,

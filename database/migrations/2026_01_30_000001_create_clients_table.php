@@ -35,6 +35,17 @@ return new class extends Migration {
                                 ->constrained('users')
                                 ->nullOnDelete();
 
+                        $table->foreignId('blocked_by')
+                                ->nullable()
+                                ->constrained('users')
+                                ->nullOnDelete();
+
+                        $table->foreignId('deleted_by')
+                                ->nullable()
+                                ->constrained('users')
+                                ->nullOnDelete();
+
+
                         /*
                         |--------------------------------------------------------------------------
                         | Identidad principal
@@ -109,6 +120,7 @@ return new class extends Migration {
                         $table->boolean('is_active')->default(true);
                         $table->boolean('is_blocked')->default(false);
                         $table->text('blocked_reason')->nullable();
+                        $table->timestamp('blocked_at')->nullable();
 
                         /*
                        |--------------------------------------------------------------------------

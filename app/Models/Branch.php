@@ -3,23 +3,48 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+
 
 class Branch extends Model
 {
+
+    use SoftDeletes;
+
     protected $fillable = [
         'organization_id',
+        'created_by',
+        'updated_by',
+        'blocked_by',
+        'deleted_by',
+
         'name',
+        'tagline',
+        'description',
         'slug',
         'reference_prefix',
         'is_active',
         'is_primary',
         'locked_by_plan',
 
+        'is_blocked',
+        'blocked_reason',
+        'blocked_at',
+
         // contacto
         'phone',
+        'whatsapp_phone',
         'email',
         'website',
+        'social_links',
+
+        'show_phone',
+        'show_email',
+        'show_website',
+        'show_whatsapp',
+        'show_social_links',
+        'show_address',
 
         // ubicación
         'country',
@@ -27,6 +52,8 @@ class Branch extends Model
         'city',
         'zip_code',
         'address',
+        'latitude',
+        'longitude',
 
         // branding
         'theme_key',
@@ -47,14 +74,30 @@ class Branch extends Model
 
     protected $casts = [
         'phone'    => 'array',
+        'whatsapp_phone' => 'array',
+        'social_links' => 'array',
+
+        'show_phone' => 'boolean',
+        'show_email' => 'boolean',
+        'show_website' => 'boolean',
+        'show_whatsapp' => 'boolean',
+        'show_social_links' => 'boolean',
+        'show_address' => 'boolean',
+
         'domains'  => 'array',
         'metadata' => 'array',
+
+        'latitude' => 'float',
+        'longitude' => 'float',
 
         'is_active'   => 'boolean',
         'is_primary'  => 'boolean',
         'locked_by_plan'  => 'boolean',
         'white_label' => 'boolean',
         'force_https' => 'boolean',
+
+        'is_blocked' => 'boolean',
+        'blocked_at' => 'date'
     ];
 
     /*

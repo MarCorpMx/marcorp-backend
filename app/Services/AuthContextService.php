@@ -154,6 +154,7 @@ class AuthContextService
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'first_name' => $user->first_name,
                 'email' => $user->email,
                 'username' => $user->username,
                 'staff_member_id' => $user->staff?->id,
@@ -164,6 +165,8 @@ class AuthContextService
             'organization' => $organization ? [
                 'id' => $organization->id,
                 'name' => $organization->name,
+
+                'slug' => $organization->slug,
 
                 'business_niche' => $organization->business_niche,
                 'business_subniche' => $organization->business_subniche,

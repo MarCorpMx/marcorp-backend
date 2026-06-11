@@ -13,15 +13,16 @@ return new class extends Migration {
             // Identidad
             $table->string('name');
             $table->string('slug')->unique();
+            $table->string('reference_prefix', 10)->nullable();
             $table->string('type', 30)->default('client'); // root | client
             $table->boolean('is_internal')->default(false);
 
 
-            $table->string('slogan')->nullable(); 
+            $table->string('slogan')->nullable();
 
             $table->string('business_niche', 50)->nullable();
             $table->string('business_subniche', 50)->nullable();
-            
+
 
             // Dueño
             $table->foreignId('owner_user_id')
@@ -38,6 +39,33 @@ return new class extends Migration {
             // Contacto
             $table->json('phone')->nullable();
             $table->string('email')->nullable();
+
+
+            $table->string('website', 255)->nullable();
+
+            // ========================
+            // DIRECCIÓN (FISCAL)
+            // ========================
+            $table->string('country', 2)->nullable(); // mx, co
+            $table->string('state', 100)->nullable();
+            $table->string('city', 100)->nullable();
+            $table->string('zip_code', 20)->nullable();
+            $table->string('address', 255)->nullable();
+
+            // ========================
+            // 🧾 FACTURACIÓN (SAT)
+            // ========================
+            $table->string('legal_name', 255)->nullable(); // Razón social
+            $table->string('tax_id', 20)->nullable(); // RFC
+
+            $table->string('tax_regime', 10)->nullable();
+            // Ej: 601, 626, etc
+
+            $table->string('invoice_zip_code', 10)->nullable();
+            // Código postal fiscal (MUY importante para CFDI)
+
+            $table->string('cfdi_email', 150)->nullable();
+            // Email para recibir facturas
 
             // Branding
             $table->string('theme_key')->nullable();
@@ -58,6 +86,9 @@ return new class extends Migration {
             $table->json('metadata')->nullable();
 
             $table->timestamps();
+
+            // Indice
+            $table->index('reference_prefix');
         });
     }
 

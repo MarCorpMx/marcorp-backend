@@ -52,27 +52,67 @@ class BranchController extends Controller
             'data' => $branches->map(function ($branch) {
                 return [
                     'id' => $branch->id,
+
+                    // identidad
                     'name' => $branch->name,
+                    'tagline' => $branch->tagline,
+                    'description' => $branch->description,
                     'slug' => $branch->slug,
                     'reference_prefix' => $branch->reference_prefix,
 
-                    'address' => $branch->address,
-                    'city' => $branch->city,
-                    'state' => $branch->state,
-                    'country' => $branch->country,
-                    'zip_code' => $branch->zip_code,
-
-                    'phone' => $branch->phone,
-                    'email' => $branch->email,
-                    'website' => $branch->website,
-
-                    'is_active' => (bool) $branch->is_active,
+                    // estado
                     'is_primary' => (bool) $branch->is_primary,
+                    'is_active' => (bool) $branch->is_active,
                     'locked_by_plan' => (bool) $branch->locked_by_plan,
 
-                    'timezone' => $branch->timezone,
+                    'is_blocked' => (bool) $branch->is_blocked,
+                    'blocked_reason' => $branch->blocked_reason,
+                    'blocked_at' => $branch->blocked_at,
 
-                    'manager' => null, // futuro (relación)
+                    // contacto
+                    'phone' => $branch->phone,
+                    'whatsapp_phone' => $branch->whatsapp_phone,
+                    'email' => $branch->email,
+                    'website' => $branch->website,
+                    'social_links' => $branch->social_links,
+
+                    // visibilidad
+                    'show_phone' => (bool) $branch->show_phone,
+                    'show_email' => (bool) $branch->show_email,
+                    'show_website' => (bool) $branch->show_website,
+                    'show_whatsapp' => (bool) $branch->show_whatsapp,
+                    'show_social_links' => (bool) $branch->show_social_links,
+                    'show_address' => (bool) $branch->show_address,
+
+                    // ubicación
+                    'country' => $branch->country,
+                    'state' => $branch->state,
+                    'city' => $branch->city,
+                    'zip_code' => $branch->zip_code,
+                    'address' => $branch->address,
+
+                    'latitude' => $branch->latitude,
+                    'longitude' => $branch->longitude,
+
+                    // branding
+                    'theme_key' => $branch->theme_key,
+                    'primary_color' => $branch->primary_color,
+                    'secondary_color' => $branch->secondary_color,
+                    'logo_url' => $branch->logo_url,
+                    'white_label' => (bool) $branch->white_label,
+
+                    // dominio
+                    'primary_domain' => $branch->primary_domain,
+                    'domains' => $branch->domains,
+                    'force_https' => (bool) $branch->force_https,
+
+                    // configuración
+                    'timezone' => $branch->timezone,
+                    'metadata' => $branch->metadata,
+
+                    // auditoría
+                    'created_at' => $branch->created_at,
+                    'updated_at' => $branch->updated_at,
                 ];
             }),
             'meta' => [
@@ -89,6 +129,11 @@ class BranchController extends Controller
     {
         $org = $this->getOrganization($request);
         $user = $request->user();
+
+
+        return response()->json([
+            'message' => 'mensaje de prueba'
+        ], 400);
 
         /*
         |----------------------------------------------------------
@@ -287,7 +332,7 @@ class BranchController extends Controller
             abort(404);
         }
 
-        if (!$this->featureService->can($org, $request->user()->id, 'citas.branches')) {
+        if (!$this->featureService->can($org, $user->id, 'citas.branches')) {
             abort(403, 'No tienes acceso a sucursales');
         }
 
@@ -344,7 +389,8 @@ class BranchController extends Controller
             }
 
             $branch->update([
-                'is_active' => $request->boolean('is_active')
+                'is_active' => $request->boolean('is_active'),
+                'updated_by' => $user->id
             ]);
 
             return response()->json([
@@ -446,14 +492,40 @@ class BranchController extends Controller
         ]);
     }
 
-    /**
-     * DELETE /me/branches/{branch}
-     * Eliminar sucursal (soft delete en futuro)
-     */
-    public function destroy($branch)
+    /*
+    |--------------------------------------------------------------------------
+    | DESTROY
+    |--------------------------------------------------------------------------
+    */
+    public function destroy(Request $request, Branch $branchId)
     {
+
+        $organization = $this->getOrganization($request);
+        $user = $request->user();
+        $branch = $request->attributes->get('branch');
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos de acceso
+        |----------------------------------------------------------
+        */
+        if ($branch->organization_id !== $organization->id) {
+            abort(404);
+        }
+
+        if (!$this->featureService->can($organization, $user->id, 'citas.branches')) {
+            abort(403, 'No tienes acceso a este módulo');
+        }
+
+
         return response()->json([
-            'message' => 'Delete branch - not implemented yet'
+            'message' => 'FALTA IMPLEMENTACIÓN'
+        ], 400);
+
+
+        return response()->json([
+            'message' =>
+            'Sucursal eliminada correctamente'
         ]);
     }
 }

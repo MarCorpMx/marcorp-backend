@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Notification;
 use App\Models\Organization;
+use App\Models\Branch;
 use App\Services\OrganizationMailService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,8 +13,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-use App\Models\NotificationTemplate;
-use App\Services\MailLayouts\CitaraLayout;
 
 class SendNotificationJob implements ShouldQueue
 {
@@ -38,9 +37,9 @@ class SendNotificationJob implements ShouldQueue
             ? Organization::find($notification->organization_id)
             : null;
 
-        /*if (!$organization) {
-            return;
-        }*/
+        $branch = Branch::find(
+            $notification->branch_id
+        );
 
         try {
 
@@ -58,6 +57,7 @@ class SendNotificationJob implements ShouldQueue
 
             $mailService->sendTemplate(
                 $organization,
+                $branch,
                 $notification->template,
                 $notification->recipient,
                 $payload,

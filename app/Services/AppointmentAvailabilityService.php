@@ -4,151 +4,63 @@ namespace App\Services;
 
 use App\Models\Appointment;
 use App\Models\BlockedSlot;
+use App\Models\Branch;
+use App\Models\BranchServiceVariantStaff;
 use App\Models\StaffMember;
 use App\Models\StaffMemberNonWorkingDay;
 use App\Models\StaffMemberSchedule;
-use App\Models\BranchServiceVariant;
-use App\Models\BranchServiceVariantStaff;
+use App\Models\StaffRecurringBlock;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 use Exception;
 
 class AppointmentAvailabilityService
 {
+    public function __construct(
+        protected AppointmentTimezoneService $timezoneService
+    ) {}
+
     /*
     |--------------------------------------------------------------------------
-    | CHECK SIMPLE (USO PÚBLICO)
+    | CHECK SIMPLE
     |--------------------------------------------------------------------------
     */
-    public function isStaffAvailable(int $staffId, int $branchId, Carbon $start, Carbon $end): bool
-    {
-        // 0. Validar que el staff pertenece a la sucursal
-        $staff = StaffMember::find($staffId);
+    public function isStaffAvailable(
+        int $staffId,
+        int $branchId,
+        Carbon $startUtc,
+        Carbon $endUtc
+    ): bool {
 
-        if (!$staff || !$staff->belongsToBranch($branchId)) {
+        try {
+
+            $this->validateOrFail(
+                $staffId,
+                $branchId,
+                $startUtc,
+                $endUtc
+            );
+
+            return true;
+        } catch (\Throwable $e) {
+
             return false;
         }
-
-        /*
-        |----------------------------------------------------------
-        | 1. CITAS
-        |----------------------------------------------------------
-        */
-        $hasConflict = Appointment::where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->whereIn('status', ['pending', 'confirmed', 'rescheduled'])
-            ->where(function ($q) use ($start, $end) {
-                $q->where('start_datetime', '<', $end)
-                    ->where('end_datetime', '>', $start);
-            })
-            ->exists();
-
-        if ($hasConflict) return false;
-
-        /*
-        |----------------------------------------------------------
-        | 2. BLOQUEOS (GLOBAL + STAFF)
-        |----------------------------------------------------------
-        */
-        $isBlocked = BlockedSlot::where('branch_id', $branchId)
-            ->where(function ($q) use ($staffId) {
-                $q->where('staff_member_id', $staffId)
-                    ->orWhereNull('staff_member_id');
-            })
-            ->where(function ($q) use ($start, $end) {
-                $q->where('start_datetime', '<', $end)
-                    ->where('end_datetime', '>', $start);
-            })
-            ->exists();
-
-        if ($isBlocked) return false;
-
-        /*
-        |----------------------------------------------------------
-        | 3. NON WORKING DAY
-        |----------------------------------------------------------
-        */
-        $isNonWorkingDay = StaffMemberNonWorkingDay::where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->whereDate('date', $start)
-            ->exists();
-
-        if ($isNonWorkingDay) return false;
-
-        /*
-        |----------------------------------------------------------
-        | 4. SCHEDULE (MULTI BLOQUE)
-        |----------------------------------------------------------
-        */
-        $dayOfWeek = $start->dayOfWeek;
-
-        $schedules = StaffMemberSchedule::where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->where('day_of_week', $dayOfWeek)
-            ->where('is_active', true)
-            ->get();
-
-        if ($schedules->isEmpty()) return false;
-
-        $startMinutes = $start->hour * 60 + $start->minute;
-        $endMinutes   = $end->hour * 60 + $end->minute;
-
-        $withinSchedule = false;
-
-        foreach ($schedules as $schedule) {
-            $s = Carbon::parse($schedule->start_time);
-            $e = Carbon::parse($schedule->end_time);
-
-            $workStart = $s->hour * 60 + $s->minute;
-            $workEnd   = $e->hour * 60 + $e->minute;
-
-            if ($startMinutes >= $workStart && $endMinutes <= $workEnd) {
-                $withinSchedule = true;
-                break;
-            }
-        }
-
-        if (!$withinSchedule) return false;
-
-        /*
-        |----------------------------------------------------------
-        | 5. RECURRING BLOCKS
-        |----------------------------------------------------------
-        */
-        $recurring = DB::table('staff_recurring_blocks')
-            ->where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->where('day_of_week', $dayOfWeek)
-            ->get();
-
-        foreach ($recurring as $r) {
-            $rStart = Carbon::parse($r->start_time);
-            $rEnd   = Carbon::parse($r->end_time);
-
-            $rStartMin = $rStart->hour * 60 + $rStart->minute;
-            $rEndMin   = $rEnd->hour * 60 + $rEnd->minute;
-
-            if ($startMinutes < $rEndMin && $endMinutes > $rStartMin) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /*
     |--------------------------------------------------------------------------
-    | GET AVAILABLE STAFF (POR VARIANTE + SUCURSAL)
+    | GET AVAILABLE STAFF
     |--------------------------------------------------------------------------
     */
     public function getAvailableStaff(
         int $branchServiceVariantId,
         int $branchId,
-        Carbon $start,
-        Carbon $end
+        Carbon $startUtc,
+        Carbon $endUtc
     ) {
 
         $assignments = BranchServiceVariantStaff::query()
+            ->active()
             ->where('branch_service_variant_id', $branchServiceVariantId)
             ->where('branch_id', $branchId)
             ->with('staffMember')
@@ -162,8 +74,8 @@ class AppointmentAvailabilityService
                 $this->isStaffAvailable(
                     $staff->id,
                     $branchId,
-                    $start,
-                    $end
+                    $startUtc,
+                    $endUtc
                 )
             )
             ->values();
@@ -171,135 +83,329 @@ class AppointmentAvailabilityService
 
     /*
     |--------------------------------------------------------------------------
-    | VALIDACIÓN COMPLETA (LANZA ERRORES)
+    | VALIDACIÓN COMPLETA
     |--------------------------------------------------------------------------
     */
-    public function validateOrFail(int $staffId, int $branchId, Carbon $start, Carbon $end, $ignoreBlockId = null): void
-    {
-        if (!$start->isSameDay($end)) {
-            throw new Exception('multi_day_not_allowed');
-        }
+    public function validateOrFail(
+        int $staffId,
+        int $branchId,
+        Carbon $startUtc,
+        Carbon $endUtc,
+        ?int $ignoreBlockId = null,
+        bool $strictAvailability = true
+    ): void {
 
-        // pertenece a sucursal
         $staff = StaffMember::find($staffId);
 
-        if (!$staff || !$staff->belongsToBranch($branchId)) {
+        if (
+            !$staff ||
+            !$staff->belongsToBranch($branchId)
+        ) {
             throw new Exception('staff_not_in_branch');
         }
 
+        $branch = Branch::findOrFail($branchId);
+
+        $timezone =
+            $this->timezoneService
+            ->resolveBranchTimezone($branch);
 
         /*
-        |----------------------------------------------------------
-        | 1. CITAS
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | UTC -> LOCAL
+        |--------------------------------------------------------------------------
         */
-        $hasConflict = Appointment::where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->whereIn('status', ['pending', 'confirmed', 'rescheduled'])
-            ->where(function ($q) use ($start, $end) {
-                $q->where('start_datetime', '<', $end)
-                    ->where('end_datetime', '>', $start);
-            })
-            ->exists();
+        $localStart =
+            $this->timezoneService
+            ->utcToLocal(
+                $startUtc,
+                $timezone
+            );
 
-        if ($hasConflict) {
-            throw new Exception('appointment_conflict');
+        $localEnd =
+            $this->timezoneService
+            ->utcToLocal(
+                $endUtc,
+                $timezone
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | NO MULTI DAY
+        |--------------------------------------------------------------------------
+        */
+        if (
+            !$localStart->isSameDay($localEnd)
+        ) {
+            throw new Exception(
+                'multi_day_not_allowed'
+            );
         }
 
         /*
-        |----------------------------------------------------------
-        | 2. BLOQUEOS
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | 1. APPOINTMENTS
+        |--------------------------------------------------------------------------
+        |
+        | UTC vs UTC
+        |
         */
-        $isBlocked = BlockedSlot::where('branch_id', $branchId)
-            ->when($ignoreBlockId, fn($q) => $q->where('id', '!=', $ignoreBlockId))
+        $appointmentConflict =
+            Appointment::query()
+            ->where('staff_member_id', $staffId)
+            ->where('branch_id', $branchId)
+            ->whereIn('status', [
+                'pending',
+                'confirmed',
+                'rescheduled'
+            ])
+            ->where(
+                'start_datetime',
+                '<',
+                $endUtc
+            )
+            ->where(
+                'end_datetime',
+                '>',
+                $startUtc
+            )
+            ->exists();
+
+        if ($appointmentConflict) {
+            throw new Exception(
+                'appointment_conflict'
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. BLOCKED SLOTS
+        |--------------------------------------------------------------------------
+        |
+        | UTC vs UTC
+        |
+        */
+        $blocked =
+            BlockedSlot::query()
+            ->where('branch_id', $branchId)
+            ->when(
+                $ignoreBlockId,
+                fn($q) =>
+                $q->where(
+                    'id',
+                    '!=',
+                    $ignoreBlockId
+                )
+            )
             ->where(function ($q) use ($staffId) {
-                $q->where('staff_member_id', $staffId)
-                    ->orWhereNull('staff_member_id');
+
+                $q->where(
+                    'staff_member_id',
+                    $staffId
+                )
+                    ->orWhereNull(
+                        'staff_member_id'
+                    );
             })
-            ->where(function ($q) use ($start, $end) {
-                $q->where('start_datetime', '<', $end)
-                    ->where('end_datetime', '>', $start);
-            })
+            ->where(
+                'start_datetime',
+                '<',
+                $endUtc
+            )
+            ->where(
+                'end_datetime',
+                '>',
+                $startUtc
+            )
             ->exists();
 
-        if ($isBlocked) {
-            throw new Exception('manual_block_conflict');
+        if ($blocked) {
+            throw new Exception(
+                'manual_block_conflict'
+            );
         }
 
+        /************************* IMPORTANT *************************/
+        // No seguimos con validaciones si no se necesitan (admin_panel por ejemplo)
+        if (!$strictAvailability) {
+            return;
+        }
+
+
         /*
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
         | 3. NON WORKING DAY
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        |
+        | LOCAL DATE
+        |
         */
-        $isNonWorkingDay = StaffMemberNonWorkingDay::where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->whereDate('date', $start)
+        $nonWorkingDay =
+            StaffMemberNonWorkingDay::query()
+            ->where(
+                'staff_member_id',
+                $staffId
+            )
+            ->where(
+                'branch_id',
+                $branchId
+            )
+            ->whereDate(
+                'date',
+                $localStart->toDateString()
+            )
             ->exists();
 
-        if ($isNonWorkingDay) {
-            throw new Exception('non_working_day');
+        if ($nonWorkingDay) {
+            throw new Exception(
+                'non_working_day'
+            );
         }
 
         /*
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
         | 4. SCHEDULE
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        |
+        | LOCAL TIME
+        |
         */
-        $dayOfWeek = $start->dayOfWeek;
+        $dayOfWeek =
+            $localStart->dayOfWeek;
 
-        $schedules = StaffMemberSchedule::where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->where('day_of_week', $dayOfWeek)
-            ->where('is_active', true)
+        $schedules =
+            StaffMemberSchedule::query()
+            ->where(
+                'staff_member_id',
+                $staffId
+            )
+            ->where(
+                'branch_id',
+                $branchId
+            )
+            ->where(
+                'day_of_week',
+                $dayOfWeek
+            )
+            ->where(
+                'is_active',
+                true
+            )
             ->get();
 
         if ($schedules->isEmpty()) {
-            throw new Exception('no_schedule');
+            throw new Exception(
+                'no_schedule'
+            );
         }
 
-        $startMinutes = $start->hour * 60 + $start->minute;
-        $endMinutes   = $end->hour * 60 + $end->minute;
+        $startMinutes =
+            ($localStart->hour * 60)
+            + $localStart->minute;
 
-        $valid = false;
+        $endMinutes =
+            ($localEnd->hour * 60)
+            + $localEnd->minute;
+
+        $insideSchedule = false;
 
         foreach ($schedules as $schedule) {
-            $s = Carbon::parse($schedule->start_time);
-            $e = Carbon::parse($schedule->end_time);
 
-            $workStart = $s->hour * 60 + $s->minute;
-            $workEnd   = $e->hour * 60 + $e->minute;
+            $scheduleStart =
+                Carbon::createFromFormat(
+                    'H:i:s',
+                    $schedule->start_time
+                );
 
-            if ($startMinutes >= $workStart && $endMinutes <= $workEnd) {
-                $valid = true;
+            $scheduleEnd =
+                Carbon::createFromFormat(
+                    'H:i:s',
+                    $schedule->end_time
+                );
+
+            $scheduleStartMinutes =
+                ($scheduleStart->hour * 60)
+                + $scheduleStart->minute;
+
+            $scheduleEndMinutes =
+                ($scheduleEnd->hour * 60)
+                + $scheduleEnd->minute;
+
+            if (
+                $startMinutes >=
+                $scheduleStartMinutes
+                &&
+                $endMinutes <=
+                $scheduleEndMinutes
+            ) {
+                $insideSchedule = true;
                 break;
             }
         }
 
-        if (!$valid) {
-            throw new Exception('outside_working_hours');
+        if (!$insideSchedule) {
+            throw new Exception(
+                'outside_working_hours'
+            );
         }
 
         /*
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
         | 5. RECURRING BLOCKS
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        |
+        | LOCAL TIME
+        |
         */
-        $recurring = DB::table('staff_recurring_blocks')
-            ->where('staff_member_id', $staffId)
-            ->where('branch_id', $branchId)
-            ->where('day_of_week', $dayOfWeek)
+        $blocks =
+            StaffRecurringBlock::query()
+            ->where(
+                'staff_member_id',
+                $staffId
+            )
+            ->where(
+                'branch_id',
+                $branchId
+            )
+            ->where(
+                'day_of_week',
+                $dayOfWeek
+            )
             ->get();
 
-        foreach ($recurring as $r) {
-            $rStart = Carbon::parse($r->start_time);
-            $rEnd   = Carbon::parse($r->end_time);
+        foreach ($blocks as $block) {
 
-            $rStartMin = $rStart->hour * 60 + $rStart->minute;
-            $rEndMin   = $rEnd->hour * 60 + $rEnd->minute;
+            $blockStart =
+                Carbon::createFromFormat(
+                    'H:i:s',
+                    $block->start_time
+                );
 
-            if ($startMinutes < $rEndMin && $endMinutes > $rStartMin) {
-                throw new Exception('recurring_block_conflict');
+            $blockEnd =
+                Carbon::createFromFormat(
+                    'H:i:s',
+                    $block->end_time
+                );
+
+            $blockStartMinutes =
+                ($blockStart->hour * 60)
+                + $blockStart->minute;
+
+            $blockEndMinutes =
+                ($blockEnd->hour * 60)
+                + $blockEnd->minute;
+
+            if (
+                $startMinutes <
+                $blockEndMinutes
+                &&
+                $endMinutes >
+                $blockStartMinutes
+            ) {
+                throw new Exception(
+                    'recurring_block_conflict'
+                );
             }
         }
     }

@@ -57,6 +57,7 @@ class ContactMessageController extends Controller
                     'services'   => $request->services,
                 ],
                 organization: $organization,
+                branch: null,
                 //recipient: $organization->email,
                 recipient: null,
                 //recipientName: $organization->name,
@@ -86,6 +87,7 @@ class ContactMessageController extends Controller
                 $request->first_name*/
 
                 organization: $organization,
+                branch: null,
                 recipient: $request->email,
                 recipientName: $request->first_name,
                 notifiable: $contactMessage,

@@ -121,7 +121,7 @@ class FeatureSeeder extends Seeder
             [
                 'key' => 'profile',
                 'name' => 'Perfil del negocio',
-                'description' => 'Nombre comercial, dirección, contacto y branding.',
+                'description' => 'Información general de tu negocio. Se usa para administración y facturación.',
                 'menu_label' => 'Perfil del negocio',
                 'menu_route' => '/sistemas/citas/configuracion/perfil',
                 'menu_icon' => 'Building2',
@@ -133,7 +133,7 @@ class FeatureSeeder extends Seeder
             [
                 'key' => 'branches',
                 'name' => 'Sucursales',
-                'description' => 'Administra tus ubicaciones físicas o virtuales.',
+                'description' => 'Administra las ubicaciones físicas de tu negocio. ',
                 'menu_label' => 'Sucursales',
                 'menu_route' => '/sistemas/citas/configuracion/sucursales',
                 'menu_icon' => 'MapPin',
@@ -144,8 +144,8 @@ class FeatureSeeder extends Seeder
             [
                 'key' => 'schedule_config',
                 'name' => 'Horario de atención',
-                'description' => 'Define reglas generales como duración, descansos y políticas.',
-                'menu_label' => 'Horario',
+                'description' => 'Configura disponibilidad, descansos y políticas.',
+                'menu_label' => 'Horario de atención',
                 'menu_route' => '/sistemas/citas/configuracion/agenda',
                 'menu_icon' => 'Clock',
                 'parent_key' => 'settings',

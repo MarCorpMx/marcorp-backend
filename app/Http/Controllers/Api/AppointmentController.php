@@ -7,13 +7,24 @@ use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Http\Resources\AppointmentResource;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use App\Services\AppointmentService;
-use App\Services\SubsystemResolver;
+
 use App\Models\Appointment;
 use App\Models\BranchUserAccess;
+use App\Models\BranchStaff;
+use App\Models\BranchServiceVariant;
+use App\Models\BranchServiceVariantStaff;
 use App\Models\StaffMember;
+use App\Models\Client;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+use App\Http\Requests\StoreAppointmentRequest;
+
+use App\Services\AppointmentService;
+use App\Services\SubsystemResolver;
+use App\Services\FeatureService;
+use App\Services\AppointmentValidationService;
+use App\Services\AppointmentLimitService;
 
 
 class AppointmentController extends Controller
@@ -23,7 +34,10 @@ class AppointmentController extends Controller
 
     public function __construct(
         protected AppointmentService $appointmentService,
-        protected SubsystemResolver $subsystemResolver
+        protected SubsystemResolver $subsystemResolver,
+        protected FeatureService $featureService,
+        protected AppointmentValidationService $validationService,
+        protected AppointmentLimitService $appointmentLimitService
     ) {}
 
     /*
@@ -195,24 +209,61 @@ class AppointmentController extends Controller
     | Crear cita
     |--------------------------------------------------------------------------
     */
-    public function store(Request $request)
+    public function store(StoreAppointmentRequest $request)
     {
+
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+        $subsystem = $request->attributes->get('subsystem');
 
-        $validated = $request->validate([
-            'client_id' => ['required', 'exists:clients,id'],
-            'staff_member_id' => ['required', 'exists:staff_members,id'],
-            'service_variant_id' => ['required', 'exists:service_variants,id'],
-            'date' => ['required', 'date'],
-            'time' => ['required'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $user = $request->user();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Validamos permisos de acceso
+        |--------------------------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $user->id, 'citas.agenda')) {
+            abort(403, 'No tienes acceso a esta funcionalidad');
+        }
+
+        /*
+        |------------------------------------------------------------------
+        | Validar límite de citas (mensualmente)
+        |------------------------------------------------------------------
+        */
+        $limit = $this->featureService->limit(
+            $organization,
+            $user->id,
+            'citas.agenda'
+        );
+
+        $this->appointmentLimitService
+            ->validateLimitCanCreate(
+                $organization,
+                $limit
+            );
+
+
+        // Validaciones de payload
+        $validated = $request->validated();
+
+        // Validaciones cliente - staff - variant - canProvideVariant
+        $resultCreate = $this->validationService
+            ->validateAdminCreate(
+                $organization,
+                $branch,
+                $validated
+            );
 
 
         $appointment = $this->appointmentService->createAppointment(
             data: $validated,
             organization: $organization,
+            client: $resultCreate['client'],
+            pet: $resultCreate['pet'],
+            staff: $resultCreate['staff'],
+            variant: $resultCreate['variant'],
             options: [
                 'status' => 'confirmed',
                 'source' => 'admin_panel',
@@ -224,6 +275,7 @@ class AppointmentController extends Controller
                 'notify_internal' => false,
             ]
         );
+
 
         return new AppointmentResource(
             $appointment->load([

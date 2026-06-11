@@ -5,9 +5,10 @@ namespace App\Services;
 use App\Models\Notification;
 use App\Models\NotificationRule;
 use App\Models\Organization;
+use App\Models\Branch;
 use Illuminate\Support\Facades\Log;
 
-use App\Services\MailLayouts\CitaraLayout;
+
 use App\Jobs\SendNotificationJob;
 
 
@@ -22,6 +23,7 @@ class NotificationService
         string $type,
         array $data,
         ?Organization $organization, // Acepta null para envios/notificaciones de CITARA
+        ?Branch $branch = null,
         ?string $recipient,
         ?string $recipientName = null,
         $notifiable = null,
@@ -31,7 +33,12 @@ class NotificationService
 
         $rule = $this->resolveRule($type, $organization);
 
-        if (!$rule || !$rule->is_enabled) {
+        if (!$rule) {
+            throw new \RuntimeException("Notification rule '{$type}' not configured.");
+        }
+
+        if (!$rule->is_enabled) {
+            Log::info("Notification '{$type}' skipped because rule is disabled.");
             return;
         }
 
@@ -43,6 +50,9 @@ class NotificationService
 
         $notification = new Notification([
             'organization_id' => $organization?->id,
+            
+            'branch_id' => $branch?->id,
+            
             'subsystem_id'    => $subsystemId,
 
             'type'            => $type,

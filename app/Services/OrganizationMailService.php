@@ -6,9 +6,12 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use App\Models\Organization;
+use App\Models\Branch;
 use App\Models\NotificationTemplate;
-use App\Models\OrganizationMailSetting;
-use App\Services\MailLayouts\CitaraLayout;
+
+use App\Services\MailLayouts\RombiLayout;
+use App\Services\MailLayouts\BusinessLayout;
+use App\Services\MailLayouts\PdcLayout;
 
 class OrganizationMailService
 {
@@ -42,7 +45,8 @@ class OrganizationMailService
                     'password' => config('mail.mailers.smtp.password'),
                     'encryption' => config('mail.mailers.smtp.encryption'),
                     'from_address' => config('mail.from.address'),
-                    'from_name' => config('mail.from.name'),
+                    //'from_name' => config('mail.from.name'),
+                    'from_name' => null,
                 ]
             ]);
         }
@@ -53,28 +57,12 @@ class OrganizationMailService
     /**
      * Configura dinámicamente el mailer
      */
-    /*protected function configureMailer(OrganizationMailSetting $settings): void
-    {
-        if (!isset($settings->host)) {
-            throw new \Exception('Invalid mail configuration');
-        }
 
-        Config::set('mail.mailers.dynamic', [
-            'transport'  => 'smtp',
-            'host'       => $settings->host,
-            'port'       => $settings->port,
-            'encryption' => $settings->encryption,
-            'username'   => $settings->username,
-            'password'   => $settings->password,
-            'timeout'    => null,
-        ]);
-
-        Config::set('mail.from.address', $settings->from_address);
-        Config::set('mail.from.name', $settings->from_name);
-    }*/
-
-    protected function configureMailer($settings): void
-    {
+    protected function configureMailer(
+        $settings,
+        ?Organization $organization = null,
+        ?NotificationTemplate $template = null
+    ): void {
         $required = ['host', 'port', 'username', 'password'];
 
         foreach ($required as $field) {
@@ -94,7 +82,33 @@ class OrganizationMailService
         ]);
 
         Config::set('mail.from.address', $settings->from_address ?? config('mail.from.address'));
-        Config::set('mail.from.name', $settings->from_name ?? config('mail.from.name'));
+        //Config::set('mail.from.name', $settings->from_name ?? config('mail.from.name'));
+
+        $fromName = $settings->from_name ?? config('mail.from.name');
+
+        /*Log::info([
+            'provider' => $settings->provider,
+            'from_name' => $settings->from_name,
+            'layout_type' => $template?->layout_type,
+            'organization' => $organization?->name,
+        ]);*/
+
+
+        if ($settings->provider !== 'global') {
+
+            $fromName = $settings->from_name
+                ?: $organization?->name
+                ?: 'ROMBI';
+        } elseif ($template && $template->layout_type === 'rombi') {
+
+            $fromName = 'ROMBI';
+        } elseif ($template && $template->layout_type === 'business') {
+
+            $fromName = $organization?->name ?? 'ROMBI';
+        }
+
+
+        Config::set('mail.from.name', $fromName);
     }
 
     /**
@@ -140,16 +154,21 @@ class OrganizationMailService
         return $content;
     }
 
-    protected function applyLayout($template, string $body): string
-    {
+    protected function applyLayout(
+        $template,
+        string $body,
+        ?Organization $organization = null,
+        ?Branch $branch = null
+    ): string {
+
         if (empty($template->layout_type)) {
             return $body;
         }
 
         $layouts = [
-            'citara' => \App\Services\MailLayouts\CitaraLayout::class,
-            //'pdc' => \App\Services\MailLayouts\PdcLayout::class,
-            //'general' => \App\Services\MailLayouts\GeneralLayout::class,
+            'rombi' => RombiLayout::class,
+            'business' => BusinessLayout::class,
+            'pdc' => PdcLayout::class,
         ];
 
         $layoutClass = $layouts[$template->layout_type] ?? null;
@@ -158,162 +177,18 @@ class OrganizationMailService
             return $body;
         }
 
-        return $layoutClass::render($body);
+        return $layoutClass::render(
+            $body,
+            $organization,
+            $branch
+        );
     }
 
-    /**
-     * Envía correo basado en plantilla con fallback automático
-     */
-    public function sendTemplate_BKP(
-        ?Organization $organization,
-        string $type,
-        array|string|null $to = null,
-        array $variables = [],
-        bool $applyNotificationRecipients = false
-    ): void {
 
-        $isInternal = is_null($organization);
-
-        $notificationSettings = $organization->notificationSetting;
-
-        if ($applyNotificationRecipients) {
-            $to = $notificationSettings?->notification_to
-                ?? [$organization->email];
-        } else {
-            $to = $to ?? [$organization->email];
-        }
-
-        $bcc = $notificationSettings?->notification_bcc ?? [];
-        $cc  = $notificationSettings?->notification_cc ?? [];
-
-        if (empty($to)) {
-            throw new \Exception("No recipients defined for notification '{$type}'");
-        }
-
-        //$template = OrganizationMailTemplate::where(function ($query) use ($organization) {
-        $template = NotificationTemplate::where(function ($query) use ($organization) {
-            $query->where('organization_id', $organization->id)
-                ->orWhereNull('organization_id');
-        })
-            ->where('type', $type)
-            ->where('channel', 'email')
-            ->where('is_active', true)
-            ->orderByRaw('organization_id IS NULL') // prioriza el específico
-            ->first();
-
-        if (!$template) {
-            throw new \Exception("Mail template '{$type}' not found for organization {$organization->slug}.");
-        }
-
-        $subject  = $this->parseTemplate($template->subject, $variables);
-
-        //$bodyHtml = $this->parseTemplate($template->body ?? '', $variables);
-        //$bodyText = $this->parseTemplate($template->body_text ?? '', $variables) ?: strip_tags($bodyHtml);
-
-
-        // rombi implemantacion para unificar templates
-        $bodyHtml = $this->parseTemplate($template->body ?? '', $variables);
-        $bodyText = $this->parseTemplate($template->body_text ?? '', $variables) ?: strip_tags($bodyHtml);
-        $bodyHtml = $this->applyLayout($template, $bodyHtml);
-
-
-
-        $mailers = $this->getActiveMailers($organization);
-
-        if ($mailers->isEmpty()) {
-            throw new \Exception("No active mail settings found for organization {$organization->slug}.");
-        }
-
-        $lastException = null;
-
-        foreach ($mailers as $settings) {
-
-            try {
-
-                $this->configureMailer($settings);
-
-                /*$to = $to
-                    ?? $notificationSettings?->notification_to
-                    ?? [$organization->email];*/
-
-                // Normalizar SIEMPRE a array
-                $to = is_array($to) ? $to : [$to];
-                $to = array_filter($to);
-                $to = array_unique($to);
-
-                $mail = Mail::mailer('dynamic')->to($to);
-
-                if ($applyNotificationRecipients) {
-                    $cc = is_array($cc) ? $cc : [$cc];
-                    $cc = array_filter($cc);
-                    $cc = array_unique($cc);
-
-                    $bcc = is_array($bcc) ? $bcc : [$bcc];
-                    $bcc = array_filter($bcc);
-                    $bcc = array_unique($bcc);
-
-                    $mail->cc($cc);
-                    $mail->bcc($bcc);
-                }
-
-                $replyToEmail = null;
-                if ($applyNotificationRecipients && !empty($variables['email'])) {
-                    $replyToEmail = $variables['email'];
-                }
-
-                $mail->send(new class($subject, $bodyHtml, $bodyText, $replyToEmail) extends \Illuminate\Mail\Mailable {
-
-                    public $subjectLine;
-                    public $htmlContent;
-                    public $textContent;
-                    public $replyToEmail;
-
-                    public function __construct($subject, $html, $text, $replyToEmail = null)
-                    {
-                        $this->subjectLine = $subject;
-                        $this->htmlContent = $html;
-                        $this->textContent = $text;
-                        $this->replyToEmail = $replyToEmail;
-                    }
-
-                    public function build()
-                    {
-                        $this->subject($this->subjectLine)
-                            ->html($this->htmlContent)
-                            ->text('emails.raw-text', [
-                                'textContent' => $this->textContent
-                            ]);
-
-                        if (!empty($this->replyToEmail)) {
-                            $this->replyTo($this->replyToEmail);
-                        }
-                        return $this;
-                    }
-                });
-
-                // Si llega aquí, se envió correctamente
-                Log::info(
-                    "Mail sent successfully using provider '{$settings->provider}' for organization '{$organization->slug}' to: "
-                        . implode(', ', $to)
-                );
-
-                return;
-            } catch (\Exception $e) {
-
-                Log::warning("Mail failed using provider '{$settings->provider}' for organization '{$organization->slug}': " . $e->getMessage());
-
-                $lastException = $e;
-
-                // Intenta con el siguiente provider
-            }
-        }
-
-        // Si todos fallaron
-        throw $lastException ?? new \Exception("All mail providers failed for organization {$organization->slug}.");
-    }
 
     public function sendTemplate(
         ?Organization $organization,
+        ?Branch $branch,
         string $type,
         array|string|null $to = null,
         array $variables = [],
@@ -323,10 +198,10 @@ class OrganizationMailService
         $isInternal = is_null($organization);
         $orgLabel = $organization?->slug ?? 'system';
 
-        // 🔹 Notification settings (solo si hay organization)
+        // Notification settings (solo si hay organization)
         $notificationSettings = $organization?->notificationSetting;
 
-        // 🔹 Recipients
+        // Recipients
         if ($isInternal) {
             $to = is_array($to) ? $to : [$to];
         } else {
@@ -346,7 +221,7 @@ class OrganizationMailService
             throw new \Exception("No recipients defined for notification '{$type}'");
         }
 
-        // 🔹 CC / BCC (solo aplican si hay organization y flag activo)
+        // CC / BCC (solo aplican si hay organization y flag activo)
         $cc = [];
         $bcc = [];
 
@@ -363,7 +238,7 @@ class OrganizationMailService
             $bcc = array_filter($bcc);
         }
 
-        // 🔹 Template
+        // Template
         $template = NotificationTemplate::where(function ($query) use ($organization, $isInternal) {
 
             if ($isInternal) {
@@ -387,14 +262,14 @@ class OrganizationMailService
             );
         }
 
-        // 🔹 Parseo
+        // Parseo
         $subject  = $this->parseTemplate($template->subject, $variables);
 
         $bodyHtml = $this->parseTemplate($template->body ?? '', $variables);
         $bodyText = $this->parseTemplate($template->body_text ?? '', $variables) ?: strip_tags($bodyHtml);
-        $bodyHtml = $this->applyLayout($template, $bodyHtml);
+        $bodyHtml = $this->applyLayout($template, $bodyHtml, $organization, $branch);
 
-        // 🔹 Mailers
+        // Mailers
         $mailers = $isInternal
             ? collect([(object)[
                 'provider' => 'global',
@@ -423,7 +298,12 @@ class OrganizationMailService
 
             try {
 
-                $this->configureMailer($settings);
+                //$this->configureMailer($settings);
+                $this->configureMailer(
+                    $settings,
+                    $organization,
+                    $template
+                );
 
                 $mail = Mail::mailer('dynamic')->to($to);
 
