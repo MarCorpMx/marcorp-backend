@@ -22,29 +22,82 @@ class ContactMessageController extends Controller
 
     public function store(StoreContactMessageRequest $request)
     {
-        $organization = Organization::where('slug', $request->organization_slug)
+
+        // Validar que existe la organización
+        $organization = Organization::query()
+            ->where('slug', $request->organization_slug)
+            ->first();
+
+        if (!$organization) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La página de contacto no está disponible actualmente.'
+            ], 403);
+        }
+
+        // Validar que este activa
+        if (!$organization->isActive()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La página de contacto se encuentra temporalmente deshabilitada.'
+            ], 403);
+        }
+
+        // Validar que tenga contratado Web (pendiente)
+        /*$hasWebPlan = $organization->subscriptions()
+            ->whereHas('plan', function ($q) {
+                $q->where('subsystem_code', 'web');
+            })
             ->active()
-            ->firstOrFail();
+            ->exists();
+
+        if (!$hasWebPlan) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Esta organización no tiene habilitado el formulario de contacto.'
+            ], 403);
+        }*/
+
+
 
         // Guardar mensaje en DB
         $contactMessage = ContactMessage::create([
             'uuid' => Str::uuid(),
+
             'organization_id' => $organization->id,
+
             'first_name' => $request->first_name,
-            'last_name'  => $request->last_name,
-            'email'      => $request->email,
-            'subject'    => $request->subject,
-            'phone'      => $request->phone,
-            'services'   => $request->services,
-            'message'    => $request->message,
-            'status'     => 'new',
+            'last_name' => $request->last_name,
+
+            'email' => $request->email,
+
+            'business_name' => $request->business_name,
+
+            'subject' => $request->subject,
+
+            'phone' => $request->phone,
+
+            'services' => $request->services,
+
+            'custom_fields' => $request->custom_fields ?? [],
+
+            'source' => $request->source, // 'source' => 'landing'
+
+            'message' => $request->message,
+
+            'status' => 'new',
+
             'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
+            'user_agent' => substr(
+                $request->userAgent() ?? '',
+                0,
+                255
+            ),
         ]);
 
 
         // Enviar correo automático de NOTIFICACION INTERNA
-        try {
+        /*try {
             $this->notificationService->trigger(
                 'contact_internal_notification',
                 [
@@ -68,10 +121,10 @@ class ContactMessageController extends Controller
             );
         } catch (\Exception $e) {
             Log::error("Error notification internal: " . $e->getMessage());
-        }
+        }*/
 
         // Enviar correo automático de respuesta (USUARIO FINAL)
-        try {
+        /*try {
             $this->notificationService->trigger(
                 'contact_auto_reply',
                 [
@@ -82,9 +135,7 @@ class ContactMessageController extends Controller
                     'subject'    => $request->subject,
                     'services'   => $request->services,
                 ],
-                /*$organization,
-                $request->email,
-                $request->first_name*/
+                
 
                 organization: $organization,
                 branch: null,
@@ -95,7 +146,7 @@ class ContactMessageController extends Controller
             );
         } catch (\Exception $e) {
             Log::error("Error notification auto reply: " . $e->getMessage());
-        }
+        }*/
 
         $successMessage = $organization->metadata['contact_success_message']
             ?? 'Gracias por contactarnos. Te responderemos pronto.';

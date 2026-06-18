@@ -6,11 +6,14 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+use Illuminate\Support\Facades\Log;
+
 class ResolveOrganization
 {
     public function handle(Request $request, Closure $next)
     {
         $organizationId = $request->header('X-Organization-Id');
+
 
         if (!$organizationId) {
             return response()->json([

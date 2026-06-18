@@ -24,7 +24,7 @@ class OrganizationObserver
                 'name' => 'Principal',
                 //'slug' => $organization->slug . '-principal',
                 'slug' => 'principal',
-                'reference_prefix' => $organization->reference_prefix,
+                //'reference_prefix' => $organization->reference_prefix,
                 'is_active' => true,
 
                 // Herencia inteligente (solo base mínima)

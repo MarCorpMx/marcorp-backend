@@ -31,23 +31,13 @@ class OrganizationController extends Controller
      * GET /api/me/organization
      * Obtener los datos de la organización
      */
-    /*public function organization(Request $request)
-    {
-        $organization = $request->user()->currentOrganization();
-
-        return response()->json([
-            ...$organization->toArray(),
-            'logo_url' => $organization->logo_url
-                ? url(Storage::url($organization->logo_url))
-                : null,
-        ]);
-    }*/
 
     public function organization(Request $request)
     {
-        return response()->json(
-            $request->user()->currentOrganization()
-        );
+
+        $organization = $request->attributes->get('organization');
+
+        return response()->json($organization);
     }
 
     /**
@@ -58,6 +48,12 @@ class OrganizationController extends Controller
     {
 
         $organization = $this->getOrganization($request);
+        $user = $request->user();
+
+        // Normalizar website antes de validar
+        $request->merge([
+            'website' => $this->normalizeUrl($request->website)
+        ]);
 
         /*
         |----------------------------------------------------------
@@ -74,32 +70,46 @@ class OrganizationController extends Controller
         */
         if ($isOnboarding) {
 
-            $data = $request->validate([
-                'name' => ['required', 'string', 'min:3', 'max:120'],
-                'business_niche' => ['required', 'string', Rule::in([
-                    'beauty',
-                    'barbershop',
-                    'hair_salon',
-                    'nails',
-                    'medical',
-                    'psychology',
-                    'dentist',
-                    'nutrition',
-                    'therapy',
-                    'spa',
-                    'fitness',
-                    'education',
-                    'consulting',
-                    'coaching',
-                    'pet_grooming',
-                    'tattoo',
-                    'other'
-                ])],
-                'phone' => ['required', 'array'],
-                'country' => ['required', 'string', 'size:2'],
-                'state' => ['nullable', 'string', 'max:100'],
-                'city' => ['nullable', 'string', 'max:100'],
-            ]);
+            $data = $request->validate(
+                [
+                    'name' => ['required', 'string', 'min:3', 'max:120'],
+                    'business_niche' => ['required', 'string', Rule::in([
+                        'beauty',
+                        'barbershop',
+                        'hair_salon',
+                        'nails',
+                        'medical',
+                        'psychology',
+                        'dentist',
+                        'nutrition',
+                        'therapy',
+                        'spa',
+                        'fitness',
+                        'education',
+                        'consulting',
+                        'coaching',
+                        'pet_grooming',
+                        'tattoo',
+                        'other'
+                    ])],
+                    'phone' => ['required', 'array'],
+                    'country' => ['required', 'string', 'size:2'],
+                    'state' => ['nullable', 'string', 'max:100'],
+                    'city' => ['nullable', 'string', 'max:100'],
+                ],
+                [
+                    'name.required' => 'El nombre es obligatorio.',
+                    'name.min' => 'El nombre debe tener al menos 3 caracteres.',
+
+                    'business_niche.required' => 'Selecciona una categoría.',
+                    'business_niche.in' => 'Selecciona una categoría válida.',
+
+                    'phone.required' => 'El teléfono es obligatorio.',
+
+                    'country.required' => 'Selecciona un país.',
+                    'country.size' => 'Selecciona un país válido.',
+                ]
+            );
         } else {
 
             $data = $request->validate(
@@ -177,6 +187,16 @@ class OrganizationController extends Controller
                     'cfdi_email' => ['nullable', 'email', 'max:150'],
                 ],
                 [
+                    // NAME
+                    'name.required' => 'El nombre es obligatorio.',
+                    'name.min' => 'El nombre debe tener al menos 3 caracteres.',
+                    'name.max' => 'El nombre no puede superar 120 caracteres.',
+
+                    // BUSINESS NICHE
+                    'business_niche.required' => 'Selecciona el giro de tu negocio.',
+                    'business_niche.in' => 'Selecciona una categoría válida.',
+
+                    // SLUG
                     'slug.required' => 'El enlace es obligatorio.',
                     'slug.min' => 'El enlace debe tener al menos 3 caracteres.',
                     'slug.max' => 'El enlace no puede superar los 120 caracteres.',
@@ -184,11 +204,41 @@ class OrganizationController extends Controller
                     'slug.unique' => 'El enlace ya está siendo usado. Prueba con otro.',
                     'slug.alpha_dash' => 'Solo letras, números y guiones.',
 
+                    // PREFIX
                     'reference_prefix.required' => 'El prefijo es obligatorio.',
                     'reference_prefix.min' => 'Mínimo 2 caracteres.',
                     'reference_prefix.max' => 'Máximo 5 caracteres.',
                     'reference_prefix.regex' => 'Solo letras mayúsculas y números (ej: PDC).',
                     'reference_prefix.alpha_dash' => 'Solo letras, números y guiones.',
+
+                    // EMAIL
+                    'email.email' => 'Ingresa un correo válido.',
+                    'email.max' => 'El correo no puede superar 255 caracteres.',
+
+                    // WEBSITE
+                    'website.url' => 'Ingresa una URL válida.',
+                    'website.max' => 'La URL no puede superar 255 caracteres.',
+
+                    // ADDRESS
+                    'country.size' => 'Selecciona un país válido.',
+                    'state.max' => 'El estado no puede superar 100 caracteres.',
+                    'city.max' => 'La ciudad no puede superar 100 caracteres.',
+                    'zip_code.max' => 'El código postal no puede superar 20 caracteres.',
+                    'address.max' => 'La dirección no puede superar 255 caracteres.',
+
+                    // COLORS
+                    'primary_color.max' => 'Color inválido.',
+                    'secondary_color.max' => 'Color inválido.',
+
+                    // DOMAINS
+                    'primary_domain.max' => 'El dominio es demasiado largo.',
+
+                    // BILLING
+                    'legal_name.max' => 'La razón social no puede superar 255 caracteres.',
+                    'tax_id.max' => 'El RFC no puede superar 20 caracteres.',
+                    'tax_regime.max' => 'El régimen fiscal no puede superar 10 caracteres.',
+                    'invoice_zip_code.max' => 'El código postal fiscal no puede superar 10 caracteres.',
+                    'cfdi_email.email' => 'El correo fiscal no es válido.',
                 ]
             );
 
@@ -217,7 +267,15 @@ class OrganizationController extends Controller
         | UPDATE ORGANIZATION
         |----------------------------------------------------------
         */
-        $organization->update($data);
+        if ($isOnboarding) {
+            $organization->update($data);
+        } else {
+            $data['updated_by'] = $user->id;
+            $organization->update($data);
+        }
+
+        $organization->refresh();
+
 
         /*
         |----------------------------------------------------------
@@ -388,8 +446,11 @@ class OrganizationController extends Controller
 
         // Actualizar BD
         $organization->update([
-            'logo_url' => $path
+            'logo_url' => $path,
+            'updated_by' => $user->id
         ]);
+
+        $organization->refresh();
 
         return response()->json([
             'message' => 'Logo actualizado',
@@ -399,5 +460,133 @@ class OrganizationController extends Controller
             'logo_url' => $organization->logo_url
 
         ]);
+    }
+
+    // Eliminar logo
+    public function deleteLogo(Request $request)
+    {
+
+        $organization = $this->getOrganization($request);
+        $user = $request->user();
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos de acceso
+        |----------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $request->user()->id, 'citas.profile')) {
+            abort(403, 'No tienes acceso a la acción solicitada');
+        }
+
+        $role = BranchUserAccess::where('user_id', $user->id)
+            ->where('organization_id', $organization->id)
+            ->where('is_active', true)
+            ->with('role')
+            ->get()
+            ->pluck('role.key')
+            ->unique()
+            ->toArray();
+
+        $allowedRoles = ['root', 'owner'];
+
+        if (!collect($role)->intersect($allowedRoles)->isNotEmpty()) {
+            abort(403, 'No tienes permisos para realizar la acción solicitada');
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Eliminar archivo físico
+        |----------------------------------------------------------
+        */
+        if ($organization->getRawOriginal('logo_url')) {
+
+            Storage::disk('public')
+                ->delete(
+                    $organization->getRawOriginal('logo_url')
+                );
+        }
+
+        /*
+        |----------------------------------------------------------
+        | Limpiar BD
+        |----------------------------------------------------------
+        */
+        $organization->update([
+            'logo_url' => null,
+            'updated_by' => $user->id
+        ]);
+
+        $organization->refresh();
+
+        return response()->json([
+            'message' => 'Logo eliminado'
+        ]);
+    }
+
+    // Cambiar valor de bookingEnabled
+    public function bookingEnabled(Request $request)
+    {
+        $organization = $this->getOrganization($request);
+        $user = $request->user();
+
+        $request->validate(
+            [
+                'online_booking_enabled' => ['required', 'boolean']
+            ],
+            [
+                'online_booking_enabled.required' => 'No fue posible actualizar la agenda online.',
+                'online_booking_enabled.boolean' => 'El estado seleccionado para la agenda online no es válido.'
+            ]
+        );
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos de acceso
+        |----------------------------------------------------------
+        */
+        if (!$this->featureService->can($organization, $request->user()->id, 'citas.profile')) {
+            abort(403, 'No tienes acceso a la acción solicitada');
+        }
+
+        $userRoles = BranchUserAccess::where('user_id', $user->id)
+            ->where('organization_id', $organization->id)
+            ->where('is_active', true)
+            ->with('role')
+            ->get()
+            ->pluck('role.key')
+            ->unique()
+            ->toArray();
+
+        $allowedRoles = ['root', 'owner', 'admin'];
+
+        if (!collect($userRoles)->intersect($allowedRoles)->isNotEmpty()) {
+            abort(403, 'No tienes permisos para realizar la acción solicitada');
+        }
+
+
+        $organization->update([
+            'online_booking_enabled' => $request->boolean('online_booking_enabled'),
+            'updated_by' => $user->id
+        ]);
+
+        $organization->refresh();
+
+        return response()->json([
+            'data' => ['online_booking_enabled' => (bool) $organization->online_booking_enabled]
+        ]);
+    }
+
+
+    private function normalizeUrl(?string $url): ?string
+    {
+        if (blank($url)) {
+            return null;
+        }
+
+        if (!preg_match('/^https?:\/\//i', $url)) {
+            return 'https://' . $url;
+        }
+
+        return $url;
     }
 }

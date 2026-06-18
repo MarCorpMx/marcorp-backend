@@ -17,6 +17,8 @@ use Illuminate\Validation\Rule;
 use App\Http\Controllers\Concerns\ResolvesOrganization;
 use App\Services\AuthContextService;
 
+use Illuminate\Support\Facades\Log;
+
 class MeController extends Controller
 {
 
@@ -28,8 +30,9 @@ class MeController extends Controller
      */
     public function index(Request $request, AuthContextService $authContext)
     {
+
         return response()->json(
-            $authContext->build($request->user())
+            $authContext->build($request->user(), $request->header('X-Organization-Id'), $request->header('X-Subsystem-Id'))
         );
     }
 
@@ -211,5 +214,4 @@ class MeController extends Controller
             })
         );
     }
-
 }

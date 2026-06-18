@@ -17,7 +17,15 @@ return new class extends Migration
 
             $table->boolean('is_enabled')->default(false);
             $table->boolean('is_visible')->default(true);
-            $table->integer('limit_value')->nullable();
+            
+
+            $table->enum('limit_type', [
+                'none',
+                'quantity',
+                'unlimited'
+            ])->default('none');
+
+            $table->integer('limit_value')->nullable(); // Limite de servicios
 
             $table->timestamps();
 

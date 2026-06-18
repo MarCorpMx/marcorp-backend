@@ -63,14 +63,15 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | 2️⃣ Organización Punto de Calma
+            | 2 Organización Punto de Calma
             |--------------------------------------------------------------------------
             */
 
-            //{"number":"7773519640","internationalNumber":"+52 777 351 9640","nationalNumber":"777 351 9640","e164Number":"+527773519640","countryCode":"MX","dialCode":"+52"}
+            
             $organization = Organization::updateOrCreate(
                 ['slug' => 'punto-de-calma'],
                 [
+                    'created_by' => $michel->id,
                     'name'           => 'Punto de Calma',
                     'reference_prefix' => 'PDC',
                     'type'           => 'client',
@@ -127,7 +128,7 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | 3️⃣ Asociar Michelle como OWNER
+            | 3 Asociar Michelle como OWNER
             |--------------------------------------------------------------------------
             */
             OrganizationUser::firstOrCreate(
@@ -143,7 +144,7 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | 4️⃣ Configuración para mails
+            | 4 Configuración para mails
             |--------------------------------------------------------------------------
             */
             OrganizationNotificationSetting::updateOrCreate(
@@ -169,7 +170,7 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | 4️⃣ Activar Subsistema Citas
+            | 4 Activar Subsistema Citas
             |--------------------------------------------------------------------------
             */
 
@@ -197,16 +198,6 @@ class PuntoDeCalmaOrganizationSeeder extends Seeder
                     'is_paid'    => true,
                 ]
             );
-
-            // Asignar role (user → organization → subsystem → role)
-            // necesario para permisos globales
-            /*$this->assignRole(
-                $michel->id,
-                $organization->id,
-                $appointmentsSubsystem->id,
-                'owner'
-            );*/
-
 
 
             /*

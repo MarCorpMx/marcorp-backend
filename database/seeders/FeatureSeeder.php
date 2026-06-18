@@ -34,6 +34,7 @@ class FeatureSeeder extends Seeder
                 'is_billable' => false,
                 'is_core' => true,
                 'sort_order' => 1,
+                'show_in_plans' => false,
             ],
             [
                 'key' => 'agenda',
@@ -64,9 +65,9 @@ class FeatureSeeder extends Seeder
             ],
             [
                 'key' => 'booking',
-                'name' => 'Reservas online',
+                'name' => 'Agenda online',
                 'description' => 'Página pública para reservas y disponibilidad.',
-                'menu_label' => 'Reservas online',
+                'menu_label' => 'Agenda online',
                 'menu_route' => '/sistemas/citas/reservas-online',
                 'menu_icon' => 'Globe',
                 'sort_order' => 5,
@@ -117,6 +118,7 @@ class FeatureSeeder extends Seeder
                 'is_billable' => false,
                 'is_core' => true,
                 'sort_order' => 10,
+                'show_in_plans' => false,
             ],
             [
                 'key' => 'profile',
@@ -128,6 +130,7 @@ class FeatureSeeder extends Seeder
                 'parent_key' => 'settings',
                 'sort_order' => 1,
                 'is_billable' => false,
+                'show_in_plans' => false,
             ],
 
             [
@@ -151,6 +154,7 @@ class FeatureSeeder extends Seeder
                 'parent_key' => 'settings',
                 'sort_order' => 3,
                 'is_billable' => false,
+                'show_in_plans' => false,
             ],
 
             [
@@ -162,6 +166,7 @@ class FeatureSeeder extends Seeder
                 'menu_icon' => 'CreditCard',
                 'parent_key' => 'settings',
                 'sort_order' => 4,
+                'show_in_plans' => false,
             ],
 
             [
@@ -173,6 +178,7 @@ class FeatureSeeder extends Seeder
                 'menu_icon' => 'Sliders',
                 'parent_key' => 'settings',
                 'sort_order' => 5,
+                'show_in_plans' => false,
             ],
         ];
 

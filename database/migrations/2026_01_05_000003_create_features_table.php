@@ -31,6 +31,7 @@ return new class extends Migration
             // Negocio
             $table->boolean('is_billable')->default(true);
             $table->boolean('is_core')->default(false);
+            $table->boolean('show_in_plans')->default(true);
 
             $table->timestamps();
 

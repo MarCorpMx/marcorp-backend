@@ -25,12 +25,12 @@ class RombiMailTemplatesSeeder extends Seeder
             [
                 'layout_type' => 'rombi',
                 'name' => 'ROMBI Welcome Email',
-                'subject' => 'Bienvenid@ a ROMBI',
+                'subject' => 'Confirma tu correo para comenzar con ROMBI',
                 'body' => '
 <h2>Hola {{name}}</h2>
 
 <p>
-    Bienvenid@ a ROMBI
+    Ya creaste tu cuenta en <strong>ROMBI</strong>.
 </p>
 
 <p>
@@ -38,7 +38,7 @@ class RombiMailTemplatesSeeder extends Seeder
 </p>
 
 <p>
-    Para activar tu cuenta, confirma tu correo:
+    Primero necesitamos confirmar tu correo electrónico:
 </p>
 
 <br>
@@ -48,7 +48,7 @@ class RombiMailTemplatesSeeder extends Seeder
 <td align="center" bgcolor="#10b981" style="border-radius:6px;">
     <a href="{{verification_url}}" target="_blank"
         style="display:inline-block;padding:12px 20px;font-size:14px;color:#ffffff;text-decoration:none;font-weight:bold;">
-        Activar mi cuenta
+        Confirmar mi correo
     </a>
 </td>
 </tr>
@@ -63,9 +63,11 @@ class RombiMailTemplatesSeeder extends Seeder
                 'body_text' => '
 Hola {{name}}
 
-Bienvenido a ROMBI.
-Activa tu cuenta aquí: {{verification_url}}
-        ',
+Ya creaste tu cuenta en ROMBI.
+
+Confirma tu correo aquí:
+{{verification_url}}
+',
                 'is_active' => true,
             ]
         );
@@ -123,16 +125,20 @@ Hora: {{time}}
             [
                 'layout_type' => 'rombi',
                 'name' => 'Email Verified',
-                'subject' => 'Tu cuenta ya está activa',
+                'subject' => 'Tu correo fue confirmado correctamente',
                 'body' => '
 <h2>Hola {{name}}</h2>
 
 <p>
-    Tu correo ha sido confirmado correctamente.
+    Tu correo electrónico fue confirmado correctamente.
 </p>
 
 <p>
-    Ya puedes continuar configurando tu negocio y empezar a recibir citas.
+    Ahora puedes comenzar a configurar tu negocio y preparar tu agenda online.
+</p>
+
+<p>
+    Te guiaremos paso a paso para que empieces a recibir citas.
 </p>
 
 <br>
@@ -151,9 +157,10 @@ Hora: {{time}}
                 'body_text' => '
 Hola {{name}}
 
-Tu correo ha sido confirmado.
+Tu correo fue confirmado correctamente.
 
-Continúa aquí:
+Continúa configurando tu negocio aquí:
+
 {{onboarding_url}}
         ',
                 'is_active' => true,

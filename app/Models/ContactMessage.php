@@ -9,7 +9,12 @@ class ContactMessage extends Model
     protected $fillable = [
         'uuid',
         'organization_id',
-        'client_id',
+        //'client_id',
+
+        'business_name',
+        'source',
+        'custom_fields',
+
         'first_name',
         'last_name',
         'email',
@@ -23,6 +28,7 @@ class ContactMessage extends Model
     ];
 
     protected $casts = [
+        'custom_fields' => 'array',
         'phone' => 'array',
         'services' => 'array',
     ];

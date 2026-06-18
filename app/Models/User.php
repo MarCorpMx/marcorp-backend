@@ -25,8 +25,18 @@ class User extends Authenticatable implements MustVerifyEmail
         'phone',
         'address',
         'status',
-        'company',
         'subsystem_id',
+
+        // Legal
+        'accepted_terms',
+        'accepted_terms_at',
+        'accepted_terms_ip',
+        'legal_version',
+
+        // Marketing
+        'accept_marketing',
+        'accept_marketing_at',
+        'accept_marketing_ip',
     ];
 
     /**
@@ -39,6 +49,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'phone' => 'array',
         'address' => 'array',
         'last_login_at' => 'datetime',
+
+        'accepted_terms' => 'boolean',
+        'accepted_terms_at' => 'datetime',
+
+        'accept_marketing' => 'boolean',
+        'accept_marketing_at' => 'datetime',
+
     ];
 
     /**
@@ -89,9 +106,24 @@ class User extends Authenticatable implements MustVerifyEmail
             ->withTimestamps();
     }
 
-    public function currentOrganization()
+    /*public function currentOrganization()
     {
         return $this->organizations()
+            ->wherePivot('status', 'active')
+            ->first();
+    }*/
+
+    public function currentOrganization()
+    {
+        throw new \Exception(
+            'currentOrganization() is deprecated. Use middleware context.'
+        );
+    }
+
+    public function organizationById($organizationId)
+    {
+        return $this->organizations()
+            ->where('organizations.id', $organizationId)
             ->wherePivot('status', 'active')
             ->first();
     }

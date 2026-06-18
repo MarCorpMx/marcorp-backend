@@ -49,6 +49,8 @@ return new class extends Migration
             $table->enum('billing_period', ['monthly', 'yearly', 'lifetime'])
                 ->default('monthly');
 
+            $table->decimal('original_price', 10, 2)
+                ->nullable();
             $table->decimal('price', 10, 2)->default(0);
 
             /*
@@ -60,6 +62,29 @@ return new class extends Migration
 
             $table->integer('max_sales')->nullable();
             $table->integer('sales_count')->default(0);
+
+            $table->unsignedSmallInteger('trial_days')
+                ->default(0);
+
+            // Soporte
+            $table->enum('support_level', [
+                'none',
+                'standard',
+                'priority',
+                'vip'
+            ])->default('standard');
+
+            // Tipo de plan
+            $table->enum('plan_type', [
+                'regular',
+                'founder',
+                'beta',
+                'promo'
+            ])->default('regular');
+
+            // Para promociones, ofertas de lanzamiento, por temporadas
+            $table->timestamp('starts_at')->nullable();
+            $table->timestamp('ends_at')->nullable();
 
             /*
             |--------------------------------------------------------------------------

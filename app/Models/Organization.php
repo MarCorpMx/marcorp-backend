@@ -9,13 +9,17 @@ use Illuminate\Support\Facades\Storage;
 
 class Organization extends Model
 {
-    // use SoftDeletes;
+    use SoftDeletes;
 
     /* =====================
      |  Fillable
      ===================== */
 
     protected $fillable = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+
         // Identidad
         'name',
         'slug',
@@ -34,6 +38,9 @@ class Organization extends Model
 
         // Estado
         'status',
+
+        'online_booking_enabled',
+        'online_booking_disabled_message',
 
         // Onboarding
         'onboarding_step',
@@ -80,6 +87,8 @@ class Organization extends Model
      ===================== */
 
     protected $casts = [
+        'online_booking_enabled' => 'boolean',
+
         'metadata'     => 'array',
         'phone'        => 'array',
         'domains'      => 'array',
@@ -98,6 +107,17 @@ class Organization extends Model
     public const ONBOARDING_SERVICE_CREATED = 'service_created';
     public const ONBOARDING_AVAILABILITY_SET = 'availability_set';
     public const ONBOARDING_COMPLETED = 'completed';
+
+    // Variables para status
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_BLOCKED = 'blocked';
+    public const STATUS_INACTIVE = 'inactive';
+    public const STATUS_SUSPENDED = 'suspended';
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
 
     public function getLogoUrlAttribute($value): ?string
     {

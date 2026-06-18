@@ -29,6 +29,12 @@ use App\Http\Controllers\Api\NotificationController;
 
 use App\Http\Controllers\Api\ScheduleSettingController; // Verificar uso
 
+// Rutas para Booking publico
+use App\Http\Controllers\Api\PublicBooking\PublicBookingEntryController;
+
+// Publicos
+use App\Http\Controllers\Api\Public\PublicPlansController;
+
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -54,7 +60,7 @@ Route::get('/subsystems', [\App\Http\Controllers\Api\SubsystemController::class,
 
 /*
 |--------------------------------------------------------------------------
-| Mensajes de Contacto
+| Mensajes de Contacto y Planes (despues cambiar a "public")
 |--------------------------------------------------------------------------
 */
 Route::prefix('v1')->group(function () {
@@ -64,6 +70,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/contact-messages', [ContactMessageController::class, 'store'])
         ->name('api.contact-messages.store')
         ->middleware('throttle:3,1'); // 3 mensajes por minuto
+
 });
 
 /*
@@ -176,6 +183,8 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     Route::get('/organization', [OrganizationController::class, 'organization']);
     Route::put('/organization', [OrganizationController::class, 'updateOrganization']); // rombi - onboarding
     Route::post('/organization/logo', [OrganizationController::class, 'uploadLogo']);
+    Route::delete('/organization/logo', [OrganizationController::class, 'deleteLogo']);
+    Route::patch('/organization/bookingEnabled', [OrganizationController::class, 'bookingEnabled']);
 
     /*
     |--------------------------------------------------------------------------
@@ -186,6 +195,7 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     Route::post('/branches', [BranchController::class, 'store']);
     Route::get('/branches/{branch}', [BranchController::class, 'show']);
     Route::put('/branches/{branch}', [BranchController::class, 'update']);
+    Route::patch('/branches/{branchId}/status', [BranchController::class, 'updateStatus']);
     Route::delete('/branches/{branchId}', [BranchController::class, 'destroy']);
 
     /*
@@ -412,20 +422,78 @@ Route::middleware(['auth:sanctum', 'organization', 'branch', 'subsystem'])->pref
     );
 });
 
+
 /*
 |--------------------------------------------------------------------------
 | PUBLIC BOOKING (sin autenticación)
 |--------------------------------------------------------------------------
 */
+
+Route::prefix('v1/public-booking')
+    ->middleware(['throttle:60,1'])
+    ->group(function () {
+        /*
+        |--------------------------------------------------------------------------
+        | Organization booking entry
+        |--------------------------------------------------------------------------
+        */
+        Route::get(
+            '{organization:slug}',
+            [PublicBookingEntryController::class, 'organization']
+        )->missing(function () {
+            abort(404, 'La organización solicitada no existe');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Branch booking entry
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            '{organization:slug}/{branch:slug}',
+            [PublicBookingEntryController::class, 'branch']
+        )->missing(function () {
+            abort(404, 'La organización solicitada no existe');
+        });
+    });
+
+
+/**
+ * @deprecated
+ * Legacy booking API.
+ * Remove after full migration to v1/public-booking
+ */
 Route::prefix('v1/public')
     ->middleware(['throttle:60,1'])
     ->group(function () {
+
+
+        Route::get('/plans', [PublicPlansController::class, 'getPlans']);
+
+
+
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Public organization entry
+        |--------------------------------------------------------------------------
+        */
+
 
         // Organización pública
         Route::get(
             '{organization:slug}',
             [\App\Http\Controllers\Api\PublicOrganizationController::class, 'show']
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Booking engine
+        |--------------------------------------------------------------------------
+        */
+
 
         // Servicios públicos de la organización
         Route::get(
@@ -461,6 +529,13 @@ Route::prefix('v1/public')
             '{organization:slug}/appointments',
             [\App\Http\Controllers\Api\PublicBookingController::class, 'store']
         )->middleware('throttle:booking');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Appointment actions
+        |--------------------------------------------------------------------------
+        */
 
         // Confirmar/Cancelar desde mail - organización
         Route::post(

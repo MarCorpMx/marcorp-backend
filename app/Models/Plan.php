@@ -15,6 +15,7 @@ class Plan extends Model
         'name',
         'description',
         'price',
+        'original_price',
         'billing_period',
         'is_active',
         'is_visible',

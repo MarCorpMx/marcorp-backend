@@ -16,8 +16,16 @@ class DatabaseSeeder extends Seeder
             FeatureSeeder::class,
             PlanSubsystemFeatureSeeder::class,
 
-            // Usuarios + organizaciones
-            //RootUserSeeder::class, // Crea MarCorp
+            /**
+             * 
+             * Usuarios + organizaciones
+             * 
+             */
+
+            // MarCorp + Rombi + superAdmin
+            InternalOrganizationsSeeder::class,
+
+            //RootUserSeeder::class, // Crea MarCorp (Ya no la usaremos)
             
 
             // Punto de Calma (se necesitan todos los de este bloque)

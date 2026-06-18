@@ -71,6 +71,11 @@ class AuthController extends Controller
                     'password' => Hash::make(trim($request->password)),
                     'status' => 'active',
                     'email_verified' => false,
+
+                    'accepted_terms' => true,
+                    'accepted_terms_at' => now(),
+                    'accepted_terms_ip' => $request->ip(),
+                    'legal_version' => '2026-06',
                 ]);
             } catch (\Illuminate\Database\QueryException $e) {
 
@@ -112,6 +117,7 @@ class AuthController extends Controller
             }
 
             $organization = Organization::create([
+                'created_by' => $user->id,
                 'name' => $organizationName,
                 'slug' => $organizationSlug,
                 'email' => trim($user->email),

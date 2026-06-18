@@ -36,7 +36,10 @@ class StaffMemberAgendaController extends Controller
     {
         $branch = $request->attributes->get('branch');
 
+
+
         $this->authorizeAccess($request, $staffMember);
+
 
         /*
         |--------------------------------------------------------------------------
@@ -696,9 +699,34 @@ class StaffMemberAgendaController extends Controller
     private function authorizeAccess(Request $request, StaffMember $staffMember): void
     {
         $organization = $this->getOrganization($request);
+        $branch = $request->attributes->get('branch');
+        $subsystem = $request->attributes->get('subsystem');
 
-        if ($staffMember->organization_id !== $organization->id) {
+        //Log::info('DIANAData', ['sorga' => $organization->id, 'staff' => $staffMember->organization_id]);
+
+        /*if ($staffMember->organization_id !== $organization->id) {
             abort(403, 'No autorizado.');
-        }
+        }*/
+
+        $hasAccess = $request->user()
+            ->branchAccess()
+            ->where('organization_id', $organization->id)
+            ->where('is_active', true)
+            ->exists();
+
+        // Validar subsystema
+        $hasAccess = $request->user()
+            ->branchAccess()
+            ->where('organization_id', $organization->id)
+            ->where('subsystem_id', $subsystem->id)
+            ->where('is_active', true)
+            ->exists();
+
+        $hasAccess = $request->user()
+            ->branchAccess()
+            ->where('organization_id', $organization->id)
+            ->where('branch_id', $branch->id)
+            ->where('subsystem_id', $subsystem->id)
+            ->exists();
     }
 }

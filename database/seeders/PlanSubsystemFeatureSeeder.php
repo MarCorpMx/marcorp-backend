@@ -51,18 +51,18 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'subsystem' => 'citas',
                 'features' => [
                     'dashboard' => ['enabled' => true],
-                    'agenda'    => ['enabled' => true,  'limit' => 5],     // 30 citas al mes
-                    'clients'   => ['enabled' => true,  'limit' => 100],     // 30 clientes
-                    'services'  => ['enabled' => true,  'limit' => 5],      // 5 servicios - 3 variantes por servicio
+                    'agenda'    => ['enabled' => true,  'limit' => 5, 'limit_type' => 'quantity'],     // 30 citas al mes
+                    'clients'   => ['enabled' => true,  'limit' => 100, 'limit_type' => 'quantity'],     // 30 clientes
+                    'services'  => ['enabled' => true,  'limit' => 5, 'limit_type' => 'quantity'],      // 5 servicios - 3 variantes por servicio
                     'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true, 'visible' => true], // no BLOQUEADO
-                    'reminders' => ['enabled' => false, 'visible' => true, 'limit' => 3], // BLOQUEADO  / 10–20 recordatorios / mes
+                    'reminders' => ['enabled' => false, 'visible' => true, 'limit' => 3, 'limit_type' => 'quantity'], // BLOQUEADO  / 10–20 recordatorios / mes
                     'reports'   => ['enabled' => false, 'visible' => true], // Sin reportes
-                    'team'      => ['enabled' => false, 'visible' => true, 'limit' => 1], // Sin equipo
+                    'team'      => ['enabled' => false, 'visible' => true, 'limit' => 1, 'limit_type' => 'quantity'], // Sin equipo
 
                     'settings' => ['enabled' => true],
                     'profile'           => ['enabled' => true],
-                    'branches'          => ['enabled' => true, 'limit' => 1],        // 1 sucursal
+                    'branches'          => ['enabled' => true, 'limit' => 1, 'limit_type' => 'quantity'],        // 1 sucursal
                     'schedule_config'   => ['enabled' => true],
                     'payments'          => ['enabled' => false, 'visible' => true],
                     'advanced'          => ['enabled' => false, 'visible' => true, 'limit' => 0],
@@ -81,18 +81,18 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'subsystem' => 'citas',
                 'features' => [
                     'dashboard' => ['enabled' => true],
-                    'agenda'   => ['enabled' => true, 'limit' => 150],
-                    'clients'  => ['enabled' => true, 'limit' => 200],
-                    'services' => ['enabled' => true, 'limit' => 10], // 10 servicios - 10 variantes por servicio
+                    'agenda'   => ['enabled' => true, 'limit' => 250, 'limit_type' => 'quantity'], // 250
+                    'clients'  => ['enabled' => true, 'limit_type' => 'unlimited'],
+                    'services' => ['enabled' => true, 'limit' => 10, 'limit_type' => 'quantity'], // || 15 ||  10 servicios - 10 variantes por servicio
                     'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
-                    'reminders' => ['enabled' => true, 'limit' => 100],     // 100 envios por mes
+                    'reminders' => ['enabled' => true, 'limit' => 200, 'limit_type' => 'quantity'],     // 100 envios por mes
                     'reports'   => ['enabled' => false, 'visible' => true], // BLOQUEADO
-                    'team'      => ['enabled' => true, 'limit' => 2],       // 2 miembros de equipo
+                    'team'      => ['enabled' => true, 'limit' => 2, 'limit_type' => 'quantity'],       // 2 miembros de equipo
 
                     'settings' => ['enabled' => true],
                     'profile'           => ['enabled' => true],
-                    'branches'          => ['enabled' => true, 'limit' => 1],        // 1 sucursal
+                    'branches'          => ['enabled' => true, 'limit' => 1, 'limit_type' => 'quantity'],        // 1 sucursal
                     'schedule_config'   => ['enabled' => true],
                     'payments'          => ['enabled' => false, 'visible' => true],
                     'advanced'          => ['enabled' => true, 'limit' => 1],
@@ -119,18 +119,18 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'subsystem' => 'citas',
                 'features' => [
                     'dashboard' => ['enabled' => true],
-                    'agenda'    => ['enabled' => true],                 // Ilimitadas
-                    'clients'   => ['enabled' => true],                 // Ilimitados
-                    'services'  => ['enabled' => true],                 // Ilimitados
+                    'agenda'    => ['enabled' => true, 'limit_type' => 'unlimited'],                 // Ilimitadas
+                    'clients'   => ['enabled' => true, 'limit_type' => 'unlimited'],                 // Ilimitados
+                    'services'  => ['enabled' => true, 'limit_type' => 'unlimited'],                 // Ilimitados
                     'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
-                    'reminders' => ['enabled' => true, 'limit' => 1000],
+                    'reminders' => ['enabled' => true, 'limit' => 1000, 'limit_type' => 'quantity'],
                     'reports'   => ['enabled' => true],                 // Con reportes
-                    'team'      => ['enabled' => true, 'limit' => 5],   // 5 miembros
+                    'team'      => ['enabled' => true, 'limit' => 5, 'limit_type' => 'quantity'],   // 5 miembros
 
                     'settings' => ['enabled' => true],
                     'profile'           => ['enabled' => true],
-                    'branches'          => ['enabled' => true, 'limit' => 3],    // 3 sucursales
+                    'branches'          => ['enabled' => true, 'limit' => 3, 'limit_type' => 'quantity'],    // 3 sucursales
                     'schedule_config'   => ['enabled' => true],
                     'payments'          => ['enabled' => true],
                     'advanced'          => ['enabled' => true, 'limit' => 2],
@@ -158,18 +158,18 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'subsystem' => 'citas',
                 'features' => [
                     'dashboard' => ['enabled' => true],
-                    'agenda'    => ['enabled' => true],
-                    'clients'   => ['enabled' => true],
-                    'services'  => ['enabled' => true],
+                    'agenda'    => ['enabled' => true, 'limit_type' => 'unlimited'],
+                    'clients'   => ['enabled' => true, 'limit_type' => 'unlimited'],
+                    'services'  => ['enabled' => true, 'limit_type' => 'unlimited'],
                     'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
                     'reminders' => ['enabled' => true],
                     'reports'   => ['enabled' => true],
-                    'team'      => ['enabled' => true],
+                    'team'      => ['enabled' => true, 'limit' => 25, 'limit_type' => 'quantity'],
 
                     'settings' => ['enabled' => true],
                     'profile'           => ['enabled' => true],
-                    'branches'          => ['enabled' => true],
+                    'branches'          => ['enabled' => true, 'limit' => 10, 'limit_type' => 'quantity'],
                     'schedule_config'   => ['enabled' => true],
                     'payments'          => ['enabled' => true],
                     'advanced'          => ['enabled' => true, 'limit' => 3],
@@ -187,18 +187,18 @@ class PlanSubsystemFeatureSeeder extends Seeder
                 'subsystem' => 'citas',
                 'features' => [
                     'dashboard' => ['enabled' => true],
-                    'agenda'    => ['enabled' => true],
-                    'clients'   => ['enabled' => true],
-                    'services'  => ['enabled' => true],
+                    'agenda'    => ['enabled' => true, 'limit_type' => 'unlimited'],
+                    'clients'   => ['enabled' => true, 'limit_type' => 'unlimited'],
+                    'services'  => ['enabled' => true, 'limit_type' => 'unlimited'],
                     'booking'   => ['enabled' => true],
                     'schedule'  => ['enabled' => true],
-                    'reminders' => ['enabled' => true],
+                    'reminders' => ['enabled' => true, 'limit' => 2000, 'limit_type' => 'quantity'],
                     'reports'   => ['enabled' => true],
-                    'team'      => ['enabled' => true],
+                    'team'      => ['enabled' => true, 'limit' => 15, 'limit_type' => 'quantity'],
 
                     'settings' => ['enabled' => true],
                     'profile'           => ['enabled' => true],
-                    'branches'          => ['enabled' => true],
+                    'branches'          => ['enabled' => true, 'limit' => 5, 'limit_type' => 'quantity'],
                     'schedule_config'   => ['enabled' => true],
                     'payments'          => ['enabled' => true],
                     'advanced'          => ['enabled' => true, 'limit' => 3],
@@ -283,6 +283,7 @@ class PlanSubsystemFeatureSeeder extends Seeder
                         'is_enabled'  => $config['enabled'],
                         'is_visible'  => $config['visible'] ?? true,
                         'limit_value' => $config['limit'] ?? null,
+                        'limit_type' => $config['limit_type'] ?? 'none',
                     ]
                 );
             }

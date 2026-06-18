@@ -57,8 +57,9 @@ class PlanSeeder extends Seeder
                 [
                     'sort_order' => 1,
                     'key' => 'free',
-                    'name' => 'Plan Gratuito',
-                    'description' => 'Para comenzar a usar el sistema con funcionalidades básicas.',
+                    'name' => 'Prueba gratuita',
+                    'description' => 'Prueba ROMBI sin compromiso y descubre cómo automatizar tus citas en minutos.',
+                    'original_price' => 0.00,
                     'price' => 0.00,
                     'billing_period' => 'monthly',
                     'is_active' => true,
@@ -66,12 +67,20 @@ class PlanSeeder extends Seeder
                     'is_featured' => false,
                     'is_limited' => false,
                     'max_sales' => null,
+                    'support_level' => 'standard',
+                    'plan_type' => 'promo',
+                    'trial_days' => 30,
+                    /*'metadata' => [
+                        'badge' => 'trial',
+                        'trial_days' => 30
+                    ]*/
                 ],
                 [
                     'sort_order' => 2,
                     'key' => 'basic',
-                    'name' => 'Plan Básico',
-                    'description' => 'Ideal para profesionales independientes que inician.',
+                    'name' => 'Emprendedor',
+                    'description' => 'Ideal para profesionales independientes que quieren dejar atrás WhatsApp y comenzar a recibir reservas online de forma profesional.',
+                    'original_price' => 299.00,
                     'price' => 299.00,
                     'billing_period' => 'monthly',
                     'is_active' => true,
@@ -79,12 +88,15 @@ class PlanSeeder extends Seeder
                     'is_featured' => false,
                     'is_limited' => false,
                     'max_sales' => null,
+                    'support_level' => 'standard',
+                    'plan_type' => 'regular'
                 ],
                 [
                     'sort_order' => 3,
                     'key' => 'pro',
-                    'name' => 'Plan Profesional',
-                    'description' => 'Para clínicas y equipos pequeños que necesitan funciones avanzadas.',
+                    'name' => 'Profesional',
+                    'description' => 'Pensado para negocios en crecimiento que necesitan colaboradores, recordatorios automáticos y una operación más eficiente.',
+                    'original_price' => 799.00,
                     'price' => 799.00,
                     'billing_period' => 'monthly',
                     'is_active' => true,
@@ -92,39 +104,79 @@ class PlanSeeder extends Seeder
                     'is_featured' => true, // plan estrella
                     'is_limited' => false,
                     'max_sales' => null,
+                    'support_level' => 'priority',
+                    'plan_type' => 'regular'
                 ],
                 [
                     'sort_order' => 4,
                     'key' => 'premium',
-                    'name' => 'Plan Premium',
-                    'description' => 'Para clínicas establecidas con mayor volumen y necesidades avanzadas.',
-                    'price' => 1999.00,
+                    'name' => 'Empresarial',
+                    'description' => 'Para clínicas, cadenas y negocios con múltiples sucursales que requieren una solución personalizada.',
+                    'price' => 0,
                     'billing_period' => 'monthly',
                     'is_active' => true,
                     'is_visible' => true,
                     'is_featured' => false,
                     'is_limited' => false,
                     'max_sales' => null,
+                    'support_level' => 'vip',
+                    'plan_type' => 'regular',
+                    'metadata' => [
+                        'custom_pricing' => true,
+                        'contact_sales' => true
+                    ]
                 ],
                 [
                     'sort_order' => 5,
                     'key' => 'founder',
-                    'name' => 'Founder (Acceso Anticipado)',
-                    'description' => 'Acceso completo al sistema con precio preferencial congelado de por vida. Exclusivo para los primeros usuarios.',
-                    'price' => 7999, 
+                    'name' => 'Founder',
+                    'description' => 'Obtén acceso completo a ROMBI con precio congelado de por vida. Exclusivo para los primeros negocios que confíen en nosotros.',
+                    'original_price' => 9588,
+                    'price' => 7999,
                     'billing_period' => 'yearly',
                     'is_active' => true,
                     'is_visible' => true,
                     'is_featured' => false,
                     'is_limited' => true,
                     'max_sales' => 20,
+                    'support_level' => 'vip',
+                    'plan_type' => 'founder',
+                    'starts_at' => now(),
+                    'ends_at'   => now()->addMonths(3),
                     'metadata' => [
                         'badge' => 'founder',
-                        'label' => 'Acceso anticipado',
-                        'early_access' => true,
+
+                        'label' => 'Precio congelado de por vida',
+
+                        'price_locked' => true,
+
                         'priority_support' => true,
-                        'price_locked' => true
+
+                        'early_access' => true,
+
+                        'founders_club' => true,
+
+                        'original_price' => 15999,
+
+                        'discount_price' => 7999,
+
+                        'max_slots' => 50
                     ]
+                ],
+
+                [
+                    'sort_order' => 6,
+                    'key' => 'beta',
+                    'name' => 'Beta Cerrada',
+                    'description' => 'Plan beta para aliados, partners, pruebas internas, clientes VIP',
+                    'price' => 7999,
+                    'billing_period' => 'lifetime',
+                    'is_active' => false,
+                    'is_visible' => false,
+                    'is_featured' => false,
+                    'is_limited' => true,
+                    'max_sales' => 50,
+                    'metadata' => []
                 ],
             ],
 

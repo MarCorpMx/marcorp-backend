@@ -10,6 +10,26 @@ return new class extends Migration {
         Schema::create('organizations', function (Blueprint $table) {
             $table->id();
 
+            /*
+            |--------------------------------------------------------------------------
+            | Auditoría
+            |--------------------------------------------------------------------------
+            */
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('updated_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('deleted_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
             // Identidad
             $table->string('name');
             $table->string('slug')->unique();
@@ -31,6 +51,15 @@ return new class extends Migration {
 
             // Estado
             $table->string('status', 20)->default('active');
+
+            // Booking-publico
+            $table->boolean(
+                'online_booking_enabled'
+            )->default(true);
+
+            $table->string(
+                'online_booking_disabled_message'
+            )->nullable();
 
             // Onboarding
             $table->string('onboarding_step')->nullable()->default('email_pending');;
@@ -85,7 +114,9 @@ return new class extends Migration {
             // Extra flexible config
             $table->json('metadata')->nullable();
 
+            // Timestamps
             $table->timestamps();
+            $table->softDeletes();
 
             // Indice
             $table->index('reference_prefix');

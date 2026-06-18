@@ -16,6 +16,9 @@ use App\Models\BranchStaff;
 use App\Models\Role;
 use App\Models\Subsystem;
 
+use App\Http\Requests\BranchRequest;
+use App\Http\Resources\BranchResource;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -36,8 +39,6 @@ class BranchController extends Controller
     {
         $org = $this->getOrganization($request);
 
-        //dd($this->featureService->get($org, $request->user()->id, 'citas', 'branches'));
-
         if (!$this->featureService->can($org, $request->user()->id, 'citas.branches')) {
             abort(403, 'No tienes acceso a sucursales');
         }
@@ -48,75 +49,11 @@ class BranchController extends Controller
             ->orderBy('id')               // orden natural
             ->get();
 
+
         return response()->json([
-            'data' => $branches->map(function ($branch) {
-                return [
-                    'id' => $branch->id,
-
-                    // identidad
-                    'name' => $branch->name,
-                    'tagline' => $branch->tagline,
-                    'description' => $branch->description,
-                    'slug' => $branch->slug,
-                    'reference_prefix' => $branch->reference_prefix,
-
-                    // estado
-                    'is_primary' => (bool) $branch->is_primary,
-                    'is_active' => (bool) $branch->is_active,
-                    'locked_by_plan' => (bool) $branch->locked_by_plan,
-
-                    'is_blocked' => (bool) $branch->is_blocked,
-                    'blocked_reason' => $branch->blocked_reason,
-                    'blocked_at' => $branch->blocked_at,
-
-                    // contacto
-                    'phone' => $branch->phone,
-                    'whatsapp_phone' => $branch->whatsapp_phone,
-                    'email' => $branch->email,
-                    'website' => $branch->website,
-                    'social_links' => $branch->social_links,
-
-                    // visibilidad
-                    'show_phone' => (bool) $branch->show_phone,
-                    'show_email' => (bool) $branch->show_email,
-                    'show_website' => (bool) $branch->show_website,
-                    'show_whatsapp' => (bool) $branch->show_whatsapp,
-                    'show_social_links' => (bool) $branch->show_social_links,
-                    'show_address' => (bool) $branch->show_address,
-
-                    // ubicación
-                    'country' => $branch->country,
-                    'state' => $branch->state,
-                    'city' => $branch->city,
-                    'zip_code' => $branch->zip_code,
-                    'address' => $branch->address,
-
-                    'latitude' => $branch->latitude,
-                    'longitude' => $branch->longitude,
-
-                    // branding
-                    'theme_key' => $branch->theme_key,
-                    'primary_color' => $branch->primary_color,
-                    'secondary_color' => $branch->secondary_color,
-                    'logo_url' => $branch->logo_url,
-                    'white_label' => (bool) $branch->white_label,
-
-                    // dominio
-                    'primary_domain' => $branch->primary_domain,
-                    'domains' => $branch->domains,
-                    'force_https' => (bool) $branch->force_https,
-
-                    // configuración
-                    'timezone' => $branch->timezone,
-                    'metadata' => $branch->metadata,
-
-                    // auditoría
-                    'created_at' => $branch->created_at,
-                    'updated_at' => $branch->updated_at,
-                ];
-            }),
+            'data' => BranchResource::collection($branches),
             'meta' => [
-                'organization_branches_count' => Branch::where('organization_id', $org->id)->count()
+                'organization_branches_count' => $branches->count(),
             ],
         ]);
     }
@@ -125,15 +62,10 @@ class BranchController extends Controller
      * POST /me/branches
      * Crear nueva sucursal
      */
-    public function store(Request $request)
+    public function store(BranchRequest $request)
     {
         $org = $this->getOrganization($request);
         $user = $request->user();
-
-
-        return response()->json([
-            'message' => 'mensaje de prueba'
-        ], 400);
 
         /*
         |----------------------------------------------------------
@@ -145,59 +77,24 @@ class BranchController extends Controller
         }
 
         /*
-        |----------------------------------------------------------
-        | Validaciones generales
-        |----------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Obtener data validada
+        |--------------------------------------------------------------------------
         */
-        $data = $request->validate(
-            [
-                'name' => 'required|string|max:120',
+        $data = $request->validated();
 
-                'slug' => [
-                    'required',
-                    'string',
-                    'max:120',
-                    'alpha_dash',
-                    'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/',
-                    'unique:branches,slug,NULL,id,organization_id,' . $org->id
-                ],
-                'reference_prefix' => [
-                    'required',
-                    'string',
-                    'min:2',
-                    'max:5',
-                    'alpha_dash',
-                    'regex:/^(?=.*[A-Z])[A-Z0-9]+$/',
-                ],
+        $data['social_links'] = array_filter([
+            'instagram' => data_get($data, 'social_links.instagram'),
+            'facebook'  => data_get($data, 'social_links.facebook'),
+            'tiktok'    => data_get($data, 'social_links.tiktok'),
+            'youtube'   => data_get($data, 'social_links.youtube'),
+            'x'         => data_get($data, 'social_links.x'),
+        ]);
 
-                'address' => 'nullable|string|max:255',
-                'city' => 'nullable|string|max:120',
-                'state' => 'nullable|string|max:120',
-                'country' => 'nullable|string|max:120',
-                'zip_code' => 'nullable|string|max:20',
-
-                'phone' => 'nullable|array',
-                'email' => 'nullable|email|max:120',
-                'website' => 'nullable|url|max:255',
-
-                'timezone' => 'nullable|string|max:60',
-
-                'is_primary' => 'nullable|boolean',
-            ],
-            [
-                'slug.required' => 'El enlace es obligatorio.',
-                'slug.min' => 'El enlace debe tener al menos 3 caracteres.',
-                'slug.max' => 'El enlace no puede superar los 120 caracteres.',
-                'slug.regex' => 'Solo minúsculas, números y guiones (ej: punto-de-calma).',
-                'slug.unique' => 'El enlace ya está siendo usado. Prueba con otro.',
-                'slug.alpha_dash' => 'Solo letras, números y guiones.',
-
-                'reference_prefix.required' => 'El prefijo es obligatorio.',
-                'reference_prefix.min' => 'Mínimo 2 caracteres.',
-                'reference_prefix.max' => 'Máximo 5 caracteres.',
-                'reference_prefix.regex' => 'Solo letras mayúsculas y números (ej: PDC).',
-                'reference_prefix.alpha_dash' => 'Solo letras, números y guiones.',
-            ]
+        unset(
+            $data['organization_id'],
+            $data['locked_by_plan'],
+            $data['is_active']
         );
 
         /*
@@ -245,7 +142,11 @@ class BranchController extends Controller
         |----------------------------------------------------------
         */
 
-        return DB::transaction(function () use ($data, $org, $user) {
+        $subsystemId = Subsystem::where('key', 'citas')->value('id');
+
+        $ownerRoleId = Role::where('key', 'owner')->value('id');
+
+        return DB::transaction(function () use ($data, $org, $user, $subsystemId, $ownerRoleId) {
 
             // 1. Staff global
             $staff = StaffMember::firstOrCreate(
@@ -266,6 +167,8 @@ class BranchController extends Controller
                 'organization_id' => $org->id,
                 'is_active' => true,
                 'timezone' => $data['timezone'] ?? $org->timezone,
+                'created_by' => $user->id
+                //'is_primary' => $data['is_primary'] ?? false,
             ]);
 
             // Sucursal primaria única
@@ -287,19 +190,23 @@ class BranchController extends Controller
                     'organization_id' => $org->id,
                     'user_id' => $user->id,
                     'branch_id' => $branch->id,
-                    'subsystem_id' => Subsystem::where('key', 'citas')->first()->id,
+                    //'subsystem_id' => Subsystem::where('key', 'citas')->first()->id,
+                    'subsystem_id' => $subsystemId,
                 ],
                 [
-                    'role_id' => Role::where('key', 'owner')->first()->id,
+                    //'role_id' => Role::where('key', 'owner')->first()->id,
+                    'role_id' => $ownerRoleId,
                     'staff_member_id' => $staff->id,
                     'is_active' => true,
                 ]
             );
 
-            return response()->json([
-                'data' => $branch
-            ], 201);
+            return $branch;
         });
+
+        return (new BranchResource($branch))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
@@ -317,7 +224,9 @@ class BranchController extends Controller
      * PUT /me/branches/{branch}
      * Actualizar sucursal
      */
-    public function update(Request $request, Branch $branch)
+
+    // Tenemos que separar la función para activar/desactivar y usar BranchRequest $request
+    public function update(BranchRequest $request, Branch $branch)
     {
 
         $org = $this->getOrganization($request);
@@ -336,16 +245,105 @@ class BranchController extends Controller
             abort(403, 'No tienes acceso a sucursales');
         }
 
-        // Detactamos el tipo de operación ($isToggle = activar/desactivar)
-        $isToggle = $request->has('is_active') && count($request->all()) === 1;
-
-        if ($request->has('is_active') && count($request->all()) > 1) {
+        if (!$branch->is_active) {
             return response()->json([
-                'message' => 'Operación inválida'
-            ], 422);
+                'message' => 'Esta sucursal está desactivada por tu plan actual'
+            ], 403);
         }
 
+        $hasAccess = BranchUserAccess::query()
+            ->where('organization_id', $org->id)
+            ->where('user_id', $user->id)
+            ->where('branch_id', $branch->id)
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$hasAccess) {
+            abort(403, 'No tienes acceso a esta sucursal');
+        }
+
+
+        $data = $request->validated();
+
+        $data['social_links'] = array_filter([
+            'instagram' => data_get($data, 'social_links.instagram'),
+            'facebook'  => data_get($data, 'social_links.facebook'),
+            'tiktok'    => data_get($data, 'social_links.tiktok'),
+            'youtube'   => data_get($data, 'social_links.youtube'),
+            'x'         => data_get($data, 'social_links.x'),
+        ]);
+
+        $data['updated_by'] = $user->id;
+
+        // Bloquear campo críticos
+        unset(
+            $data['organization_id'],
+            $data['is_primary'],
+            $data['locked_by_plan']
+        );
+
+
+        $branch->update($data);
+
+        $branch->refresh();
+
+        return new BranchResource($branch);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cambiar Status de la sucursal
+    |--------------------------------------------------------------------------
+    */
+    public function updateStatus(Request $request, int $branchId)
+    {
+        $org = $this->getOrganization($request);
+        $currentBranch = $request->attributes->get('branch');
+        $user = $request->user();
+
+        $targetBranch = Branch::findOrFail($branchId);
+
+        /*
+        |----------------------------------------------------------
+        | Validamos permisos de acceso
+        |----------------------------------------------------------
+        */
+        if ($targetBranch->organization_id !== $org->id) {
+            abort(404);
+        }
+
+        if (!$this->featureService->can($org, $user->id, 'citas.branches')) {
+            abort(403, 'No tienes acceso a sucursales');
+        }
+
+        $hasAccess = BranchUserAccess::query()
+            ->where('organization_id', $org->id)
+            ->where('user_id', $user->id)
+            ->where('branch_id', $targetBranch->id)
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$hasAccess) {
+            abort(403, 'No tienes acceso a esta sucursal');
+        }
+
+        if (!$currentBranch->is_active) {
+            return response()->json([
+                'message' => 'Esta sucursal está desactivada por tu plan actual'
+            ], 403);
+        }
+
+        $isToggle = $request->has('is_active') && count($request->all()) === 1;
+
+
         if ($isToggle) {
+
+            // no desactivar si solo tienen una sucursal
+            if ($request->has('is_active') && count($request->all()) > 1) {
+                return response()->json([
+                    'message' => 'Operación inválida'
+                ], 422);
+            }
 
             if ($request->boolean('is_active')) {
 
@@ -356,7 +354,7 @@ class BranchController extends Controller
                     ->count();
 
                 // BLOQUEADA POR PLAN
-                if ($branch->locked_by_plan) {
+                if ($targetBranch->locked_by_plan) {
                     return response()->json([
                         'message' => 'Esta sucursal está bloqueada por tu plan actual',
                         'meta' => [
@@ -366,10 +364,9 @@ class BranchController extends Controller
                 }
 
 
-
                 if (!is_null($limit)) {
 
-                    if (!$branch->is_active && $activeCount >= $limit) {
+                    if (!$targetBranch->is_active && $activeCount >= $limit) {
                         return response()->json([
                             'message' => 'Has alcanzado el límite de sucursales activas de tu plan',
                             'meta' => [
@@ -382,114 +379,21 @@ class BranchController extends Controller
             }
 
             // No permitir desactivar primaria
-            if ($branch->is_primary && !$request->boolean('is_active')) {
+            if ($targetBranch->is_primary && !$request->boolean('is_active')) {
                 return response()->json([
                     'message' => 'No puedes desactivar la sucursal principal'
                 ], 422);
             }
 
-            $branch->update([
+            $targetBranch->update([
                 'is_active' => $request->boolean('is_active'),
                 'updated_by' => $user->id
             ]);
 
             return response()->json([
-                'data' => ['is_active' => (bool) $branch->is_active]
+                'data' => ['is_active' => (bool) $targetBranch->is_active]
             ]);
         }
-
-        if (!$branch->is_active) {
-            return response()->json([
-                'message' => 'Esta sucursal está desactivada por tu plan actual'
-            ], 403);
-        }
-
-        $data = $request->validate(
-            [
-                'name' => 'required|string|max:120',
-
-                'slug' => [
-                    'required',
-                    'string',
-                    'max:120',
-                    'alpha_dash',
-                    'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/',
-                    'unique:branches,slug,' . $branch->id . ',id,organization_id,' . $org->id
-                ],
-                'reference_prefix' => [
-                    'required',
-                    'string',
-                    'min:2',
-                    'max:5',
-                    'alpha_dash',
-                    'regex:/^(?=.*[A-Z])[A-Z0-9]+$/',
-                ],
-
-                'address' => 'nullable|string|max:255',
-                'city' => 'nullable|string|max:120',
-                'state' => 'nullable|string|max:120',
-                'country' => 'nullable|string|max:120',
-                'zip_code' => 'nullable|string|max:20',
-
-                'phone' => 'nullable|array',
-                'email' => 'nullable|email|max:120',
-                'website' => 'nullable|url|max:255',
-
-                'timezone' => 'nullable|string|max:60',
-
-            ],
-            [
-                'slug.required' => 'El enlace es obligatorio.',
-                'slug.min' => 'El enlace debe tener al menos 3 caracteres.',
-                'slug.max' => 'El enlace no puede superar los 120 caracteres.',
-                'slug.regex' => 'Solo minúsculas, números y guiones (ej: punto-de-calma).',
-                'slug.unique' => 'El enlace ya está siendo usado. Prueba con otro.',
-                'slug.alpha_dash' => 'Solo letras, números y guiones.',
-
-                'reference_prefix.required' => 'El prefijo es obligatorio.',
-                'reference_prefix.min' => 'Mínimo 2 caracteres.',
-                'reference_prefix.max' => 'Máximo 5 caracteres.',
-                'reference_prefix.regex' => 'Solo letras mayúsculas y números (ej: PDC).',
-                'reference_prefix.alpha_dash' => 'Solo letras, números y guiones.',
-            ]
-        );
-
-        // Bloquear campo críticos
-        unset(
-            //$data['slug'],
-            //$data['reference_prefix'],
-            $data['organization_id'],
-            $data['is_primary'],
-            $data['locked_by_plan']
-        );
-
-
-        $branch->update($data);
-
-        return response()->json([
-            'data' => [
-                'id' => $branch->id,
-                'name' => $branch->name,
-                'slug' => $branch->slug,
-                'reference_prefix' => $branch->reference_prefix,
-
-                'address' => $branch->address,
-                'city' => $branch->city,
-                'state' => $branch->state,
-                'country' => $branch->country,
-                'zip_code' => $branch->zip_code,
-
-                'phone' => $branch->phone,
-                'email' => $branch->email,
-                'website' => $branch->website,
-
-                'is_active' => (bool) $branch->is_active,
-                'is_primary' => (bool) $branch->is_primary,
-                'locked_by_plan' => (bool) $branch->locked_by_plan,
-
-                'timezone' => $branch->timezone,
-            ]
-        ]);
     }
 
     /*

@@ -20,10 +20,22 @@ return new class extends Migration
                 ->default('active')
                 ->after('password');
             $table->boolean('is_super_admin')->default(false)->after('status');
-            $table->string('company')->nullable()->after('is_super_admin');
-            $table->json('address')->nullable()->after('company');
-            //$table->boolean('email_verified')->default(false)->after('address');
+            $table->json('address')->nullable()->after('is_super_admin');
             $table->timestamp('last_login_at')->nullable()->after('address');
+
+            // Legal
+            $table->boolean('accepted_terms')->default(false)->after('last_login_at');
+            $table->timestamp('accepted_terms_at')->nullable()->after('accepted_terms');
+            $table->string('accepted_terms_ip', 45)->nullable()->after('accepted_terms_at');
+            $table->string('legal_version', 20)->nullable()->after('accepted_terms_ip');
+
+            // Marketing
+            $table->boolean('accept_marketing')->default(false)->after('legal_version');
+            $table->timestamp('accept_marketing_at')->nullable()->after('accept_marketing');
+            $table->string('accept_marketing_ip', 45)->nullable()->after('accept_marketing_at');
+
+            //
+            
         });
     }
 

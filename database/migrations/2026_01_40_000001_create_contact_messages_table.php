@@ -21,10 +21,13 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
+
             // Datos del remitente
             $table->string('first_name', 250);
             $table->string('last_name', 100)->nullable();
             $table->string('email', 150);
+
+            $table->string('business_name', 150)->nullable();
 
             $table->string('subject', 150)->nullable();
 
@@ -32,6 +35,10 @@ return new class extends Migration
             $table->json('services')->nullable();
 
             $table->text('message');
+
+            $table->json('custom_fields')->nullable();
+
+            $table->string('source', 50)->nullable();
 
             $table->enum('status', ['new', 'read', 'replied', 'archived'])
                 ->default('new');

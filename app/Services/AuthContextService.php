@@ -8,13 +8,24 @@ use App\Models\User;
 
 use Illuminate\Support\Facades\Storage;
 
+use Illuminate\Support\Facades\Log;
+
 class AuthContextService
 {
-    public function build(User $user)
+    public function build(User $user, $X_OrganizationId = null, $X_SubsystemId = null)
     {
         $user->load([
             'staff'
         ]);
+
+        Log::info(
+            'OmData',
+            [
+                'organizacion' => $X_OrganizationId,
+                'system' => $X_SubsystemId,
+            ]
+        );
+
 
         /*
         |----------------------------------------------------------------------
@@ -70,6 +81,7 @@ class AuthContextService
                         ->map(fn($access) => [
                             'branch_id' => $access->branch->id,
                             'branch_name' => $access->branch->name,
+                            'branch_slug' => $access->branch->slug,
                             'branch_primary' => $access->branch->is_primary,
                             'branch_is_active' => $access->branch->is_active,
                             'branch_locked_by_plan' => $access->branch->locked_by_plan,
@@ -116,6 +128,7 @@ class AuthContextService
                             'id' => $orgSubsystem->subsystem->id,
                             'key' => $orgSubsystem->subsystem->key,
                             'name' => $orgSubsystem->subsystem->name,
+                            'is_selectable' => $orgSubsystem->subsystem->is_selectable,
                         ],
 
                         'plan' => $plan ? [
@@ -146,9 +159,41 @@ class AuthContextService
         | 🔥 Organización actual (puedes mejorar esto luego)
         |----------------------------------------------------------------------
         */
-        $organization = $user->organizations()
-            ->wherePivot('status', 'active')
-            ->first();
+
+        if ($X_OrganizationId) {
+
+            $organization = $user->organizations()
+                ->where('organizations.id', $X_OrganizationId)
+                ->wherePivot('status', 'active')
+                ->first();
+        } else {
+
+            $organization = $user->organizations()
+                ->wherePivot('status', 'active')
+                ->first();
+        }
+
+
+        // Verificar implementacion
+        if ($X_OrganizationId) {
+            $systems = $systems->where(
+                'organization_id',
+                (int) $X_OrganizationId
+            );
+        }
+
+        if ($X_SubsystemId) {
+            $systems = $systems->where(
+                'subsystem.id',
+                (int) $X_SubsystemId
+            );
+        }
+
+        $systems = $systems->values();
+        // FIN Verificar implementacion
+
+
+
 
         return [
             'user' => [
@@ -167,13 +212,16 @@ class AuthContextService
                 'name' => $organization->name,
 
                 'slug' => $organization->slug,
+                'reference_prefix' => $organization->reference_prefix,
+                'online_booking_enabled' => $organization->online_booking_enabled,
 
                 'business_niche' => $organization->business_niche,
                 'business_subniche' => $organization->business_subniche,
 
-                'logo_url' => $organization->logo_url
+                /*'logo_url' => $organization->logo_url
                 ? url(Storage::url($organization->logo_url))
-                : null,
+                : null,*/
+                'logo_url' => $organization->logo_url,
 
                 'onboarding_step' => $organization->onboarding_step,
                 'onboarding_completed_at' => $organization->onboarding_completed_at,
