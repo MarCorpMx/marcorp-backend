@@ -7,16 +7,27 @@ use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\Branch;
 
-use App\Models\Subsystem;
-use App\Models\Plan;
 
 use App\Http\Resources\PublicBooking\PublicBookingBranchResource;
+use App\Http\Resources\PublicBooking\PublicBookingBranchCardResource;
 use App\Http\Resources\PublicBooking\PublicBookingOrganizationResource;
 
+use App\Services\Organization\OrganizationPlanService;
+
+use Illuminate\Support\Facades\Log;
 
 
 class PublicBookingEntryController extends Controller
 {
+
+    protected OrganizationPlanService $planService;
+
+    public function __construct(
+        OrganizationPlanService $planService
+    ) {
+        $this->planService = $planService;
+    }
+
     /*
     |--------------------------------------------------------------------------
     | bookingPublico/{organization}
@@ -30,31 +41,27 @@ class PublicBookingEntryController extends Controller
             ->where('is_active', true)
             ->get();
 
-        // 🔥 Obtener subsystem (citas)
-        $subsystem = Subsystem::where('key', 'citas')->first();
+        $plan = $this->planService
+            ->getPlan(
+                $organization,
+                'citas'
+            );
 
-        if (!$subsystem) {
-            //$this->error('Subsystem citas no existe');
-            return;
-        }
-
-        // 🔥 Obtener plan
-        $planKey = 2; // hardcodeado, no sirve
-        $plan = Plan::where('key', $planKey)
-            ->where('subsystem_id', $subsystem->id)
-            ->first();
-
-        if (!$plan) {
-            //$this->error('Plan no encontrado');
-            return;
-        }
 
         return response()->json([
             'organization' => new PublicBookingOrganizationResource($organization),
 
-            'plan' => 'perfecciongray',
+            'plan' => [
 
-            'branches' => PublicBookingBranchResource::collection($branches)
+                'key' => $plan?->key,
+
+                'is_free' => $plan?->key === 'free',
+
+                'is_internal' => $organization->is_internal
+
+            ],
+
+            'branches' => PublicBookingBranchCardResource::collection($branches)
         ]);
     }
 
@@ -68,25 +75,41 @@ class PublicBookingEntryController extends Controller
         Organization $organization,
         Branch $branch
     ) {
+
         if ($branch->organization_id !== $organization->id) {
             abort(404);
         }
 
+        if (
+            $branch->organization_id !== $organization->id ||
+            !$branch->is_active
+        ) {
+            abort(404);
+        }
+
+
+        $plan = $this->planService
+            ->getPlan(
+                $organization,
+                'citas'
+            );
+
+
         return response()->json([
-            'organization' => [
-                'id' => $organization->id,
-                'name' => $organization->name,
-                'slug' => $organization->slug,
+            'organization' => new PublicBookingOrganizationResource($organization),
+            
+            'branch' => new PublicBookingBranchResource($branch),
+            
+            'plan' => [
+
+                'key' => $plan?->key,
+
+                'is_free' => $plan?->key === 'free',
+
+                'is_internal' => $organization->is_internal
+
             ],
 
-            'branch' => [
-                'id' => $branch->id,
-                'name' => $branch->name,
-                'slug' => $branch->slug,
-                'city' => $branch->city,
-            ],
-
-            'services' => []
         ]);
     }
 }

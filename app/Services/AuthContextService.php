@@ -18,14 +18,6 @@ class AuthContextService
             'staff'
         ]);
 
-        Log::info(
-            'OmData',
-            [
-                'organizacion' => $X_OrganizationId,
-                'system' => $X_SubsystemId,
-            ]
-        );
-
 
         /*
         |----------------------------------------------------------------------

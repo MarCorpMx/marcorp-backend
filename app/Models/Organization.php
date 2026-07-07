@@ -354,4 +354,31 @@ class Organization extends Model
             'onboarding_step' => $step
         ]);
     }
+
+    // Plan activo
+    public function getSubsystemSubscription(string $subsystemKey): ?OrganizationSubsystem
+    {
+        return $this->organizationSubsystems()
+            ->whereHas('subsystem', function ($q) use ($subsystemKey) {
+                $q->where('key', $subsystemKey);
+            })
+            ->with(['plan', 'subsystem'])
+            ->first();
+    }
+
+    // Plan
+    public function getPlanForSubsystem(string $subsystemKey): ?Plan
+    {
+        $subscription = $this->getSubsystemSubscription($subsystemKey);
+
+        return $subscription?->plan;
+    }
+
+    // Saber si es free
+    public function isFreePlan(string $subsystemKey): bool
+    {
+        $plan = $this->getPlanForSubsystem($subsystemKey);
+
+        return $plan?->key === 'free';
+    }
 }

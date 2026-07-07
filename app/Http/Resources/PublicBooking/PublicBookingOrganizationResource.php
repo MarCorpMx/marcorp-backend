@@ -18,6 +18,7 @@ class PublicBookingOrganizationResource extends JsonResource
             'business_niche' => $this->business_niche,
 
             'status' => $this->status,
+
             'online_booking_enabled' => $this->online_booking_enabled,
             'online_booking_disabled_message' => $this->online_booking_disabled_message,
 
@@ -29,9 +30,6 @@ class PublicBookingOrganizationResource extends JsonResource
             'primary_color' => $this->primary_color,
             'secondary_color' => $this->secondary_color,
             'white_label' => $this->white_label,
-
-            'rating' => data_get($this->metadata, 'rating'),
-            'reviews_count' => data_get($this->metadata, 'reviews_count'),
 
             'timezone' => $this->timezone,
 

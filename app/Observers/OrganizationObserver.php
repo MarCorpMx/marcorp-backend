@@ -13,6 +13,7 @@ class OrganizationObserver
     public function created(Organization $organization): void
     {
         Branch::firstOrCreate(
+        //Branch::updateOrCreate(
             [
                 'organization_id' => $organization->id,
                 'is_primary' => true,
@@ -42,7 +43,7 @@ class OrganizationObserver
 
                 'primary_color' => $organization->primary_color,
                 'secondary_color' => $organization->secondary_color,
-                'logo_url' => $organization->logo_url,
+                'logo_url' => $organization->getRawOriginal('logo_url'),
 
                 'theme_key' => $organization->theme_key,
             ]

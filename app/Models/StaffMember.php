@@ -109,9 +109,17 @@ class StaffMember extends Model
     }
 
     // Configuración de agenda (1 a 1)
-    public function agendaSettings()
+    /*public function agendaSettings()
     {
         return $this->hasMany(StaffMemberAgendaSetting::class);
+    }*/
+
+    public function agendaSettings()
+    {
+        return $this->hasMany(
+            StaffMemberAgendaSetting::class,
+            'staff_member_id'
+        );
     }
 
     // Días no laborables

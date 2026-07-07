@@ -31,6 +31,10 @@ use App\Http\Controllers\Api\ScheduleSettingController; // Verificar uso
 
 // Rutas para Booking publico
 use App\Http\Controllers\Api\PublicBooking\PublicBookingEntryController;
+use App\Http\Controllers\Api\PublicBooking\PublicBookingServicesController;
+use App\Http\Controllers\Api\PublicBooking\PublicBookingAvailabilityController;
+use App\Http\Controllers\Api\PublicBooking\PublicBookingTimeslotController;
+
 
 // Publicos
 use App\Http\Controllers\Api\Public\PublicPlansController;
@@ -456,6 +460,40 @@ Route::prefix('v1/public-booking')
         )->missing(function () {
             abort(404, 'La organización solicitada no existe');
         });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Branch - services-variant
+        |--------------------------------------------------------------------------
+        */
+        Route::get(
+            '{organization:slug}/{branch:slug}/services',
+            [PublicBookingServicesController::class, 'services']
+        )->missing(function () {
+            abort(404, 'La organización solicitada no existe');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Variant availability - el calendario de días
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            'variants/{variant}/availability',
+            [PublicBookingAvailabilityController::class, 'availability']
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Variant availability - fecha y hora concreta
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            'variants/{variant}/timeslots',
+            [PublicBookingTimeslotController::class, 'timeslots']
+        );
     });
 
 

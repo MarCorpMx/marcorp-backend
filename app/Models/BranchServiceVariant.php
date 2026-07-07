@@ -100,6 +100,20 @@ class BranchServiceVariant extends Model
         );
     }
 
+    public function staffMembers()
+    {
+        return $this->belongsToMany(
+            StaffMember::class,
+            'branch_service_variant_staff',
+            'branch_service_variant_id',
+            'staff_member_id'
+        )
+            ->withPivot([
+                'active',
+                'sort_order'
+            ]);
+    }
+
     public function staffAssignments()
     {
         return $this->hasMany(

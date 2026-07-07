@@ -8,6 +8,7 @@ class OrganizationSubsystem extends Model
 {
     protected $table = 'organization_subsystems';
 
+
     protected $fillable = [
         'organization_id',
         'subsystem_id',
@@ -29,6 +30,13 @@ class OrganizationSubsystem extends Model
         'is_paid' => 'boolean',
         'metadata' => 'array',
     ];
+
+
+    // constantes
+    const STATUS_TRIAL = 'trial';
+    const STATUS_ACTIVE = 'active';
+    const STATUS_SUSPENDED = 'suspended';
+    const STATUS_CANCELLED = 'cancelled';
 
     /* =====================
      | Relaciones
@@ -61,5 +69,22 @@ class OrganizationSubsystem extends Model
     public function scopeTrial($query)
     {
         return $query->where('status', 'trial');
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_ACTIVE,
+            self::STATUS_TRIAL
+        ]);
+    }
+
+    public function isExpired(): bool
+    {
+        if (!$this->expires_at) {
+            return false;
+        }
+
+        return now()->greaterThan($this->expires_at);
     }
 }
